@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1F4E79">
 <title>PI & PO Maker</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root {
   --primary: #1F4E79;
@@ -6342,6 +6343,9 @@ const renderSettingsData = (biz) => {
   dc.appendChild(el("div", { style: { fontSize: "12px", fontWeight: 600, color: "var(--muted)", margin: "10px 0 6px" } }, "Full backup"));
   dc.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "8px" }, onclick: exportBackup }, "\u{1F4E5} Export backup (JSON)"));
   dc.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "16px" }, onclick: importBackup }, "\u{1F4E4} Import backup (JSON)"));
+  dc.appendChild(el("div", { style: { fontSize: "12px", fontWeight: 600, color: "var(--muted)", margin: "10px 0 6px" } }, "Google Drive"));
+  dc.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "8px" }, onclick: (e) => gdriveBackup(e.currentTarget) }, "\u2601\uFE0F Back up to Google Drive"));
+  dc.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "16px" }, onclick: (e) => gdriveRestore(e.currentTarget) }, "\u2601\uFE0F Restore from Google Drive"));
   dc.appendChild(el("div", { style: { fontSize: "12px", fontWeight: 600, color: "var(--danger, #dc2626)", margin: "10px 0 6px" } }, "Danger zone"));
   dc.appendChild(el("button", { class: "btn btn-danger btn-full", onclick: () => {
     confirmModal(
@@ -8339,6 +8343,87 @@ const shareWhatsApp = (d, cust, biz) => {
   if (d.status === "Draft") { d.status = "Sent"; saveDB(); }
 };
 
+// ==================== GOOGLE DRIVE BACKUP ====================
+const GDRIVE_CLIENT_ID = "875334449474-2uqcceb5134tbpbk0e2spv67c5ah4muh.apps.googleusercontent.com";
+const GDRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const GDRIVE_FILENAME = "pipomaker_backup.json";
+let _gdriveToken = null;
+
+// Get an access token (opens Google's consent popup the first time).
+const gdriveAuth = () => new Promise((resolve, reject) => {
+  if (!window.google || !google.accounts || !google.accounts.oauth2) {
+    reject(new Error("Google sign-in not loaded — check your connection")); return;
+  }
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GDRIVE_CLIENT_ID, scope: GDRIVE_SCOPE,
+    callback: (resp) => { if (resp && resp.access_token) { _gdriveToken = resp.access_token; resolve(resp.access_token); } else reject(new Error("Authorization failed")); },
+    error_callback: () => reject(new Error("Authorization cancelled")),
+  });
+  client.requestAccessToken({ prompt: _gdriveToken ? "" : "consent" });
+});
+
+// Find our existing backup file id (drive.file only sees files we created).
+const gdriveFindFile = async (token) => {
+  const q = encodeURIComponent(`name='${GDRIVE_FILENAME}' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`, { headers: { Authorization: "Bearer " + token } });
+  const data = await res.json();
+  return (data.files && data.files[0] && data.files[0].id) || null;
+};
+
+const gdriveBackup = async (btn) => {
+  const orig = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; btn.textContent = "Connecting…"; }
+  try {
+    const token = await gdriveAuth();
+    if (btn) btn.textContent = "Uploading…";
+    const content = JSON.stringify(db);
+    const existingId = await gdriveFindFile(token);
+    const metadata = { name: GDRIVE_FILENAME, mimeType: "application/json" };
+    const boundary = "-------pipo" + Date.now();
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`;
+    const url = existingId
+      ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart`
+      : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
+    const res = await fetch(url, {
+      method: existingId ? "PATCH" : "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": `multipart/related; boundary=${boundary}` },
+      body,
+    });
+    if (!res.ok) throw new Error("Upload failed (" + res.status + ")");
+    toast("Backed up to Google Drive", "ok", 5000);
+  } catch (e) {
+    toast(e.message || "Drive backup failed", "err", 5000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+  }
+};
+
+const gdriveRestore = async (btn) => {
+  const orig = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; btn.textContent = "Connecting…"; }
+  try {
+    const token = await gdriveAuth();
+    if (btn) btn.textContent = "Fetching…";
+    const id = await gdriveFindFile(token);
+    if (!id) { toast("No backup found in Drive", "err"); return; }
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, { headers: { Authorization: "Bearer " + token } });
+    if (!res.ok) throw new Error("Download failed");
+    const imported = JSON.parse(await res.text());
+    if (!imported.businesses) throw new Error("Backup file is invalid");
+    confirmModal(
+      "This replaces all current data with the backup from Google Drive. Your current data will be lost.",
+      () => { db = imported; saveDB(); render(); toast("Restored from Google Drive"); },
+      { title: "Replace all data?", confirmLabel: "Replace data" }
+    );
+  } catch (e) {
+    toast(e.message || "Drive restore failed", "err", 5000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+  }
+};
+
 // ==================== BACKUP ====================
 const exportBackup = async () => {
   const filename = `pipomaker_backup_${today()}.json`;
@@ -8409,14 +8494,23 @@ render();
     aicon.rel = "apple-touch-icon"; aicon.href = icon; document.head.appendChild(aicon);
 
     if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-      const sw = 'const C="pipo-v1";'
-        + 'self.addEventListener("install",e=>self.skipWaiting());'
+      const here = location.pathname;
+      const sw = 'const C="pipo-v2";const APP=' + JSON.stringify(here) + ';'
+        + 'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.add(APP).catch(()=>{})));});'
         + 'self.addEventListener("activate",e=>e.waitUntil(self.clients.claim()));'
         + 'self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;'
+        // Navigations (opening the app) → serve cached page when offline.
+        + 'if(e.request.mode==="navigate"){e.respondWith(fetch(e.request).then(r=>{caches.open(C).then(c=>c.put(APP,r.clone()));return r;}).catch(()=>caches.match(APP).then(h=>h||caches.match(e.request))));return;}'
+        // Everything else → cache-first, fall back to network.
         + 'e.respondWith(caches.open(C).then(c=>c.match(e.request).then(h=>'
         + 'h||fetch(e.request).then(r=>{try{c.put(e.request,r.clone());}catch(_){ }return r;}).catch(()=>h))));});';
       const swUrl = URL.createObjectURL(new Blob([sw], { type: "text/javascript" }));
       navigator.serviceWorker.register(swUrl).catch(()=>{});
+      // Also cache this exact page now, so it's available offline even before
+      // the SW's install cache completes.
+      if ("caches" in window) {
+        caches.open("pipo-v2").then(c => c.add(location.href).catch(()=>{})).catch(()=>{});
+      }
     }
   } catch(e) { /* best-effort */ }
 })();
