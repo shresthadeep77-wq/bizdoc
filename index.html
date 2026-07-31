@@ -5742,11 +5742,11 @@ const comboField = (label, key, obj, suggestions = [], opts = {}) => {
 };
 
 const checkboxField = (label, key, obj, onChange) => {
-  const f = el("div", { class: "toggle-row" });
+  const f = el("label", { class: "toggle-row", style: { cursor: "pointer" } });
   const cb = el("input", { type: "checkbox", onchange: (e) => { obj[key] = e.target.checked; if (onChange) onChange(); } });
   if (obj[key]) cb.checked = true;
   f.appendChild(cb);
-  f.appendChild(el("label", { style: { marginBottom: 0 } }, label));
+  f.appendChild(el("span", { style: { marginBottom: 0 } }, label));
   return f;
 };
 
@@ -6413,11 +6413,13 @@ const attemptClose = () => {
 // mid-way through building) reappears exactly as you left it.
 const closeModal = () => {
   const bg = modalStack.pop();
-  // Remove just this modal's DOM node instead of re-rendering the whole app.
-  // A full render() rebuilds any modal still open underneath (the doc builder,
-  // a preview) from scratch — losing scroll position and unsaved field state.
   if (bg && bg.parentNode) bg.parentNode.removeChild(bg);
-  if (!modalStack.length) document.body.classList.remove("modal-open");
+  if (!modalStack.length) {
+    document.body.classList.remove("modal-open");
+    // Nothing left open — refresh the underlying view so edits made in the
+    // modal show immediately (no page reload needed).
+    render();
+  }
 };
 
 // Physical/gesture back button: close whatever modal chain is open instead of
@@ -6634,7 +6636,7 @@ const offerRateUpdate = (product, oldRate, newRate) => {
 const openProductModal = (existing) => {
   const data = existing ? { ...existing } : {
     partNumber: "", description: "", unit: "pcs", rate: 0, weight: 0,
-    taxable: true, hsn: "", notes: "", businessId: db.activeBusinessId,
+    taxable: true, rateIncludesVat: false, hsn: "", notes: "", businessId: db.activeBusinessId,
     category: "", subCategory1: "", subCategory2: "", subCategory3: "",
     packQty: 0, packUnit: "box", rateBasis: "pcs", kgRate: 0
   };
@@ -6707,18 +6709,18 @@ const openProductModal = (existing) => {
   const drawPricingFields = () => {
     pricingFields.innerHTML = "";
     if (data.rateBasis === "kg") {
+      const computedLine = el("div", { style: { fontSize: "12px", color: "var(--muted)", marginTop: "-6px", marginBottom: "8px" } });
+      const refreshComputed = () => {
+        data.rate = +((Number(data.kgRate) || 0) * (Number(data.weight) || 0)).toFixed(2);
+        const c = (Number(data.kgRate) || 0) * (Number(data.weight) || 0);
+        computedLine.textContent = c > 0 ? `= ${activeBiz()?.currency || ""} ${fmt(c)} per pcs (used on documents)` : "Enter both kg rate and weight per pcs.";
+      };
       const kgRow = el("div", { class: "row" });
-      kgRow.appendChild(inputField("Rate (per kg) *", "kgRate", data, {
-        type: "number", onInput: () => { data.rate = +((Number(data.kgRate) || 0) * (Number(data.weight) || 0)).toFixed(2); drawPricingFields(); }
-      }));
-      kgRow.appendChild(inputField("Weight (kg per pcs) *", "weight", data, {
-        type: "number", hint: "Also used for gross weight on docs",
-        onInput: () => { data.rate = +((Number(data.kgRate) || 0) * (Number(data.weight) || 0)).toFixed(2); drawPricingFields(); }
-      }));
+      kgRow.appendChild(inputField("Rate (per kg) *", "kgRate", data, { type: "number", onInput: refreshComputed }));
+      kgRow.appendChild(inputField("Weight (kg per pcs) *", "weight", data, { type: "number", hint: "Also used for gross weight on docs", onInput: refreshComputed }));
       pricingFields.appendChild(kgRow);
-      const computed = (Number(data.kgRate) || 0) * (Number(data.weight) || 0);
-      pricingFields.appendChild(el("div", { style: { fontSize: "12px", color: "var(--muted)", marginTop: "-6px", marginBottom: "8px" } },
-        computed > 0 ? `= ${activeBiz()?.currency || ""} ${fmt(computed)} per pcs (used on documents)` : "Enter both kg rate and weight per pcs."));
+      refreshComputed();
+      pricingFields.appendChild(computedLine);
       pricingFields.appendChild(inputField("HSN Code", "hsn", data));
     } else {
       const row = el("div", { class: "row" });
@@ -6730,7 +6732,16 @@ const openProductModal = (existing) => {
   };
   drawPricingFields();
   wrap.appendChild(pricingBox);
-  wrap.appendChild(checkboxField("Taxable", "taxable", data));
+  const vatIncF = checkboxField("Rate includes VAT", "rateIncludesVat", data);
+  const syncVatInc = () => {
+    const cb = vatIncF.querySelector("input");
+    cb.disabled = !data.taxable;
+    vatIncF.style.opacity = data.taxable ? "1" : ".45";
+    if (!data.taxable) { data.rateIncludesVat = false; cb.checked = false; }
+  };
+  wrap.appendChild(checkboxField("Taxable", "taxable", data, syncVatInc));
+  wrap.appendChild(vatIncF);
+  syncVatInc();
 
   // Auto-apply the category's saved default rate basis for brand-new products
   // once a category is chosen (never overrides a value the user already touched).
@@ -6901,17 +6912,29 @@ const repriceLineItems = () => {
 
 const recomputeTotals = () => {
   const t = docBuilder.totals;
-  t.subtotal = docBuilder.lineItems.reduce((s, li) => s + (li.qty * li.rate), 0);
-  // Total discount given (builder feedback + reporting only; never printed).
+  const r = (t.taxRate || 0) / 100;
+  const sep = !!docBuilder.separateVat;
+  let base = 0, taxableBase = 0, tax = 0;
+  docBuilder.lineItems.forEach(li => {
+    const line = li.qty * li.rate;
+    if (sep && li.taxable && li.rateIncludesVat && r > 0) {
+      const b = line / (1 + r); base += b; taxableBase += b; tax += line - b;
+    } else if (sep && li.taxable) {
+      base += line; taxableBase += line; tax += line * r;
+    } else {
+      base += line; if (li.taxable) taxableBase += line;
+    }
+  });
+  if (!sep) tax = taxableBase * r;
+  t.subtotal = base;
   t.discountGiven = docBuilder.lineItems.reduce((s, li) => {
     const list = Number(li.listRate);
     if (!list && list !== 0) return s;
     return s + (li.qty * Math.max(0, list - li.rate));
   }, 0);
-  t.taxable = docBuilder.lineItems.filter(li => li.taxable).reduce((s, li) => s + (li.qty * li.rate), 0);
-  t.tax = t.taxable * (t.taxRate / 100);
+  t.taxable = taxableBase;
+  t.tax = tax;
   t.total = t.subtotal + t.tax + Number(t.delivery || 0) + Number(t.freight || 0) + Number(t.insurance || 0) + Number(t.legal || 0) + Number(t.inspection || 0) + Number(t.other1 || 0) + Number(t.other2 || 0);
-  // Auto gross weight
   const gw = docBuilder.lineItems.reduce((s, li) => s + (li.qty * (li.weight || 0)), 0);
   if (gw > 0 && !docBuilder.shipping._userSetWeight) docBuilder.shipping.grossWeight = gw.toFixed(2) + " kg";
 };
@@ -7038,11 +7061,11 @@ const openDocBuilder = () => {
       row.appendChild(el("div", { class: "li-num" }, String(idx + 1)));
       row.appendChild(el("input", { class: "li-desc", placeholder: "Description", "aria-label": "Description", value: li.description, oninput: (e) => { li.description = e.target.value; }}));
       row.appendChild(el("input", { class: "li-unit", placeholder: "Unit", "aria-label": "Unit", value: li.unit, oninput: (e) => { li.unit = e.target.value; }}));
-      row.appendChild(el("input", { class: "li-qty", type: "number", inputmode: "decimal", placeholder: "Qty", "aria-label": "Quantity", value: li.qty, oninput: (e) => { li.qty = parseFloat(e.target.value) || 0; recomputeTotals(); updateTotals(); if (docBuilder.shipping._userSetWeight === false || !docBuilder.shipping._userSetWeight) updateGross(); }}));
+      row.appendChild(el("input", { class: "li-qty", type: "number", inputmode: "decimal", placeholder: "Qty", "aria-label": "Quantity", value: li.qty, oninput: (e) => { li.qty = parseFloat(e.target.value) || 0; recomputeTotals(); refreshTotals(); if (docBuilder.shipping._userSetWeight === false || !docBuilder.shipping._userSetWeight) updateGross(); }}));
       row.appendChild(el("input", { class: "li-rate", type: "number", inputmode: "decimal", placeholder: "Rate", "aria-label": "Rate", value: li.rate, oninput: (e) => {
         li.rate = parseFloat(e.target.value) || 0;
         li.manualRate = true; // don't overwrite a hand-typed rate on reprice
-        recomputeTotals(); updateTotals(); rerenderNote(idx);
+        recomputeTotals(); refreshTotals(); rerenderNote(idx);
       }}));
       row.appendChild(el("button", { class: "remove-btn", title: "Remove line", onclick: () => { docBuilder.lineItems.splice(idx, 1); recomputeTotals(); rerenderLI(); updateTotals(); updateGross(); }}, "×"));
       liList.appendChild(row);
@@ -7115,7 +7138,7 @@ const openDocBuilder = () => {
       rate: netRate, listRate: listRate, discountPct: pct,
       catPath: productPath(p),
       packQty: Number(p.packQty) || 0, packUnit: p.packUnit || "", packs: Number(packs) || 0,
-      taxable: p.taxable, weight: p.weight || 0
+      taxable: p.taxable, rateIncludesVat: !!p.rateIncludesVat, weight: p.weight || 0
     });
     recomputeTotals(); rerenderLI(); updateTotals(); updateGross();
     const packNote = packs ? ` (${packs} ${p.packUnit || "box"})` : "";
@@ -7323,34 +7346,37 @@ const openDocBuilder = () => {
   wrap.appendChild(liCard);
 
   wrap = steps.charges;
+  wrap.appendChild(checkboxField("Separate VAT from prices", "separateVat", docBuilder, () => { recomputeTotals(); updateTotals(); }));
   // Totals
   const totCard = el("div", { class: "card totals" });
   const totCt = el("div", { id: "tot-ct" });
+  const totDisplays = {};
   const updateTotals = () => {
     totCt.innerHTML = "";
     const t = docBuilder.totals;
     if (docBuilder._onTotals) docBuilder._onTotals();
-    const rowT = (l, v) => {
+    const rowT = (l, v, key) => {
       const r = el("div", { class: "totals-row" });
       r.appendChild(el("div", {}, l));
-      r.appendChild(el("div", {}, `${docBuilder.currency} ${fmt(v)}`));
+      const ve = el("div", {}, `${docBuilder.currency} ${fmt(v)}`);
+      if (key) totDisplays[key] = ve;
+      r.appendChild(ve);
       return r;
     };
     const rowInp = (l, k) => {
       const r = el("div", { class: "totals-row" });
       r.appendChild(el("div", {}, l));
-      const i = el("input", { type: "number", value: t[k] || 0, style: { width: "100px", textAlign: "right" }, oninput: (e) => { t[k] = parseFloat(e.target.value) || 0; recomputeTotals(); updateTotals(); }});
+      const i = el("input", { type: "number", inputmode: "decimal", value: t[k] || 0, style: { width: "100px", textAlign: "right" }, oninput: (e) => { t[k] = parseFloat(e.target.value) || 0; recomputeTotals(); refreshTotals(); }});
       r.appendChild(i);
       return r;
     };
-    totCt.appendChild(rowT("Subtotal", t.subtotal));
-    totCt.appendChild(rowT("Taxable", t.taxable));
+    totCt.appendChild(rowT("Subtotal", t.subtotal, "subtotal"));
+    totCt.appendChild(rowT("Taxable", t.taxable, "taxable"));
     const taxRow = el("div", { class: "totals-row" });
     taxRow.appendChild(el("div", {}, "Tax rate %"));
-    taxRow.appendChild(el("input", { type: "number", value: t.taxRate, style: { width: "100px", textAlign: "right" }, oninput: (e) => { t.taxRate = parseFloat(e.target.value) || 0; recomputeTotals(); updateTotals(); }}));
+    taxRow.appendChild(el("input", { type: "number", inputmode: "decimal", value: t.taxRate, style: { width: "100px", textAlign: "right" }, oninput: (e) => { t.taxRate = parseFloat(e.target.value) || 0; recomputeTotals(); refreshTotals(); }}));
     totCt.appendChild(taxRow);
-    totCt.appendChild(rowT("Tax", t.tax));
-    // Delivery applies locally, so it shows on quotations too (unlike export freight).
+    totCt.appendChild(rowT("Tax", t.tax, "tax"));
     totCt.appendChild(rowInp("Delivery", "delivery"));
     if (docBuilder.type !== "QT") {
       totCt.appendChild(rowInp("Freight", "freight"));
@@ -7358,11 +7384,22 @@ const openDocBuilder = () => {
       totCt.appendChild(rowInp("Legal/Consular", "legal"));
       totCt.appendChild(rowInp("Inspection/Cert.", "inspection"));
     }
-    totCt.appendChild(rowT("TOTAL", t.total));
+    totCt.appendChild(rowT("TOTAL", t.total, "total"));
     const gr = el("div", { class: "totals-row grand" });
     gr.appendChild(el("div", {}, "GRAND TOTAL"));
-    gr.appendChild(el("div", {}, `${docBuilder.currency} ${fmt(t.total)}`));
+    const grv = el("div", {}, `${docBuilder.currency} ${fmt(t.total)}`);
+    totDisplays.grand = grv;
+    gr.appendChild(grv);
     totCt.appendChild(gr);
+  };
+  const refreshTotals = () => {
+    const t = docBuilder.totals;
+    if (docBuilder._onTotals) docBuilder._onTotals();
+    if (totDisplays.subtotal) totDisplays.subtotal.textContent = `${docBuilder.currency} ${fmt(t.subtotal)}`;
+    if (totDisplays.taxable) totDisplays.taxable.textContent = `${docBuilder.currency} ${fmt(t.taxable)}`;
+    if (totDisplays.tax) totDisplays.tax.textContent = `${docBuilder.currency} ${fmt(t.tax)}`;
+    if (totDisplays.total) totDisplays.total.textContent = `${docBuilder.currency} ${fmt(t.total)}`;
+    if (totDisplays.grand) totDisplays.grand.textContent = `${docBuilder.currency} ${fmt(t.total)}`;
   };
   updateTotals();
   totCard.appendChild(totCt);
@@ -7427,6 +7464,60 @@ const openDocBuilder = () => {
   expFields.appendChild(inputField("Reason for Export", "reason", docBuilder.additional));
   expWrap.appendChild(expFields);
   wrap.appendChild(expWrap);
+
+  // Terms of Sale — toggle + editable text (defaults to on).
+  if (docBuilder.showTerms === undefined) docBuilder.showTerms = true;
+  if (!docBuilder.terms) docBuilder.terms = activeBiz().terms || "";
+  const termsWrap = el("div", { class: "card", style: { padding: "12px", background: "#f9fafb" } });
+  termsWrap.appendChild(checkboxField("Show Terms of Sale & other comments", "showTerms", docBuilder, () => {
+    termsBody.style.display = docBuilder.showTerms ? "" : "none";
+  }));
+  const termsBody = el("div", { style: { display: docBuilder.showTerms ? "" : "none" } });
+  const bizPresets = (activeBiz().termsPresets || []);
+  if (bizPresets.length) {
+    const pickRow = el("div", { style: { display: "flex", gap: "6px", marginBottom: "8px" } });
+    const sel = el("select", { style: { flex: "1" } });
+    sel.appendChild(el("option", { value: "" }, "Apply a saved preset…"));
+    bizPresets.forEach((p, i) => sel.appendChild(el("option", { value: String(i) }, p.name)));
+    pickRow.appendChild(sel);
+    pickRow.appendChild(el("button", { class: "btn btn-secondary", type: "button", style: { flex: "none" }, onclick: () => {
+      if (sel.value === "") return;
+      docBuilder.terms = bizPresets[Number(sel.value)].text;
+      const ta = termsBody.querySelector("textarea");
+      if (ta) ta.value = docBuilder.terms;
+      sel.value = "";
+    }}, "Apply"));
+    termsBody.appendChild(pickRow);
+  }
+  termsBody.appendChild(inputField("Terms text", "terms", docBuilder, { textarea: true, rows: 4 }));
+  termsWrap.appendChild(termsBody);
+  wrap.appendChild(termsWrap);
+
+  // Banking details — off unless the user turns it on and picks an account.
+  const banks = Array.isArray(activeBiz().banks) ? activeBiz().banks.filter(b => b.bankName || b.accountNumber) : [];
+  if (docBuilder.showBanks === undefined) docBuilder.showBanks = false;
+  const bankWrap = el("div", { class: "card", style: { padding: "12px", background: "#f9fafb" } });
+  bankWrap.appendChild(checkboxField("Show banking details", "showBanks", docBuilder, () => {
+    bankBody.style.display = docBuilder.showBanks ? "" : "none";
+  }));
+  const bankBody = el("div", { style: { display: docBuilder.showBanks ? "" : "none" } });
+  if (!banks.length) {
+    bankBody.appendChild(el("div", { style: { fontSize: "12px", color: "var(--muted)" } }, "No bank accounts saved. Add one in Settings → Bank accounts."));
+  } else {
+    const bf = el("div", { class: "field" });
+    bf.appendChild(el("label", {}, "Account to show"));
+    const bs = el("select", { onchange: (e) => docBuilder.bankId = e.target.value || "" });
+    bs.appendChild(el("option", { value: "" }, "All accounts"));
+    banks.forEach(b => {
+      const o = el("option", { value: b.id }, [b.bankName, b.accountNumber].filter(Boolean).join(" — "));
+      if (docBuilder.bankId === b.id) o.selected = true;
+      bs.appendChild(o);
+    });
+    bf.appendChild(bs);
+    bankBody.appendChild(bf);
+  }
+  bankWrap.appendChild(bankBody);
+  wrap.appendChild(bankWrap);
 
   // Status
   const stField = el("div", { class: "field" });
@@ -7778,7 +7869,14 @@ const renderPreview = (d, biz, cust) => {
     r.appendChild(el("td", {}, li.unit));
     if (!hidePrices) {
       r.appendChild(el("td", { class: "num" }, fmt(li.rate)));
-      r.appendChild(el("td", { style: { textAlign: "center" } }, li.taxable ? "X" : ""));
+      const sep = !!d.separateVat;
+      const tr = (d.totals && d.totals.taxRate || 0) / 100;
+      let taxCell = li.taxable ? "X" : "";
+      if (sep && li.taxable && tr > 0) {
+        const perUnit = li.rateIncludesVat ? (li.rate - li.rate / (1 + tr)) : (li.rate * tr);
+        taxCell = fmt(perUnit);
+      }
+      r.appendChild(el("td", { class: sep ? "num" : "", style: sep ? {} : { textAlign: "center" } }, taxCell));
       r.appendChild(el("td", { class: "num" }, fmt(li.qty * li.rate)));
     }
     return r;
@@ -7823,6 +7921,7 @@ const renderPreview = (d, biz, cust) => {
   };
 
   const buildTermsBlock = () => {
+    if (d.showTerms === false) return null;
     if (!d.terms || !d.terms.trim()) return null;
     const terms = el("div", { class: "pv-terms" });
     terms.appendChild(el("div", { class: "pv-terms-hdr" }, "TERMS OF SALE AND OTHER COMMENTS"));
@@ -7833,6 +7932,7 @@ const renderPreview = (d, biz, cust) => {
   };
 
   const buildBanksBlock = () => {
+    if (!d.showBanks) return null;
     let banksToShow = Array.isArray(biz.banks) ? biz.banks.filter(b => b.bankName || b.accountName || b.accountNumber || b.notes) : [];
     if (d.bankId) {
       const only = banksToShow.filter(b => b.id === d.bankId);
@@ -8052,14 +8152,6 @@ const renderPreview = (d, biz, cust) => {
       // Only pad if we're on a page WITH finish sections (i.e. the last one) AND
       // the item count is small enough that padding won't push finish sections
       // off the page.
-      if (hasFinish && rowCount < 8 && distribution.length === 1) {
-        const padTo = Math.min(12, 8);
-        for (let i = rowCount; i < padTo; i++) {
-          const r = el("tr");
-          for (let j = 0; j < 7; j++) r.appendChild(el("td", {}, "\u00A0"));
-          tbody.appendChild(r);
-        }
-      }
       page.appendChild(itemsTable);
       itemStart += rowCount;
 
