@@ -3499,6 +3499,9 @@ const el = (tag, props = {}, ...kids) => {
     else if (k === "style") Object.assign(e.style, v);
     else if (k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(), v);
     else if (k === "html") e.innerHTML = v;
+    // A textarea's text lives in its content, not a value attribute — setting
+    // the attribute silently leaves the box empty. Assign the property instead.
+    else if (k === "value" && tag === "textarea") e.value = v ?? "";
     else if (v !== null && v !== undefined) e.setAttribute(k, v);
   }
   for (const k of kids.flat()) {
