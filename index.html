@@ -4500,8 +4500,6 @@ const downloadReportPDF = async (elm, filename, btn) => {
   const original = btn ? btn.innerHTML : null;
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Generating…'; }
   try {
-    if (typeof html2canvas === "undefined") await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
-    if (typeof window.jspdf === "undefined") await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
     const { jsPDF } = window.jspdf;
     const canvas = await html2canvas(elm, { scale: 2, backgroundColor: "#fff" });
     const img = canvas.toDataURL("image/jpeg", 0.92);
@@ -4819,6 +4817,7 @@ const openMoveProductsModal = (targetPath) => {
 };
 
 // ==================== CSV EXPORT / IMPORT ====================
+
 // ==================== KEYBOARD SHORTCUTS ====================
 // Escape closes the top modal, "/" jumps to the visible search box, and Enter
 // submits a form's primary action when you're not in a textarea.
@@ -5757,6 +5756,9 @@ const renderBusinessForm = (existing, onSave) => {
     piFormat: "{YYYY}{####}", poFormat: "PO-{YYYY}-{####}", qtFormat: "QT-{YYYY}-{####}",
     nextPi: 1, nextPo: 1, nextQt: 1, nextInv: 1, nextDn: 1, currency: "NPR", taxRate: 13, terms: "1. Payment Terms: 20% advance, 80% after production.\n2. The above rates include VAT and discount.",
     shortCode: "", banks: [], termsPresets: [], saveFolder: "", piValidityDays: 5, poValidityDays: 30, qtValidityDays: 15, defaultShipNote: "to be discussed",
+    // Pre-selected on every new document; both can be overridden in the builder.
+    // defaultBankId "" means "show all accounts".
+    defaultBankId: "", defaultTermsPresetId: "",
     units: ["pcs", "kg", "set", "box", "m", "ft", "litre", "bundle"]
   };
   // Migrate legacy single "bank" text field into the new banks array, once.
@@ -5909,16 +5911,31 @@ const renderBusinessForm = (existing, onSave) => {
       namedList.appendChild(el("div", { style: { fontSize: "12px", color: "var(--muted)", marginBottom: "6px" } }, "No saved presets yet — write your terms above, then save them with a name."));
     }
     data.termsPresets.forEach((p, i) => {
+      const isDefault = data.defaultTermsPresetId === p.id;
       const row = el("div", { class: "list-item", style: { padding: "9px 12px" } });
       const info = el("div", { class: "info", style: { cursor: "pointer" }, onclick: () => {
         data.terms = p.text; termsTa.value = p.text; toast(`Applied "${p.name}"`);
       } });
-      info.appendChild(el("div", { class: "name" }, p.name));
+      const nameRow = el("div", { class: "name" }, p.name);
+      if (isDefault) nameRow.appendChild(el("span", { style: { marginLeft: "6px", fontSize: "10px", fontWeight: 700, color: "var(--primary)", letterSpacing: ".03em" } }, "DEFAULT"));
+      info.appendChild(nameRow);
       info.appendChild(el("div", { class: "sub" }, `${p.text.split("\n").filter(Boolean).length} line${p.text.split("\n").filter(Boolean).length === 1 ? "" : "s"}`));
       row.appendChild(info);
       const actions = el("div", { class: "actions" });
+      // Star chooses which preset pre-fills new documents. Tapping the current
+      // default clears it, falling back to the "Default Terms of Sale" text above.
+      actions.appendChild(el("button", { class: "btn-icon", type: "button", title: isDefault ? "Remove as default" : "Use as default on new documents", onclick: () => {
+        data.defaultTermsPresetId = isDefault ? "" : p.id;
+        if (!isDefault) { data.terms = p.text; termsTa.value = p.text; }
+        drawNamed();
+        toast(isDefault ? "Default cleared" : `"${p.name}" is now the default`);
+      } }, isDefault ? "⭐" : "☆"));
       actions.appendChild(el("button", { class: "btn-icon", type: "button", title: "Apply", onclick: () => { data.terms = p.text; termsTa.value = p.text; toast(`Applied "${p.name}"`); } }, "\u2705"));
-      actions.appendChild(el("button", { class: "btn-icon danger", type: "button", title: "Delete preset", onclick: () => { data.termsPresets.splice(i, 1); drawNamed(); } }, "🗑️"));
+      actions.appendChild(el("button", { class: "btn-icon danger", type: "button", title: "Delete preset", onclick: () => {
+        if (data.defaultTermsPresetId === p.id) data.defaultTermsPresetId = "";
+        data.termsPresets.splice(i, 1);
+        drawNamed();
+      } }, "🗑️"));
       row.appendChild(actions);
       namedList.appendChild(row);
     });
@@ -6020,6 +6037,27 @@ const renderBusinessForm = (existing, onSave) => {
   const maskAcct = (n) => { const s = String(n || "").trim(); return s.length > 4 ? "•••• " + s.slice(-4) : s; };
   let expandedId = null;
 
+  // Which account is pre-selected on new documents. Redrawn alongside the list
+  // so adding or removing an account keeps the options in sync.
+  const defaultBankBox = el("div", { style: { marginTop: "10px" } });
+  const renderDefaultBank = () => {
+    defaultBankBox.innerHTML = "";
+    const filled = data.banks.filter(isBankFilled);
+    if (!filled.length) return;
+    if (data.defaultBankId && !filled.some(b => b.id === data.defaultBankId)) data.defaultBankId = "";
+    defaultBankBox.appendChild(el("label", {}, "Default account on new documents"));
+    const sel = el("select", { onchange: (e) => data.defaultBankId = e.target.value });
+    sel.appendChild(el("option", { value: "" }, "All accounts"));
+    filled.forEach(b => {
+      const o = el("option", { value: b.id }, [b.bankName, maskAcct(b.accountNumber)].filter(Boolean).join(" — ") || "Bank account");
+      if (data.defaultBankId === b.id) o.selected = true;
+      sel.appendChild(o);
+    });
+    defaultBankBox.appendChild(sel);
+    defaultBankBox.appendChild(el("div", { style: { fontSize: "11px", color: "var(--muted)", marginTop: "4px" } },
+      "Banking details are shown by default; you can switch accounts or hide them on any document."));
+  };
+
   const renderBanksList = () => {
     banksList.innerHTML = "";
     if (data.banks.length === 0) {
@@ -6089,9 +6127,11 @@ const renderBusinessForm = (existing, onSave) => {
       card.appendChild(qrChip);
       banksList.appendChild(card);
     });
+    renderDefaultBank();
   };
   renderBanksList();
   banksBox.appendChild(banksList);
+  banksBox.appendChild(defaultBankBox);
   banksBox.appendChild(el("button", { class: "btn btn-secondary btn-full", type: "button", onclick: () => {
     const b = { id: uid("bank"), bankName: "", accountName: "", accountNumber: "", branch: "", swift: "", bankCode: "", notes: "", showQR: true };
     data.banks.push(b);
@@ -6833,6 +6873,16 @@ const openBulkProductModal = () => {
 };
 
 // ==================== DOCUMENT BUILDER ====================
+// A business's starting terms text: the preset marked as default in Settings,
+// falling back to the free-text "Default Terms of Sale".
+const defaultTermsFor = (biz) => {
+  const preset = (biz.termsPresets || []).find(p => p.id === biz.defaultTermsPresetId);
+  return (preset ? preset.text : biz.terms) || "";
+};
+
+// Does this business have at least one usable bank account?
+const hasUsableBank = (biz) => (biz.banks || []).some(b => b.bankName || b.accountName || b.accountNumber);
+
 const startNewDoc = (type) => {
   const biz = activeBiz();
   const cfg = DOC_TYPES[type];
@@ -6845,12 +6895,15 @@ const startNewDoc = (type) => {
     date: today(),
     expiryDate: cfg.hasExpiry ? addDays(today(), Number(biz[cfg.validityKey] ?? cfg.defaultValidity) || cfg.defaultValidity) : "",
     customerId: null,
-    bankId: null,
+    // Defaults from Settings; both are changeable in the builder's Details step.
+    bankId: biz.defaultBankId || null,
+    showBanks: hasUsableBank(biz),
+    showTerms: true,
     status: "Draft",
     currency: biz.currency,
     lineItems: [],
     totals: { subtotal: 0, taxable: 0, taxRate: biz.taxRate || 0, tax: 0, delivery: 0, freight: 0, insurance: 0, legal: 0, inspection: 0, other1: 0, other1Label: "", other2: 0, other2Label: "", total: 0 },
-    terms: biz.terms || "",
+    terms: defaultTermsFor(biz),
     shipping: { deliveryLocation: "", freightType: "land", shipDate: biz.defaultShipNote || "to be discussed", grossWeight: "", cubicWeight: "", totalPackages: "" },
     showExport: false,
     additional: { origin: "NEPAL", embarkation: "", discharge: "", reason: "" },
@@ -7008,23 +7061,9 @@ const openDocBuilder = () => {
   custField.appendChild(custSel);
   wrap.appendChild(custField);
 
-  // Bank account selector — pick which bank account shows on this document.
-  // Defaults to "All" (every account), preserving prior behavior.
-  const bizBanks = (activeBiz().banks || []).filter(b => b.bankName || b.accountName || b.accountNumber);
-  if (bizBanks.length) {
-    const bankField = el("div", { class: "field" });
-    bankField.appendChild(el("label", {}, "Bank account on document"));
-    const bankSel = el("select", { onchange: (e) => { docBuilder.bankId = e.target.value || null; } });
-    bankSel.appendChild(el("option", { value: "" }, bizBanks.length > 1 ? "All bank accounts" : "Show bank account"));
-    bizBanks.forEach(b => {
-      const label = [b.bankName, b.accountNumber ? "— " + b.accountNumber : ""].filter(Boolean).join(" ");
-      const o = el("option", { value: b.id }, label || "Bank account");
-      if (docBuilder.bankId === b.id) o.selected = true;
-      bankSel.appendChild(o);
-    });
-    bankField.appendChild(bankSel);
-    wrap.appendChild(bankField);
-  }
+  // Bank account is chosen in the Details step, pre-filled from the business
+  // default — it used to be duplicated here, where it had no effect unless
+  // "Show banking details" was also ticked further along.
 
   // Shipping details — available for every document type.
   let grossInp = null;
@@ -7467,7 +7506,7 @@ const openDocBuilder = () => {
 
   // Terms of Sale — toggle + editable text (defaults to on).
   if (docBuilder.showTerms === undefined) docBuilder.showTerms = true;
-  if (!docBuilder.terms) docBuilder.terms = activeBiz().terms || "";
+  if (!docBuilder.terms) docBuilder.terms = defaultTermsFor(activeBiz());
   const termsWrap = el("div", { class: "card", style: { padding: "12px", background: "#f9fafb" } });
   termsWrap.appendChild(checkboxField("Show Terms of Sale & other comments", "showTerms", docBuilder, () => {
     termsBody.style.display = docBuilder.showTerms ? "" : "none";
@@ -7493,9 +7532,11 @@ const openDocBuilder = () => {
   termsWrap.appendChild(termsBody);
   wrap.appendChild(termsWrap);
 
-  // Banking details — off unless the user turns it on and picks an account.
+  // Banking details — on by default whenever the business has an account saved,
+  // pre-selected to the Settings default. Both are overridable per document.
   const banks = Array.isArray(activeBiz().banks) ? activeBiz().banks.filter(b => b.bankName || b.accountNumber) : [];
-  if (docBuilder.showBanks === undefined) docBuilder.showBanks = false;
+  if (docBuilder.showBanks === undefined) docBuilder.showBanks = hasUsableBank(activeBiz());
+  if (docBuilder.bankId === undefined || docBuilder.bankId === null) docBuilder.bankId = activeBiz().defaultBankId || "";
   const bankWrap = el("div", { class: "card", style: { padding: "12px", background: "#f9fafb" } });
   bankWrap.appendChild(checkboxField("Show banking details", "showBanks", docBuilder, () => {
     bankBody.style.display = docBuilder.showBanks ? "" : "none";
@@ -8244,9 +8285,6 @@ const withScalerReset = async (el, fn) => {
 // Captures each .pv-page and stitches into one tall PNG for sharing on
 // WhatsApp/messaging. For single-page docs, output is identical to before.
 const capturePreviewAsCanvas = async (previewEl) => {
-  if (typeof html2canvas === "undefined") {
-    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
-  }
   const pageCanvases = await captureBookPages(previewEl);
   if (pageCanvases.length === 1) return pageCanvases[0];
   // Stitch vertically with thin separators.
@@ -8295,12 +8333,6 @@ const downloadPDF = async (previewEl, d, btn) => {
   const original = btn ? btn.innerHTML : null;
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Generating…'; }
   try {
-    if (typeof html2canvas === "undefined") {
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
-    }
-    if (typeof window.jspdf === "undefined") {
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-    }
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const pageW = pdf.internal.pageSize.getWidth();  // 210
@@ -8338,10 +8370,6 @@ const downloadPDF = async (previewEl, d, btn) => {
     if (btn) { btn.disabled = false; btn.innerHTML = original; }
   }
 };
-
-const loadScript = (src) => new Promise((res, rej) => {
-  const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s);
-});
 
 // Message body shared alongside the document image.
 const shareMessage = (d, cust, biz) => {
@@ -8607,5 +8635,6 @@ render();
   } catch(e) { /* best-effort */ }
 })();
 </script>
+
 </body>
 </html>
