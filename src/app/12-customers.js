@@ -65,10 +65,11 @@ const openBulkCustomerModal = () => {
   wrap.appendChild(ta);
   const result = el("div", { style: { fontSize: "12px", color: "var(--muted)", marginTop: "8px" } });
   wrap.appendChild(result);
-  wrap.appendChild(el("button", { class: "btn btn-primary btn-full", style: { marginTop: "12px" }, onclick: () => {
+  wrap.appendChild(el("button", { class: "btn btn-primary btn-full", style: { marginTop: "12px" }, onclick: async (e) => {
     const lines = ta.value.split("\n").map(l => l.trim()).filter(Boolean);
+    if (!lines.length) { toast("Paste some lines first", "err"); return; }
     let added = 0, skipped = 0;
-    lines.forEach(line => {
+    await runBulk(e.currentTarget, "Adding", lines, (line) => {
       const parts = line.split(",").map(p => p.trim());
       const [companyName, contactName = "", phone = "", addr1 = "", addr2 = "", vatNo = "", email = "", regNo = "", eximCode = "", country = "NEPAL"] = parts;
       if (!companyName || !phone) { skipped++; return; }

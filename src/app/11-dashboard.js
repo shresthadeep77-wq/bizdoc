@@ -60,18 +60,16 @@ const openMoveCustomersModal = (ids) => {
   wrap.appendChild(sel);
   const bar = el("div", { class: "action-bar" });
   bar.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Cancel"));
-  bar.appendChild(el("button", { class: "btn btn-primary", onclick: () => {
+  bar.appendChild(el("button", { class: "btn btn-primary", onclick: async (e) => {
     const targetId = sel.value;
-    let n = 0;
-    db.customers.forEach(c => {
-      if (!ids.includes(c.id)) return;
+    const targets = db.customers.filter(c => ids.includes(c.id));
+    await runBulk(e.currentTarget, "Moving", targets, (c) => {
       c.businessId = targetId;
       db.documents.forEach(d => { if (d.customerId === c.id) d.businessId = targetId; });
-      n++;
     });
     saveDB(); bulkSel.ids.clear(); closeModal(); render();
-    toast(`Moved ${n} customer${n === 1 ? "" : "s"}`);
-  }}, "Move")); 
+    toast(`Moved ${targets.length} customer${targets.length === 1 ? "" : "s"}`);
+  }}, "Move"));
   wrap.appendChild(bar);
   openModal("Move customers", wrap);
 };

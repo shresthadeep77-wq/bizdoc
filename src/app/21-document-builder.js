@@ -89,6 +89,119 @@ const repriceLineItems = () => {
   return changed;
 };
 
+const clampPct = (v) => Math.min(100, Math.max(0, Number(v) || 0));
+
+// Re-price one line from its own list rate at the given discount %. Clears the
+// "typed by hand" flag, since the rate is derived again from here on.
+const applyLineDiscount = (li, pct, rateInp) => {
+  const list = Number(li.listRate);
+  if (!isFinite(list)) return;
+  const p = clampPct(pct);
+  li.discountPct = p;
+  li.rate = p ? +(list * (1 - p / 100)).toFixed(2) : list;
+  li.manualRate = false;
+  if (rateInp) rateInp.value = li.rate;
+};
+
+// Bump (or clear) the discount on every line in the document that belongs to a
+// category — the mid-document "actually, give them another 5% on all fittings"
+// move. Optionally writes the new % back to the customer's rate card so their
+// next document starts from it.
+const openDocDiscountModal = (onApplied) => {
+  const priced = (docBuilder.lineItems || []).filter(li => isFinite(Number(li.listRate)));
+  if (!priced.length) { toast("Add catalogue products first — ad-hoc lines have no list price", "err"); return; }
+
+  // One editable row per distinct category path present in the document.
+  const groups = [];
+  const byKey = new Map();
+  priced.forEach(li => {
+    const path = (li.catPath || []).filter(Boolean);
+    const key = pathKey(path);
+    let g = byKey.get(key);
+    if (!g) { g = { key, path, items: [], pct: null, mixed: false }; byKey.set(key, g); groups.push(g); }
+    const p = Number(li.discountPct) || 0;
+    if (g.pct === null) g.pct = p;
+    else if (g.pct !== p) g.mixed = true;
+    g.items.push(li);
+  });
+  groups.sort((a, b) => a.key.localeCompare(b.key));
+
+  const cust = db.customers.find(c => c.id === docBuilder.customerId);
+  const state = { save: !!cust };
+  const wrap = el("div");
+  wrap.appendChild(el("div", { style: { fontSize: "12px", color: "var(--muted)", marginBottom: "10px" } },
+    "Set the discount per category. Every matching line is re-priced from its product's list rate."));
+
+  // "Set every category to this %" shortcut.
+  const allRow = el("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" } });
+  allRow.appendChild(el("div", { style: { fontSize: "12.5px", fontWeight: 600, flex: "1" } }, "Set every category to"));
+  const allInp = el("input", { type: "number", inputmode: "decimal", min: "0", max: "100", step: "0.5",
+    placeholder: "%", style: { width: "68px", flex: "none", textAlign: "right" } });
+  allRow.appendChild(allInp);
+  allRow.appendChild(el("button", { class: "btn btn-secondary", type: "button", style: { flex: "none", fontSize: "12px", padding: "7px 12px" },
+    onclick: () => {
+      const v = parseFloat(allInp.value);
+      if (isNaN(v)) { toast("Type a % first", "err"); return; }
+      groups.forEach(g => { g.pct = clampPct(v); g.mixed = false; });
+      drawRows();
+    } }, "Apply to all"));
+  wrap.appendChild(allRow);
+
+  const list = el("div", { class: "picker-list", style: { maxHeight: "300px" } });
+  const drawRows = () => {
+    list.innerHTML = "";
+    groups.forEach(g => {
+      const row = el("div", { class: "rule-row", style: { padding: "9px 10px" } });
+      row.appendChild(el("div", { style: { fontWeight: 600, fontSize: "12.5px" } }, g.key || "Uncategorised items"));
+      const sub = el("div", { class: "rule-subrow" });
+      const n = g.items.length;
+      sub.appendChild(el("div", { style: { fontSize: "10.5px", color: "var(--muted)", flex: "1", minWidth: "0" } },
+        `${n} line${n === 1 ? "" : "s"}${g.mixed ? " • currently mixed" : ""}`));
+      const pctInp = el("input", { type: "number", inputmode: "decimal", min: "0", max: "100", step: "0.5", value: g.pct || 0,
+        style: { width: "52px", flex: "none", textAlign: "right", border: "none", padding: "0", background: "transparent" } });
+      pctInp.addEventListener("input", (e) => { g.pct = clampPct(parseFloat(e.target.value) || 0); g.mixed = false; });
+      sub.appendChild(el("div", { class: "pct-group" }, [pctInp, el("span", {}, "%")]));
+      row.appendChild(sub);
+      list.appendChild(row);
+    });
+  };
+  drawRows();
+  wrap.appendChild(list);
+
+  if (cust) {
+    wrap.appendChild(checkboxField(`Also save these % to ${cust.companyName}'s rate card`, "save", state));
+    wrap.appendChild(el("div", { style: { fontSize: "11px", color: "var(--muted)", marginTop: "-4px" } },
+      "Their next document starts from these discounts. Uncategorised lines can't become a rule."));
+  }
+
+  const bar = el("div", { class: "action-bar" });
+  bar.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Cancel"));
+  bar.appendChild(el("button", { class: "btn btn-primary", onclick: async (e) => {
+    const targets = groups.flatMap(g => g.items.map(li => ({ li, pct: clampPct(g.pct) })));
+    await runBulk(e.currentTarget, "Re-pricing", targets, ({ li, pct }) => applyLineDiscount(li, pct));
+    let savedRules = 0;
+    if (state.save && cust) {
+      if (!Array.isArray(cust.discountRules)) cust.discountRules = [];
+      groups.forEach(g => {
+        if (!g.path.length) return;
+        const pct = clampPct(g.pct);
+        const rule = cust.discountRules.find(r => pathKey(r.path) === g.key);
+        if (rule) { if (rule.pct !== pct) { rule.pct = pct; savedRules++; } }
+        else { cust.discountRules.push({ path: g.path.slice(), pct }); savedRules++; }
+      });
+    }
+    saveDB();
+    closeModal();
+    if (onApplied) onApplied();
+    const n = targets.length;
+    toast(savedRules
+      ? `Re-priced ${n} line${n === 1 ? "" : "s"} — rate card updated`
+      : `Re-priced ${n} line${n === 1 ? "" : "s"}`);
+  } }, "Apply discounts"));
+  wrap.appendChild(bar);
+  openModal("Update discounts", wrap);
+};
+
 const recomputeTotals = () => {
   const t = docBuilder.totals;
   const r = (t.taxRate || 0) / 100;
@@ -160,6 +273,7 @@ const openDocBuilder = () => {
     docBuilder.customerId = parseInt(e.target.value);
     const n = repriceLineItems();
     renderResults();
+    drawNpDisc();
     if (n) { recomputeTotals(); rerenderLI(); updateTotals(); toast(`${n} line${n === 1 ? "" : "s"} re-priced for this customer`); }
   }});
   const custSearch = el("input", { placeholder: "🔍 Search " + DOC_TYPES[docBuilder.type].partyLabel.toLowerCase() + "...", style: { marginBottom: "8px" } });
@@ -215,9 +329,11 @@ const openDocBuilder = () => {
   const liCard = el("div", { class: "card", style: { padding: "12px" } });
   liCard.appendChild(el("div", { style: { fontWeight: 600, marginBottom: 8 } }, "Line items"));
   const liList = el("div", { id: "li-list" });
+  const rateInputs = []; // per-line rate <input>, so the discount control can update it in place
   const rerenderLI = () => {
     if (docBuilder._onTotals) docBuilder._onTotals();
     liList.innerHTML = "";
+    rateInputs.length = 0;
     const hdr = el("div", { class: "li-header" });
     ["#", "Description", "Unit", "Qty", "Rate", ""].forEach(t => hdr.appendChild(el("div", {}, t)));
     liList.appendChild(hdr);
@@ -227,40 +343,67 @@ const openDocBuilder = () => {
       row.appendChild(el("input", { class: "li-desc", placeholder: "Description", "aria-label": "Description", value: li.description, oninput: (e) => { li.description = e.target.value; }}));
       row.appendChild(el("input", { class: "li-unit", placeholder: "Unit", "aria-label": "Unit", value: li.unit, oninput: (e) => { li.unit = e.target.value; }}));
       row.appendChild(el("input", { class: "li-qty", type: "number", inputmode: "decimal", placeholder: "Qty", "aria-label": "Quantity", value: li.qty, oninput: (e) => { li.qty = parseFloat(e.target.value) || 0; recomputeTotals(); refreshTotals(); if (docBuilder.shipping._userSetWeight === false || !docBuilder.shipping._userSetWeight) updateGross(); }}));
-      row.appendChild(el("input", { class: "li-rate", type: "number", inputmode: "decimal", placeholder: "Rate", "aria-label": "Rate", value: li.rate, oninput: (e) => {
+      const rateInp = el("input", { class: "li-rate", type: "number", inputmode: "decimal", placeholder: "Rate", "aria-label": "Rate", value: li.rate, oninput: (e) => {
         li.rate = parseFloat(e.target.value) || 0;
         li.manualRate = true; // don't overwrite a hand-typed rate on reprice
         recomputeTotals(); refreshTotals(); rerenderNote(idx);
-      }}));
+      }});
+      rateInputs[idx] = rateInp;
+      row.appendChild(rateInp);
       row.appendChild(el("button", { class: "remove-btn", title: "Remove line", onclick: () => { docBuilder.lineItems.splice(idx, 1); recomputeTotals(); rerenderLI(); updateTotals(); updateGross(); }}, "×"));
       liList.appendChild(row);
       // Builder-only discount note. Never printed — the document stays silent.
       const note = el("div", { class: "li-note", id: `li-note-${idx}` });
       liList.appendChild(note);
-      drawNote(note, li);
+      drawNote(note, li, rateInp);
     });
   };
-  // Renders the small under-row hint showing what discount was applied.
-  function drawNote(note, li) {
+  // The under-row hint: pack conversion plus an editable discount % for lines
+  // that came from the catalogue, so a rate can be re-cut without retyping it.
+  function drawNote(note, li, rateInp) {
     note.innerHTML = "";
     if (Number(li.packQty) > 0) {
       const packs = li.qty / li.packQty;
-      note.appendChild(el("span", { class: "pack-chip", style: { marginRight: "6px" } },
+      note.appendChild(el("span", { class: "pack-chip" },
         `${Number.isInteger(packs) ? packs : packs.toFixed(2)} ${li.packUnit || "box"} × ${li.packQty} ${li.unit}`));
     }
+    const list = Number(li.listRate);
+    const hasList = isFinite(list);
     if (li.manualRate) {
       note.appendChild(el("span", { class: "li-note-manual" }, "rate set manually"));
+      if (hasList) {
+        note.appendChild(el("button", { type: "button", class: "li-note-reset", title: "Go back to the list price and its discount",
+          onclick: () => {
+            applyLineDiscount(li, li.discountPct || 0, rateInp);
+            recomputeTotals(); refreshTotals();
+            drawNote(note, li, rateInp);
+          } }, "back to list price"));
+      }
       return;
     }
-    if (li.discountPct) {
-      note.appendChild(el("span", { class: "li-note-disc" }, `list ${fmt(li.listRate)} → ${fmt(li.rate)} (−${li.discountPct}%)`));
-    } else if (li.listRate !== undefined) {
-      note.appendChild(el("span", { class: "li-note-none" }, "no discount rule"));
-    }
+    if (!hasList) { note.appendChild(el("span", { class: "li-note-none" }, "ad-hoc line — no list price")); return; }
+    const priceTxt = el("span", {});
+    const redraw = () => {
+      priceTxt.className = li.discountPct ? "li-note-disc" : "li-note-none";
+      priceTxt.textContent = li.discountPct
+        ? `list ${fmt(list)} → ${fmt(li.rate)} (−${li.discountPct}%)`
+        : `list ${fmt(list)} — no discount`;
+    };
+    redraw();
+    note.appendChild(priceTxt);
+    const pctInp = el("input", { type: "number", inputmode: "decimal", min: "0", max: "100", step: "0.5",
+      value: li.discountPct || 0, "aria-label": "Discount % on this line" });
+    pctInp.addEventListener("input", (e) => {
+      applyLineDiscount(li, parseFloat(e.target.value) || 0, rateInp);
+      redraw();
+      recomputeTotals(); refreshTotals();
+    });
+    note.appendChild(el("div", { class: "pct-group li-note-pct", title: "Discount % on this line" },
+      [pctInp, el("span", {}, "% off")]));
   }
   function rerenderNote(idx) {
     const note = document.getElementById(`li-note-${idx}`);
-    if (note) drawNote(note, docBuilder.lineItems[idx]);
+    if (note) drawNote(note, docBuilder.lineItems[idx], rateInputs[idx]);
   }
   const updateGross = () => {
     if (!docBuilder.shipping._userSetWeight) {
@@ -270,6 +413,21 @@ const openDocBuilder = () => {
   };
   rerenderLI();
   liCard.appendChild(liList);
+
+  // Whole-list tools. "Update discounts" is the one that matters mid-document:
+  // the customer negotiates another few % on a category and every matching line
+  // is re-cut from its list rate in one go.
+  const liTools = el("div", { style: { display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" } });
+  liTools.appendChild(el("button", { class: "btn btn-secondary", type: "button", style: { flex: "none", fontSize: "12px", padding: "7px 12px" },
+    onclick: () => openDocDiscountModal(() => { recomputeTotals(); rerenderLI(); updateTotals(); }) },
+    "\u{1F3F7}️ Update discounts…"));
+  liTools.appendChild(el("button", { class: "btn btn-secondary", type: "button", style: { flex: "none", fontSize: "12px", padding: "7px 12px" },
+    onclick: () => {
+      const n = repriceLineItems();
+      recomputeTotals(); rerenderLI(); updateTotals();
+      toast(n ? `${n} line${n === 1 ? "" : "s"} reset to the rate card` : "Already matching the rate card");
+    } }, "↺ Reset to rate card"));
+  liCard.appendChild(liTools);
 
   // Add line item — segmented: Existing product / New product
   const addWrap = el("div", { style: { marginTop: 10 } });
@@ -285,8 +443,8 @@ const openDocBuilder = () => {
   const prodSearch = el("input", { placeholder: "🔍 Search products by name, part no, category...", style: { marginBottom: "8px" } });
   existingPane.appendChild(prodSearch);
 
-  // Category quick-filter chips (only if categories exist)
-  const pickerCats = Array.from(new Set(bizProducts().map(p => p.category).filter(Boolean))).sort();
+  // Category quick-filter chips. Redrawn whenever the catalogue changes, so a
+  // category invented in the "New product" pane shows up immediately.
   let activePickCat = "";
   const catChipRow = el("div", { style: { display: "flex", flexWrap: "wrap", gap: "5px", marginBottom: "8px" } });
   const results = el("div", { class: "prod-results" });
@@ -377,20 +535,19 @@ const openDocBuilder = () => {
     });
   };
 
-  if (pickerCats.length) {
-    const mkChip = (label, val) => {
-      const chip = el("button", { type: "button", class: "pick-chip" + (activePickCat === val ? " active" : ""), onclick: () => {
-        activePickCat = val;
-        catChipRow.querySelectorAll(".pick-chip").forEach(c => c.classList.remove("active"));
-        chip.classList.add("active");
-        renderResults();
-      }}, label);
-      return chip;
-    };
+  const drawCatChips = () => {
+    catChipRow.innerHTML = "";
+    const cats = Array.from(new Set(bizProducts().map(p => p.category).filter(Boolean))).sort();
+    if (!cats.length) return;
+    const mkChip = (label, val) => el("button", {
+      type: "button", class: "pick-chip" + (activePickCat === val ? " active" : ""),
+      onclick: () => { activePickCat = val; drawCatChips(); renderResults(); }
+    }, label);
     catChipRow.appendChild(mkChip("All", ""));
-    pickerCats.forEach(c => catChipRow.appendChild(mkChip(c, c)));
-    existingPane.appendChild(catChipRow);
-  }
+    cats.forEach(c => catChipRow.appendChild(mkChip(c, c)));
+  };
+  drawCatChips();
+  existingPane.appendChild(catChipRow);
 
   const qtyHintRow = el("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px", fontSize: "12px", color: "var(--muted)" } });
   qtyHintRow.appendChild(el("span", {}, "Default qty:"));
@@ -401,40 +558,83 @@ const openDocBuilder = () => {
   existingPane.appendChild(results);
   renderResults();
 
-  // Compatibility shim: the "new product" save handler calls fillProdSel() to
-  // refresh the picker after adding to the catalog. Re-render the results list.
-  const fillProdSel = () => renderResults();
+  // Called after the "new product" pane adds to the catalogue — the picker's
+  // results and its category chips both need to know about it.
+  const fillProdSel = () => { drawCatChips(); renderResults(); };
 
   addWrap.appendChild(existingPane);
 
   // --- Pane: new / ad-hoc product ---
   const newPane = el("div", { class: "seg-pane", style: { display: "none" } });
-  const np = { description: "", unit: "pcs", qty: 1, rate: 0, weight: 0, taxable: true, saveToCatalog: true };
+  const np = { description: "", unit: "pcs", qty: 1, rate: 0, weight: 0, taxable: true, saveToCatalog: true,
+    category: "", subCategory1: "", subCategory2: "", subCategory3: "" };
   const npDescField = el("div", { class: "field" });
   npDescField.appendChild(el("label", {}, "Description *"));
   const npDesc = el("input", { placeholder: "e.g. 4 inch PVC pipe", value: np.description, oninput: (e) => np.description = e.target.value });
   npDescField.appendChild(npDesc);
   newPane.appendChild(npDescField);
+
+  // Category / sub-categories. Without these a product invented mid-document
+  // lands outside the tree, misses its level's units, and is quoted at list
+  // price even when the customer's rate card covers that category.
+  const npUnit = el("select");
+  const npDiscNote = el("div", { class: "li-note", style: { padding: "0 0 8px", marginTop: "0" } });
+  const refreshNpUnits = () => {
+    const path = productPath(np);
+    const opts = unitsForCategoryPath(path);
+    const def = defaultUnitForCategoryPath(path);
+    if (def && opts.includes(def)) np.unit = def;
+    if (!opts.includes(np.unit)) np.unit = opts[0] || "pcs";
+    npUnit.innerHTML = "";
+    opts.forEach(u => {
+      const o = el("option", { value: u }, u);
+      if (np.unit === u) o.selected = true;
+      npUnit.appendChild(o);
+    });
+  };
+  const drawNpDisc = () => {
+    npDiscNote.innerHTML = "";
+    if (!docBuilder.customerId) {
+      npDiscNote.appendChild(el("span", { class: "li-note-none" }, "Pick the customer first to see their category discount."));
+      return;
+    }
+    const { pct } = resolveDiscount(np, customerRules(docBuilder.customerId));
+    if (!pct) { npDiscNote.appendChild(el("span", { class: "li-note-none" }, "No category discount for this customer.")); return; }
+    const net = +((Number(np.rate) || 0) * (1 - pct / 100)).toFixed(2);
+    npDiscNote.appendChild(el("span", { class: "li-note-disc" },
+      `${pct}% off this category → ${activeBiz().currency} ${fmt(net)}/${np.unit}`));
+  };
+  const onNpCat = () => { refreshNpUnits(); drawNpDisc(); };
+  const npSuggest = (k) => bizProducts().map(p => p[k]).filter(Boolean);
+  newPane.appendChild(el("div", { class: "row" }, [
+    comboField("Category", "category", np, npSuggest("category"), { placeholder: "e.g. PVC", onChange: onNpCat }),
+    comboField("Sub Category 1", "subCategory1", np, npSuggest("subCategory1"), { onChange: onNpCat }),
+  ]));
+  newPane.appendChild(el("div", { class: "row" }, [
+    comboField("Sub Category 2", "subCategory2", np, npSuggest("subCategory2"), { onChange: onNpCat }),
+    comboField("Sub Category 3", "subCategory3", np, npSuggest("subCategory3"), { onChange: onNpCat }),
+  ]));
+
   const npRow = el("div", { class: "row" });
   const npUnitField = el("div", { class: "field" });
   npUnitField.appendChild(el("label", {}, "Unit"));
-  const npUnit = el("select");
-  bizUnits().forEach(u => npUnit.appendChild(el("option", { value: u, selected: u === np.unit ? "" : undefined }, u)));
-  npUnit.value = np.unit;
-  npUnit.addEventListener("change", (e) => np.unit = e.target.value);
+  refreshNpUnits();
+  npUnit.addEventListener("change", (e) => { np.unit = e.target.value; drawNpDisc(); });
   npUnitField.appendChild(npUnit);
   npRow.appendChild(npUnitField);
   const npQtyField = el("div", { class: "field" });
   npQtyField.appendChild(el("label", {}, "Qty"));
-  const npQty = el("input", { type: "number", value: np.qty, oninput: (e) => np.qty = parseFloat(e.target.value) || 0 });
+  const npQty = el("input", { type: "number", inputmode: "decimal", value: np.qty, oninput: (e) => np.qty = parseFloat(e.target.value) || 0 });
   npQtyField.appendChild(npQty);
   npRow.appendChild(npQtyField);
   const npRateField = el("div", { class: "field" });
-  npRateField.appendChild(el("label", {}, "Rate *"));
-  const npRate = el("input", { type: "number", value: np.rate, oninput: (e) => np.rate = parseFloat(e.target.value) || 0 });
+  npRateField.appendChild(el("label", {}, "Rate (list) *"));
+  const npRate = el("input", { type: "number", inputmode: "decimal", value: np.rate, oninput: (e) => { np.rate = parseFloat(e.target.value) || 0; drawNpDisc(); } });
   npRateField.appendChild(npRate);
   npRow.appendChild(npRateField);
   newPane.appendChild(npRow);
+  drawNpDisc();
+  newPane.appendChild(npDiscNote);
   const npSaveChip = el("label", { class: "chip-check" });
   const npSaveCb = el("input", { type: "checkbox", checked: "" });
   npSaveCb.checked = true;
@@ -444,21 +644,30 @@ const openDocBuilder = () => {
   newPane.appendChild(npSaveChip);
   const npAddBtn = el("button", { class: "btn btn-green btn-full", style: { marginTop: 8 }, onclick: () => {
     if (!np.description.trim()) { toast("Description required", "err"); return; }
+    const listRate = Number(np.rate) || 0;
+    const { pct } = resolveDiscount(np, customerRules(docBuilder.customerId));
     docBuilder.lineItems.push({
       partNumber: String(docBuilder.lineItems.length + 1),
-      description: np.description.trim(), unit: np.unit, qty: np.qty || 1, rate: np.rate || 0, taxable: np.taxable, weight: np.weight || 0
+      description: np.description.trim(), unit: np.unit, qty: np.qty || 1,
+      rate: pct ? +(listRate * (1 - pct / 100)).toFixed(2) : listRate,
+      listRate, discountPct: pct, catPath: productPath(np),
+      taxable: np.taxable, weight: np.weight || 0
     });
     if (np.saveToCatalog) {
       db.products.push({
         id: uid("prod"), businessId: db.activeBusinessId, partNumber: "", description: np.description.trim(),
-        unit: np.unit, rate: np.rate || 0, weight: 0, taxable: np.taxable, hsn: "", notes: ""
+        unit: np.unit, rate: listRate, weight: np.weight || 0, taxable: np.taxable, hsn: "", notes: "",
+        category: (np.category || "").trim(), subCategory1: (np.subCategory1 || "").trim(),
+        subCategory2: (np.subCategory2 || "").trim(), subCategory3: (np.subCategory3 || "").trim(),
+        packQty: 0, packUnit: "box"
       });
       saveDB();
-      fillProdSel(prodSearch.value);
+      fillProdSel();
     }
     recomputeTotals(); rerenderLI(); updateTotals(); updateGross();
     npDesc.value = ""; np.description = ""; npQty.value = 1; np.qty = 1; npRate.value = 0; np.rate = 0;
-    toast(np.saveToCatalog ? "Added & saved to catalog" : "Line item added");
+    drawNpDisc();
+    toast(pct ? `Added — ${pct}% off applied` : (np.saveToCatalog ? "Added & saved to catalog" : "Line item added"));
   }}, "+ Add to document");
   newPane.appendChild(npAddBtn);
   addWrap.appendChild(newPane);
@@ -466,23 +675,33 @@ const openDocBuilder = () => {
   // --- Pane: bulk paste ---
   const bulkPane = el("div", { class: "seg-pane", style: { display: "none" } });
   bulkPane.appendChild(el("div", { style: { fontSize: "12px", color: "var(--muted)", marginBottom: "6px" } },
-    "One item per line: Description, Qty, Rate, Unit (unit optional). If the description matches a saved product, its rate/unit/tax are used automatically — otherwise the pasted values are used as-is."));
+    "One item per line: Description, Qty, Rate, Unit (unit optional). If the description matches a saved product, its rate/unit/tax and the customer's category discount are applied automatically. Type a rate to override it."));
   const bulkTa = el("textarea", { rows: 6, placeholder: "4 inch PVC pipe, 50, 350, m\n1/2 inch CPVC elbow, 100, 45" });
   bulkPane.appendChild(bulkTa);
-  const bulkAddBtn = el("button", { class: "btn btn-green btn-full", style: { marginTop: 8 }, onclick: () => {
+  const bulkAddBtn = el("button", { class: "btn btn-green btn-full", style: { marginTop: 8 }, onclick: async (e) => {
     const lines = bulkTa.value.split("\n").map(l => l.trim()).filter(Boolean);
+    if (!lines.length) { toast("Paste some lines first", "err"); return; }
+    const catalogue = bizProducts();
+    const rules = customerRules(docBuilder.customerId);
     let added = 0, skipped = 0;
-    lines.forEach(line => {
+    await runBulk(e.currentTarget, "Adding", lines, (line) => {
       const parts = line.split(",").map(p => p.trim());
       const [description, qtyStr = "1", rateStr, unit] = parts;
       if (!description) { skipped++; return; }
-      const match = bizProducts().find(p => p.description.toLowerCase() === description.toLowerCase());
+      const match = catalogue.find(p => p.description.toLowerCase() === description.toLowerCase());
+      // A pasted rate is the user's own number — keep it as typed. Otherwise
+      // price from the catalogue and apply the customer's category discount.
+      const typedRate = rateStr !== undefined && rateStr !== "";
+      const listRate = match ? Number(match.rate) || 0 : 0;
+      const pct = match && !typedRate ? resolveDiscount(match, rules).pct : 0;
       docBuilder.lineItems.push({
         partNumber: (match && match.partNumber) || String(docBuilder.lineItems.length + 1),
         description: match ? match.description : description,
         unit: unit || (match ? match.unit : "pcs"),
         qty: parseFloat(qtyStr) || 1,
-        rate: rateStr !== undefined && rateStr !== "" ? (parseFloat(rateStr) || 0) : (match ? match.rate : 0),
+        rate: typedRate ? (parseFloat(rateStr) || 0) : (pct ? +(listRate * (1 - pct / 100)).toFixed(2) : listRate),
+        manualRate: typedRate || undefined,
+        ...(match ? { listRate, discountPct: pct, catPath: productPath(match) } : {}),
         taxable: match ? match.taxable : true,
         weight: match ? (match.weight || 0) : 0
       });

@@ -248,14 +248,13 @@ const offerRateUpdate = (product, oldRate, newRate) => {
     list.appendChild(row);
   });
   wrap.appendChild(list);
-  wrap.appendChild(el("button", { class: "btn btn-primary btn-full", onclick: () => {
-    let updated = 0;
-    rows.forEach(({ cb, doc }) => {
-      if (!cb.checked) return;
+  wrap.appendChild(el("button", { class: "btn btn-primary btn-full", onclick: async (e) => {
+    const picked = rows.filter(({ cb }) => cb.checked);
+    await runBulk(e.currentTarget, "Updating", picked, ({ doc }) => {
       doc.lineItems.forEach(li => { if (li.productId === product.id) { li.rate = newRate; li.listRate = newRate; } });
       recomputeDocTotalsFor(doc);
-      updated++;
     });
+    const updated = picked.length;
     if (updated) saveDB();
     closeModal();
     toast(updated ? `Rate updated in ${updated} document${updated === 1 ? "" : "s"}` : "No documents updated");
@@ -443,10 +442,11 @@ const openBulkProductModal = () => {
     "One product per line, comma-separated: Description, Unit, Rate, Category, Part No, HSN, Weight, Taxable(yes/no), Notes. Only Description is required; the rest are optional."));
   const ta = el("textarea", { rows: 10, placeholder: "4 inch PVC pipe, m, 350, PVC, P-01, 3917, 1.2, yes, Class B\n1/2 inch CPVC elbow, pcs, 45, CPVC" });
   wrap.appendChild(ta);
-  wrap.appendChild(el("button", { class: "btn btn-primary btn-full", style: { marginTop: "12px" }, onclick: () => {
+  wrap.appendChild(el("button", { class: "btn btn-primary btn-full", style: { marginTop: "12px" }, onclick: async (e) => {
     const lines = ta.value.split("\n").map(l => l.trim()).filter(Boolean);
+    if (!lines.length) { toast("Paste some lines first", "err"); return; }
     let added = 0, skipped = 0;
-    lines.forEach(line => {
+    await runBulk(e.currentTarget, "Adding", lines, (line) => {
       const parts = line.split(",").map(p => p.trim());
       const [description, unit = "pcs", rate = "0", category = "", partNumber = "", hsn = "", weight = "", taxable = "yes", notes = ""] = parts;
       if (!description) { skipped++; return; }

@@ -176,10 +176,10 @@ const showImportPreview = (kind, header, body) => {
 
   const bar = el("div", { class: "action-bar" });
   bar.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Cancel"));
-  bar.appendChild(el("button", { class: "btn btn-primary", onclick: () => {
+  bar.appendChild(el("button", { class: "btn btn-primary", onclick: async (e) => {
     const g = (r, k) => idx[k] >= 0 ? String(r[idx[k]] ?? "").trim() : "";
     let added = 0, updated = 0, skipped = 0;
-    body.forEach(r => {
+    await runBulk(e.currentTarget, "Importing", body, (r) => {
       if (isProd) {
         const desc = g(r, "description");
         if (!desc) { skipped++; return; }
@@ -535,6 +535,15 @@ const renderCategoryBrowser = () => {
       el("div", { class: "cat-name" }, node.path.length ? `In ${node.name}` : "Uncategorized"),
       el("div", { class: "cat-count" }, String(here.length))
     ]));
+    // Multi-select: tick several of these products and move them somewhere else
+    // in one go, instead of editing them one at a time.
+    if (bulkActive("prod")) {
+      wrap.appendChild(bulkBar("prod", () => here.map(p => p.id), productBulkDelete, productBulkActions()));
+    } else {
+      wrap.appendChild(el("div", { style: { marginBottom: "10px" } },
+        el("button", { class: "btn btn-secondary bulk-mini", onclick: () => bulkToggleMode("prod") },
+          "☑️ Select products to move")));
+    }
     const box = el("div", { id: "prod-list" });
     here.forEach(p => box.appendChild(renderProductItem(p)));
     wrap.appendChild(box);
@@ -578,32 +587,7 @@ const renderAllProducts = () => {
       () => [...document.querySelectorAll("#prod-list .list-item")]
         .filter(i => i.style.display !== "none")
         .map(i => Number(i.dataset.id)).filter(Boolean),
-      (ids) => {
-        const snapshot = db.products.filter(p => ids.includes(p.id));
-        deleteWithUndo(`${ids.length} product${ids.length === 1 ? "" : "s"}`,
-          () => { db.products = db.products.filter(p => !ids.includes(p.id)); bulkSel.ids.clear(); },
-          () => { db.products.push(...snapshot); });
-      },
-      [el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
-        const ids = [...bulkSel.ids];
-        if (!ids.length) { toast("Nothing selected", "err"); return; }
-        openCategoryPicker((path) => {
-          const keyFor = (d) => d === 0 ? "category" : `subCategory${d}`;
-          db.products.forEach(p => {
-            if (!ids.includes(p.id)) return;
-            ["category", "subCategory1", "subCategory2", "subCategory3"].forEach(k => p[k] = "");
-            path.forEach((seg, i) => { p[keyFor(i)] = seg; });
-          });
-          saveDB(); bulkSel.ids.clear(); render();
-          toast(`Moved ${ids.length} to ${pathKey(path)}`);
-        });
-      }}, "\u{1F4E6} Move to\u2026"),
-      el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
-        const ids = [...bulkSel.ids];
-        if (!ids.length) { toast("Nothing selected", "err"); return; }
-        const text = db.products.filter(p => ids.includes(p.id)).map(productToLine).join("\n");
-        shareText(text, "Products");
-      }}, "\u{1F4E4} Share")]));
+      productBulkDelete, productBulkActions()));
   } else {
     const bulkRow = el("div", { style: { display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" } });
     bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: openBulkProductModal }, "\u{1F4CB} Bulk add products"));

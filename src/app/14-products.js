@@ -40,7 +40,7 @@ const openAddCategoryModal = (parentPath) => {
 
   const bar = el("div", { class: "action-bar" });
   bar.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Cancel"));
-  bar.appendChild(el("button", { class: "btn btn-primary", onclick: () => {
+  bar.appendChild(el("button", { class: "btn btn-primary", onclick: async (e) => {
     const name = (state.name || "").trim();
     if (!name) { toast("Category name required", "err"); return; }
     const siblings = buildCategoryTree(bizProducts());
@@ -54,13 +54,12 @@ const openAddCategoryModal = (parentPath) => {
       toast("Select at least one product, or add the category from a product's form", "err");
       return;
     }
-    let moved = 0;
-    db.products.forEach(p => {
-      if (!state.picked.has(p.id)) return;
+    const targets = db.products.filter(p => state.picked.has(p.id));
+    await runBulk(e.currentTarget, "Creating", targets, (p) => {
       parentPath.forEach((seg, i) => { p[keyFor(i)] = seg; });
       p[keyFor(depth)] = name;
-      moved++;
     });
+    const moved = targets.length;
     saveDB(); closeModal();
     prodView.path = [...parentPath, name];
     render();
@@ -105,9 +104,44 @@ const openRenameCategoryModal = (path) => {
   openModal("Rename category", wrap);
 };
 
+// Write a category path onto a product, clearing any deeper levels it had.
+const assignProductPath = (p, path) => {
+  ["category", "subCategory1", "subCategory2", "subCategory3"].forEach(k => p[k] = "");
+  path.forEach((seg, i) => { p[i === 0 ? "category" : `subCategory${i}`] = seg; });
+};
+
+// Delete handler for the products bulk bar — routed through deleteWithUndo so
+// a mis-tap on a multi-selection is recoverable.
+const productBulkDelete = (ids) => {
+  const snapshot = db.products.filter(p => ids.includes(p.id));
+  deleteWithUndo(`${ids.length} product${ids.length === 1 ? "" : "s"}`,
+    () => { db.products = db.products.filter(p => !ids.includes(p.id)); bulkSel.ids.clear(); },
+    () => { db.products.push(...snapshot); });
+};
+
+// Extra buttons for the products bulk bar. Shared by the Categories browser and
+// the All-products list so multi-select behaves identically in both.
+const productBulkActions = () => [
+  el("button", { class: "btn btn-secondary bulk-mini", onclick: (e) => {
+    const btn = e.currentTarget;
+    const ids = [...bulkSel.ids];
+    if (!ids.length) { toast("Nothing selected", "err"); return; }
+    openCategoryPicker(async (path) => {
+      const targets = db.products.filter(p => ids.includes(p.id));
+      await runBulk(btn, "Moving", targets, (p) => assignProductPath(p, path));
+      saveDB(); bulkSel.ids.clear(); render();
+      toast(`Moved ${targets.length} to ${pathKey(path)}`);
+    });
+  }}, "\u{1F4E6} Move to…"),
+  el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
+    const ids = [...bulkSel.ids];
+    if (!ids.length) { toast("Nothing selected", "err"); return; }
+    shareText(db.products.filter(p => ids.includes(p.id)).map(productToLine).join("\n"), "Products");
+  }}, "\u{1F4E4} Share"),
+];
+
 // Move existing products into the category you're viewing.
 const openMoveProductsModal = (targetPath) => {
-  const keyFor = (d) => d === 0 ? "category" : `subCategory${d}`;
   const state = { picked: new Set(), q: "" };
   const wrap = el("div");
   wrap.appendChild(el("div", { style: { fontSize: "12px", color: "var(--muted)", marginBottom: "8px" } },
@@ -167,18 +201,12 @@ const openMoveProductsModal = (targetPath) => {
 
   const bar = el("div", { class: "action-bar" });
   bar.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Cancel"));
-  bar.appendChild(el("button", { class: "btn btn-primary", onclick: () => {
+  bar.appendChild(el("button", { class: "btn btn-primary", onclick: async (e) => {
     if (!state.picked.size) { toast("Nothing selected", "err"); return; }
-    let n = 0;
-    db.products.forEach(p => {
-      if (!state.picked.has(p.id)) return;
-      // clear all levels, then write the target path
-      ["category", "subCategory1", "subCategory2", "subCategory3"].forEach(k => p[k] = "");
-      targetPath.forEach((seg, i) => { p[keyFor(i)] = seg; });
-      n++;
-    });
+    const targets = db.products.filter(p => state.picked.has(p.id));
+    await runBulk(e.currentTarget, "Moving", targets, (p) => assignProductPath(p, targetPath));
     saveDB(); closeModal(); render();
-    toast(`Moved ${n} product${n === 1 ? "" : "s"}`);
+    toast(`Moved ${targets.length} product${targets.length === 1 ? "" : "s"}`);
   }}, "Move here"));
   wrap.appendChild(bar);
   openModal("Move products", wrap);
