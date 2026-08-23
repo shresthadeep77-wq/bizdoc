@@ -282,11 +282,7 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 .li-note-disc { color: var(--accent); font-weight: 600; }
 .li-note-none { color: var(--muted); }
 .li-note-manual { color: #b45309; font-weight: 600; }
-.li-note-reset { font-size: 10.5px; font-weight: 700; color: var(--primary); text-decoration: underline; padding: 2px 0; }
-/* Per-line discount %, edited right under the row it re-prices. */
-.pct-group.li-note-pct { padding: 2px 8px; margin-left: auto; }
-.pct-group.li-note-pct input { width: 38px !important; padding: 2px 0 !important; font-size: 11px !important; box-shadow: none !important; text-align: right; }
-.pct-group.li-note-pct > span { font-size: 10px; }
+.li-note-reset { font-size: 11px; font-weight: 700; color: var(--primary); text-decoration: underline; padding: 2px 0; }
 .rule-row { padding: 8px 0; border-bottom: 1px solid var(--divider); }
 .rule-row:last-child { border-bottom: none; }
 .rule-subrow { display: flex; align-items: center; gap: 8px; margin-top: 3px; }

@@ -293,11 +293,7 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 .li-note-disc { color: var(--accent); font-weight: 600; }
 .li-note-none { color: var(--muted); }
 .li-note-manual { color: #b45309; font-weight: 600; }
-.li-note-reset { font-size: 10.5px; font-weight: 700; color: var(--primary); text-decoration: underline; padding: 2px 0; }
-/* Per-line discount %, edited right under the row it re-prices. */
-.pct-group.li-note-pct { padding: 2px 8px; margin-left: auto; }
-.pct-group.li-note-pct input { width: 38px !important; padding: 2px 0 !important; font-size: 11px !important; box-shadow: none !important; text-align: right; }
-.pct-group.li-note-pct > span { font-size: 10px; }
+.li-note-reset { font-size: 11px; font-weight: 700; color: var(--primary); text-decoration: underline; padding: 2px 0; }
 .rule-row { padding: 8px 0; border-bottom: 1px solid var(--divider); }
 .rule-row:last-child { border-bottom: none; }
 .rule-subrow { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
@@ -6600,7 +6596,10 @@ const openBusinessModal = () => {
   openModal("New business", form);
 };
 
-const openCustomerModal = (existing, onCreated) => {
+// `onCreated` fires only for a brand-new customer (the caller usually wants to
+// select it). `onSaved` fires after any successful save, so a caller showing
+// live details — e.g. the builder's rate-card summary — can refresh itself.
+const openCustomerModal = (existing, onCreated, onSaved) => {
   const data = existing ? { ...existing } : {
     contactName: "", companyName: "", phone: "", vatNo: "", addr1: "", addr2: "",
     regNo: "", shipAddr1: "", shipAddr2: "", email: "", eximCode: "", country: "NEPAL",
@@ -6700,6 +6699,7 @@ const openCustomerModal = (existing, onCreated) => {
     if (existing) { Object.assign(existing, data); }
     else { data.id = uid("cust"); db.customers.push(data); isNew = true; }
     saveDB(); closeModal();
+    if (onSaved) onSaved(existing || data);
     if (isNew && onCreated) onCreated(data);
     else toast(isNew ? "Customer added" : "Customer saved");
   }}, existing ? "Save" : "Add customer"));
@@ -7039,19 +7039,25 @@ const convertDoc = (src, targetType) => {
 };
 
 // Re-apply the selected customer's rate card to every line that came from the
-// catalogue. Called when the customer changes so prices never reflect the
-// previous party's discounts.
-const repriceLineItems = () => {
+// catalogue. Called automatically when the customer changes, so prices never
+// reflect the previous party's discounts.
+//
+// `includeManual` is the difference between the two callers. Switching customer
+// must not silently wipe a rate you typed by hand, so that path leaves those
+// lines alone. The "Update rates" button is a deliberate press, so it re-prices
+// everything and hands those lines back to the rate card.
+const repriceLineItems = (includeManual = false) => {
   const rules = customerRules(docBuilder.customerId);
   let changed = 0;
   docBuilder.lineItems.forEach(li => {
-    if (li.manualRate) return; // user typed a rate by hand — leave it alone
+    if (li.manualRate && !includeManual) return;
     const list = Number(li.listRate);
     if (!list && list !== 0) return; // ad-hoc line with no list price
     const { pct } = resolveDiscount({ category: li.catPath?.[0], subCategory1: li.catPath?.[1], subCategory2: li.catPath?.[2], subCategory3: li.catPath?.[3] }, rules);
     const net = pct ? +(list * (1 - pct / 100)).toFixed(2) : list;
-    if (net !== li.rate || pct !== li.discountPct) changed++;
+    if (net !== li.rate || pct !== li.discountPct || li.manualRate) changed++;
     li.rate = net; li.discountPct = pct;
+    if (includeManual) li.manualRate = false; // rule-priced again from here on
   });
   return changed;
 };
@@ -7068,105 +7074,6 @@ const applyLineDiscount = (li, pct, rateInp) => {
   li.rate = p ? +(list * (1 - p / 100)).toFixed(2) : list;
   li.manualRate = false;
   if (rateInp) rateInp.value = li.rate;
-};
-
-// Bump (or clear) the discount on every line in the document that belongs to a
-// category — the mid-document "actually, give them another 5% on all fittings"
-// move. Optionally writes the new % back to the customer's rate card so their
-// next document starts from it.
-const openDocDiscountModal = (onApplied) => {
-  const priced = (docBuilder.lineItems || []).filter(li => isFinite(Number(li.listRate)));
-  if (!priced.length) { toast("Add catalogue products first — ad-hoc lines have no list price", "err"); return; }
-
-  // One editable row per distinct category path present in the document.
-  const groups = [];
-  const byKey = new Map();
-  priced.forEach(li => {
-    const path = (li.catPath || []).filter(Boolean);
-    const key = pathKey(path);
-    let g = byKey.get(key);
-    if (!g) { g = { key, path, items: [], pct: null, mixed: false }; byKey.set(key, g); groups.push(g); }
-    const p = Number(li.discountPct) || 0;
-    if (g.pct === null) g.pct = p;
-    else if (g.pct !== p) g.mixed = true;
-    g.items.push(li);
-  });
-  groups.sort((a, b) => a.key.localeCompare(b.key));
-
-  const cust = db.customers.find(c => c.id === docBuilder.customerId);
-  const state = { save: !!cust };
-  const wrap = el("div");
-  wrap.appendChild(el("div", { style: { fontSize: "12px", color: "var(--muted)", marginBottom: "10px" } },
-    "Set the discount per category. Every matching line is re-priced from its product's list rate."));
-
-  // "Set every category to this %" shortcut.
-  const allRow = el("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" } });
-  allRow.appendChild(el("div", { style: { fontSize: "12.5px", fontWeight: 600, flex: "1" } }, "Set every category to"));
-  const allInp = el("input", { type: "number", inputmode: "decimal", min: "0", max: "100", step: "0.5",
-    placeholder: "%", style: { width: "68px", flex: "none", textAlign: "right" } });
-  allRow.appendChild(allInp);
-  allRow.appendChild(el("button", { class: "btn btn-secondary", type: "button", style: { flex: "none", fontSize: "12px", padding: "7px 12px" },
-    onclick: () => {
-      const v = parseFloat(allInp.value);
-      if (isNaN(v)) { toast("Type a % first", "err"); return; }
-      groups.forEach(g => { g.pct = clampPct(v); g.mixed = false; });
-      drawRows();
-    } }, "Apply to all"));
-  wrap.appendChild(allRow);
-
-  const list = el("div", { class: "picker-list", style: { maxHeight: "300px" } });
-  const drawRows = () => {
-    list.innerHTML = "";
-    groups.forEach(g => {
-      const row = el("div", { class: "rule-row", style: { padding: "9px 10px" } });
-      row.appendChild(el("div", { style: { fontWeight: 600, fontSize: "12.5px" } }, g.key || "Uncategorised items"));
-      const sub = el("div", { class: "rule-subrow" });
-      const n = g.items.length;
-      sub.appendChild(el("div", { style: { fontSize: "10.5px", color: "var(--muted)", flex: "1", minWidth: "0" } },
-        `${n} line${n === 1 ? "" : "s"}${g.mixed ? " • currently mixed" : ""}`));
-      const pctInp = el("input", { type: "number", inputmode: "decimal", min: "0", max: "100", step: "0.5", value: g.pct || 0,
-        style: { width: "52px", flex: "none", textAlign: "right", border: "none", padding: "0", background: "transparent" } });
-      pctInp.addEventListener("input", (e) => { g.pct = clampPct(parseFloat(e.target.value) || 0); g.mixed = false; });
-      sub.appendChild(el("div", { class: "pct-group" }, [pctInp, el("span", {}, "%")]));
-      row.appendChild(sub);
-      list.appendChild(row);
-    });
-  };
-  drawRows();
-  wrap.appendChild(list);
-
-  if (cust) {
-    wrap.appendChild(checkboxField(`Also save these % to ${cust.companyName}'s rate card`, "save", state));
-    wrap.appendChild(el("div", { style: { fontSize: "11px", color: "var(--muted)", marginTop: "-4px" } },
-      "Their next document starts from these discounts. Uncategorised lines can't become a rule."));
-  }
-
-  const bar = el("div", { class: "action-bar" });
-  bar.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Cancel"));
-  bar.appendChild(el("button", { class: "btn btn-primary", onclick: async (e) => {
-    const targets = groups.flatMap(g => g.items.map(li => ({ li, pct: clampPct(g.pct) })));
-    await runBulk(e.currentTarget, "Re-pricing", targets, ({ li, pct }) => applyLineDiscount(li, pct));
-    let savedRules = 0;
-    if (state.save && cust) {
-      if (!Array.isArray(cust.discountRules)) cust.discountRules = [];
-      groups.forEach(g => {
-        if (!g.path.length) return;
-        const pct = clampPct(g.pct);
-        const rule = cust.discountRules.find(r => pathKey(r.path) === g.key);
-        if (rule) { if (rule.pct !== pct) { rule.pct = pct; savedRules++; } }
-        else { cust.discountRules.push({ path: g.path.slice(), pct }); savedRules++; }
-      });
-    }
-    saveDB();
-    closeModal();
-    if (onApplied) onApplied();
-    const n = targets.length;
-    toast(savedRules
-      ? `Re-priced ${n} line${n === 1 ? "" : "s"} — rate card updated`
-      : `Re-priced ${n} line${n === 1 ? "" : "s"}`);
-  } }, "Apply discounts"));
-  wrap.appendChild(bar);
-  openModal("Update discounts", wrap);
 };
 
 const recomputeTotals = () => {
@@ -7241,6 +7148,7 @@ const openDocBuilder = () => {
     const n = repriceLineItems();
     renderResults();
     drawNpDisc();
+    drawDiscLink();
     if (n) { recomputeTotals(); rerenderLI(); updateTotals(); toast(`${n} line${n === 1 ? "" : "s"} re-priced for this customer`); }
   }});
   const custSearch = el("input", { placeholder: "🔍 Search " + DOC_TYPES[docBuilder.type].partyLabel.toLowerCase() + "...", style: { marginBottom: "8px" } });
@@ -7261,11 +7169,30 @@ const openDocBuilder = () => {
     });
     if (cTerms.length && matches.length === 1) { custSel.value = matches[0].id; docBuilder.customerId = matches[0].id; }
     custSel.appendChild(el("option", { value: "__new__" }, "+ Add new..."));
+    drawDiscLink();
+  };
+
+  // Shortcut to this customer's rate card, so changing a category's % doesn't
+  // mean abandoning the document you're in the middle of. Their editor opens on
+  // top; back here, "Update rates" pulls the new figures into the line items.
+  const discLinkRow = el("div", { style: { marginTop: "6px" } });
+  const drawDiscLink = () => {
+    discLinkRow.innerHTML = "";
+    const cust = db.customers.find(c => c.id === docBuilder.customerId);
+    if (!cust) return;
+    const rules = Array.isArray(cust.discountRules) ? cust.discountRules : [];
+    discLinkRow.appendChild(el("button", { type: "button", class: "li-note-reset",
+      onclick: () => openCustomerModal(cust, null, drawDiscLink) }, "✏️ Edit discounts"));
+    discLinkRow.appendChild(el("span", { style: { fontSize: "11px", color: "var(--muted)", marginLeft: "8px" } },
+      rules.length
+        ? `${rules.length} categor${rules.length === 1 ? "y" : "ies"} discounted`
+        : "No discounts set — pays list price"));
   };
   refreshCustSel();
   custSearch.addEventListener("input", (e) => refreshCustSel(e.target.value));
   custField.appendChild(custSearch);
   custField.appendChild(custSel);
+  custField.appendChild(discLinkRow);
   wrap.appendChild(custField);
 
   // Bank account is chosen in the Details step, pre-filled from the business
@@ -7325,8 +7252,9 @@ const openDocBuilder = () => {
       drawNote(note, li, rateInp);
     });
   };
-  // The under-row hint: pack conversion plus an editable discount % for lines
-  // that came from the catalogue, so a rate can be re-cut without retyping it.
+  // The under-row hint: pack conversion and what discount produced this rate.
+  // Read-only — discounts are changed on the customer's rate card and pulled in
+  // with the "Update rates" button, never typed per line.
   function drawNote(note, li, rateInp) {
     note.innerHTML = "";
     if (Number(li.packQty) > 0) {
@@ -7349,24 +7277,10 @@ const openDocBuilder = () => {
       return;
     }
     if (!hasList) { note.appendChild(el("span", { class: "li-note-none" }, "ad-hoc line — no list price")); return; }
-    const priceTxt = el("span", {});
-    const redraw = () => {
-      priceTxt.className = li.discountPct ? "li-note-disc" : "li-note-none";
-      priceTxt.textContent = li.discountPct
+    note.appendChild(el("span", { class: li.discountPct ? "li-note-disc" : "li-note-none" },
+      li.discountPct
         ? `list ${fmt(list)} → ${fmt(li.rate)} (−${li.discountPct}%)`
-        : `list ${fmt(list)} — no discount`;
-    };
-    redraw();
-    note.appendChild(priceTxt);
-    const pctInp = el("input", { type: "number", inputmode: "decimal", min: "0", max: "100", step: "0.5",
-      value: li.discountPct || 0, "aria-label": "Discount % on this line" });
-    pctInp.addEventListener("input", (e) => {
-      applyLineDiscount(li, parseFloat(e.target.value) || 0, rateInp);
-      redraw();
-      recomputeTotals(); refreshTotals();
-    });
-    note.appendChild(el("div", { class: "pct-group li-note-pct", title: "Discount % on this line" },
-      [pctInp, el("span", {}, "% off")]));
+        : `list ${fmt(list)} — no discount`));
   }
   function rerenderNote(idx) {
     const note = document.getElementById(`li-note-${idx}`);
@@ -7381,19 +7295,28 @@ const openDocBuilder = () => {
   rerenderLI();
   liCard.appendChild(liList);
 
-  // Whole-list tools. "Update discounts" is the one that matters mid-document:
-  // the customer negotiates another few % on a category and every matching line
-  // is re-cut from its list rate in one go.
+  // One button, no typing. Change the % on the customer's rate card, come back
+  // here, press this — every line is re-cut from its product's list price at
+  // whatever the discount now says.
   const liTools = el("div", { style: { display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" } });
   liTools.appendChild(el("button", { class: "btn btn-secondary", type: "button", style: { flex: "none", fontSize: "12px", padding: "7px 12px" },
-    onclick: () => openDocDiscountModal(() => { recomputeTotals(); rerenderLI(); updateTotals(); }) },
-    "\u{1F3F7}️ Update discounts…"));
-  liTools.appendChild(el("button", { class: "btn btn-secondary", type: "button", style: { flex: "none", fontSize: "12px", padding: "7px 12px" },
     onclick: () => {
-      const n = repriceLineItems();
-      recomputeTotals(); rerenderLI(); updateTotals();
-      toast(n ? `${n} line${n === 1 ? "" : "s"} reset to the rate card` : "Already matching the rate card");
-    } }, "↺ Reset to rate card"));
+      const cust = db.customers.find(c => c.id === docBuilder.customerId);
+      if (!cust) { toast("Select a customer first", "err"); return; }
+      const priced = docBuilder.lineItems.filter(li => isFinite(Number(li.listRate)));
+      if (!priced.length) { toast("No catalogue-priced items to update yet", "err"); return; }
+      const typed = priced.filter(li => li.manualRate).length;
+      const n = priced.length;
+      confirmModal(
+        `Re-price all ${n} item${n === 1 ? "" : "s"} using ${cust.companyName}'s current discounts?` +
+          (typed ? ` ${typed} rate${typed === 1 ? "" : "s"} you typed by hand will be recalculated too — you can type ${typed === 1 ? "it" : "them"} again after.` : ""),
+        () => {
+          const changed = repriceLineItems(true);
+          recomputeTotals(); rerenderLI(); updateTotals();
+          toast(changed ? `${changed} line${changed === 1 ? "" : "s"} updated` : "Already matching the current discounts");
+        },
+        { title: "Update rates?", confirmLabel: "Update rates", danger: false });
+    } }, "\u{1F504} Update rates to current discount"));
   liCard.appendChild(liTools);
 
   // Add line item — segmented: Existing product / New product

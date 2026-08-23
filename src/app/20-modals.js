@@ -99,7 +99,10 @@ const openBusinessModal = () => {
   openModal("New business", form);
 };
 
-const openCustomerModal = (existing, onCreated) => {
+// `onCreated` fires only for a brand-new customer (the caller usually wants to
+// select it). `onSaved` fires after any successful save, so a caller showing
+// live details — e.g. the builder's rate-card summary — can refresh itself.
+const openCustomerModal = (existing, onCreated, onSaved) => {
   const data = existing ? { ...existing } : {
     contactName: "", companyName: "", phone: "", vatNo: "", addr1: "", addr2: "",
     regNo: "", shipAddr1: "", shipAddr2: "", email: "", eximCode: "", country: "NEPAL",
@@ -199,6 +202,7 @@ const openCustomerModal = (existing, onCreated) => {
     if (existing) { Object.assign(existing, data); }
     else { data.id = uid("cust"); db.customers.push(data); isNew = true; }
     saveDB(); closeModal();
+    if (onSaved) onSaved(existing || data);
     if (isNew && onCreated) onCreated(data);
     else toast(isNew ? "Customer added" : "Customer saved");
   }}, existing ? "Save" : "Add customer"));
