@@ -250,23 +250,11 @@ const renderCustomerItem = (c) => {
   return item;
 };
 
-// Token search: every word must appear somewhere in the row, in any order.
-// Combined search + category-prefix filter for the flat product list.
-const filterProductList = (q, catPathKey) => {
-  const terms = (q || "").toLowerCase().trim().split(/\s+/).filter(Boolean);
-  const root = document.getElementById("prod-list");
-  if (!root) return;
-  const catFilter = (catPathKey || "").trim();
-  root.querySelectorAll(".list-item").forEach(i => {
-    const hay = i.dataset.search || "";
-    const searchOK = terms.every(t => hay.includes(t));
-    const path = i.dataset.catpath || "";
-    // Category filter is a "starts-with" match on the ` > `-joined path
-    const catOK = !catFilter || path === catFilter || path.startsWith(catFilter + " \u203A ");
-    i.style.display = (searchOK && catOK) ? "" : "none";
-  });
-};
+// The products list used to be filtered by hiding rows in the DOM, which meant
+// every product had to be rendered first. It now filters the data instead \u2014 see
+// productMatches / mountProductWindow in 16-keyboard-shortcuts.js.
 
+// Token search: every word must appear somewhere in the row, in any order.
 // So "pvc elbow" matches "Elbow PVC 110mm", and "110 elbow" works too.
 const filterList = (kind, q) => {
   const terms = q.toLowerCase().trim().split(/\s+/).filter(Boolean);

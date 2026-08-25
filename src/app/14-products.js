@@ -112,11 +112,21 @@ const assignProductPath = (p, path) => {
 
 // Delete handler for the products bulk bar — routed through deleteWithUndo so
 // a mis-tap on a multi-selection is recoverable.
+// `ids.includes()` inside a filter is O(N×M) — with a few thousand products
+// selected that alone froze the tab. A Set makes each pass linear.
 const productBulkDelete = (ids) => {
-  const snapshot = db.products.filter(p => ids.includes(p.id));
-  deleteWithUndo(`${ids.length} product${ids.length === 1 ? "" : "s"}`,
-    () => { db.products = db.products.filter(p => !ids.includes(p.id)); bulkSel.ids.clear(); },
+  const idSet = new Set(ids);
+  const snapshot = db.products.filter(p => idSet.has(p.id));
+  const label = `${ids.length} product${ids.length === 1 ? "" : "s"}`;
+  const go = () => deleteWithUndo(label,
+    () => { db.products = db.products.filter(p => !idSet.has(p.id)); bulkSel.ids.clear(); },
     () => { db.products.push(...snapshot); });
+  // Undo is only an 8-second window — a mis-tapped "select all" delete deserves
+  // a deliberate confirmation first.
+  if (ids.length > BULK_CONFIRM_AT) {
+    confirmModal(`Delete ${label}? You'll have a few seconds to undo.`, go,
+      { title: "Delete products?", confirmLabel: `Delete ${ids.length}`, danger: true });
+  } else go();
 };
 
 // Extra buttons for the products bulk bar. Shared by the Categories browser and
@@ -126,8 +136,9 @@ const productBulkActions = () => [
     const btn = e.currentTarget;
     const ids = [...bulkSel.ids];
     if (!ids.length) { toast("Nothing selected", "err"); return; }
+    const idSet = new Set(ids);
     openCategoryPicker(async (path) => {
-      const targets = db.products.filter(p => ids.includes(p.id));
+      const targets = db.products.filter(p => idSet.has(p.id));
       await runBulk(btn, "Moving", targets, (p) => assignProductPath(p, path));
       saveDB(); bulkSel.ids.clear(); render();
       toast(`Moved ${targets.length} to ${pathKey(path)}`);
@@ -136,7 +147,8 @@ const productBulkActions = () => [
   el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
     const ids = [...bulkSel.ids];
     if (!ids.length) { toast("Nothing selected", "err"); return; }
-    shareText(db.products.filter(p => ids.includes(p.id)).map(productToLine).join("\n"), "Products");
+    const idSet = new Set(ids);
+    shareText(db.products.filter(p => idSet.has(p.id)).map(productToLine).join("\n"), "Products");
   }}, "\u{1F4E4} Share"),
 ];
 

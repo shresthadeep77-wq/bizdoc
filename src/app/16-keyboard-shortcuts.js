@@ -242,7 +242,107 @@ const downloadTemplate = (kind) => {
   toast("Template downloaded");
 };
 
-const prodView = { mode: "categories", path: [] };
+const prodView = { mode: "categories", path: [], q: "", filterCat: "", shown: 0 };
+
+// ---- Product list indexing + windowing ----
+// A catalogue of a few thousand products used to be rendered in full, every
+// time: ~20 nodes and ~9 listeners per row, all built in one synchronous tick.
+// Now rows are built a page at a time and searching happens over the data, so
+// the cost no longer scales with catalogue size.
+const PROD_PAGE = 100;
+// Window state for the Categories browser's product list, reset on drill-down.
+const catView = { key: null, shown: 0 };
+
+// One pass over the catalogue builds the lowercase haystack and category path
+// per product. renderProductItem used to recompute both for every row.
+const productIndexEntry = (p) => ({
+  p,
+  hay: [p.description, p.partNumber, p.category, p.subCategory1, p.subCategory2,
+    p.subCategory3, p.hsn, p.notes, p.unit, p.packUnit, p.rate, p.packQty]
+    .filter(Boolean).join(" ").toLowerCase(),
+  catPath: pathKey(productPath(p)),
+});
+
+// numeric:true so "PVC 90mm" sorts before "PVC 110mm" instead of after it.
+const prodCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const buildProductIndex = (list) => list.map(productIndexEntry)
+  .sort((a, b) => prodCollator.compare(a.p.description || "", b.p.description || ""));
+
+// Same semantics the old DOM filter had: every term must appear somewhere, in
+// any order; the category filter is a starts-with match on the joined path.
+const productMatches = (entry, terms, catFilter) => {
+  for (const t of terms) if (!entry.hay.includes(t)) return false;
+  if (!catFilter) return true;
+  return entry.catPath === catFilter || entry.catPath.startsWith(catFilter + " › ");
+};
+const searchTerms = (q) => (q || "").toLowerCase().trim().split(/\s+/).filter(Boolean);
+
+const productTableHead = () => el("div", { class: "ptable-head" },
+  el("div", {}, ""),
+  el("div", {}, "Product"),
+  el("div", {}, "Category"),
+  el("div", {}, "HSN"),
+  el("div", { class: "pt-rate" }, `Rate (${activeBiz().currency || "NPR"})`),
+  el("div", {}, ""));
+
+// Renders `getEntries()` a page at a time into a table. Scrolling near the end
+// (or the Show more button) grows the window in place — never a full render(),
+// so the scroll position and any open search survive.
+const mountProductWindow = (getEntries, state, emptyEl) => {
+  const node = el("div");
+  const table = el("div", { class: "ptable", id: "prod-list" });
+  const body = el("div", { class: "ptable-body" });
+  table.appendChild(productTableHead());
+  table.appendChild(body);
+  const foot = el("div", { class: "prod-foot" });
+  node.appendChild(table);
+  node.appendChild(foot);
+  let io = null;
+
+  const draw = () => {
+    const entries = getEntries();
+    const total = entries.length;
+    if (!state.shown || state.shown < PROD_PAGE) state.shown = PROD_PAGE;
+    const shown = Math.min(state.shown, total);
+    if (io) { io.disconnect(); io = null; }
+    body.innerHTML = "";
+    foot.innerHTML = "";
+
+    if (!total) {
+      table.style.display = "none";
+      foot.appendChild(emptyEl ? emptyEl() : el("div", { class: "picker-empty" }, "No products match."));
+      return;
+    }
+    table.style.display = "";
+
+    // One reflow for the whole page of rows instead of one per row.
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < shown; i++) frag.appendChild(renderProductItem(entries[i].p, entries[i]));
+    body.appendChild(frag);
+
+    foot.appendChild(el("div", { class: "prod-count" },
+      shown < total ? `Showing ${shown.toLocaleString()} of ${total.toLocaleString()}`
+                    : `${total.toLocaleString()} product${total === 1 ? "" : "s"}`));
+
+    if (shown < total) {
+      const more = () => { state.shown += PROD_PAGE; draw(); };
+      // Button first — it's the keyboard-reachable path and the fallback for
+      // browsers where the observer never fires.
+      foot.appendChild(el("button", { class: "btn btn-secondary", onclick: more },
+        `Show more (${(total - shown).toLocaleString()} left)`));
+      if (typeof IntersectionObserver === "function") {
+        io = new IntersectionObserver((ents) => { if (ents.some(e => e.isIntersecting)) more(); },
+          { rootMargin: "600px 0px" });
+        io.observe(foot);
+      }
+    }
+    // Row checkboxes are rebuilt on every draw — resync them with the set.
+    if (bulkActive("prod")) updateBulkBar();
+  };
+
+  draw();
+  return { node, draw };
+};
 
 const renderProducts = () => {
   const wrap = el("div");
@@ -251,7 +351,14 @@ const renderProducts = () => {
   const seg = el("div", { class: "subtabs" });
   const mkSeg = (key, label) => el("button", {
     class: "subtab" + (prodView.mode === key ? " active" : ""),
-    onclick: () => { prodView.mode = key; if (key === "categories") prodView.path = []; render(); }
+    // Reset the window (and any search) so switching sub-tabs starts at one
+    // page rather than re-rendering however far the last view had scrolled.
+    onclick: () => {
+      prodView.mode = key;
+      prodView.shown = PROD_PAGE;
+      if (key === "categories") { prodView.path = []; catView.key = null; }
+      render();
+    }
   }, label);
   seg.appendChild(mkSeg("categories", "Categories"));
   seg.appendChild(mkSeg("all", "All products"));
@@ -544,9 +651,12 @@ const renderCategoryBrowser = () => {
         el("button", { class: "btn btn-secondary bulk-mini", onclick: () => bulkToggleMode("prod") },
           "☑️ Select products to move")));
     }
-    const box = el("div", { id: "prod-list" });
-    here.forEach(p => box.appendChild(renderProductItem(p)));
-    wrap.appendChild(box);
+    // A single category can hold thousands too, so it gets the same window.
+    // Drilling into a different category starts the window over.
+    const key = pathKey(node.path);
+    if (catView.key !== key) { catView.key = key; catView.shown = PROD_PAGE; }
+    const hereEntries = buildProductIndex(here);
+    wrap.appendChild(mountProductWindow(() => hereEntries, catView).node);
   } else if (!node.children.length) {
     wrap.appendChild(el("div", { class: "picker-empty" }, "Nothing here."));
   }
@@ -556,20 +666,34 @@ const renderCategoryBrowser = () => {
 // ---- All products view: flat, searchable ----
 const renderAllProducts = () => {
   const wrap = el("div");
-  // State for the category filter (persists across renders inside this session)
-  if (!prodView.filterCat) prodView.filterCat = "";
+  const all = bizProducts();
+  // Indexed and sorted once per render; searching only re-filters this array.
+  const entries = buildProductIndex(all);
+  const getMatches = () => {
+    const terms = searchTerms(prodView.q);
+    const cat = (prodView.filterCat || "").trim();
+    if (!terms.length && !cat) return entries;
+    return entries.filter(e => productMatches(e, terms, cat));
+  };
+
   const searchRow = el("div", { style: { display: "flex", gap: "8px", marginBottom: "10px", flexWrap: "wrap" } });
-  const search = el("div", { class: "search", style: { flex: "2", minWidth: "180px" } });
-  search.appendChild(el("input", { placeholder: "Search all products...", oninput: (e) => filterProductList(e.target.value, prodView.filterCat) }));
+  const search = el("div", { class: "search", style: { flex: "2", minWidth: "180px", marginBottom: "0" } });
+  const searchInput = el("input", { placeholder: "Search all products...", value: prodView.q || "" });
+  // Debounced so a fast typist doesn't pay for a redraw on every keystroke.
+  let searchTimer = null;
+  searchInput.addEventListener("input", (e) => {
+    prodView.q = e.target.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { prodView.shown = PROD_PAGE; win.draw(); }, 120);
+  });
+  search.appendChild(searchInput);
   searchRow.appendChild(search);
   // Category filter — flat list of every top-level and sub-level category path
-  const all = bizProducts();
-  const catPaths = Array.from(new Set(all.map(p => pathKey(productPath(p))).filter(Boolean))).sort();
+  const catPaths = Array.from(new Set(entries.map(e => e.catPath).filter(Boolean))).sort();
   const catSel = el("select", { style: { flex: "1", minWidth: "140px" }, onchange: (e) => {
     prodView.filterCat = e.target.value;
-    // Re-filter the list in place
-    const q = search.querySelector("input").value;
-    filterProductList(q, prodView.filterCat);
+    prodView.shown = PROD_PAGE;
+    win.draw();
   }});
   catSel.appendChild(el("option", { value: "" }, "All categories"));
   catPaths.forEach(p => {
@@ -580,28 +704,22 @@ const renderAllProducts = () => {
   searchRow.appendChild(catSel);
   wrap.appendChild(searchRow);
 
-  const list = all.slice().sort((a, b) => (a.description || "").localeCompare(b.description || ""));
-
   if (bulkActive("prod")) {
-    wrap.appendChild(bulkBar("prod",
-      () => [...document.querySelectorAll("#prod-list .list-item")]
-        .filter(i => i.style.display !== "none")
-        .map(i => Number(i.dataset.id)).filter(Boolean),
+    // Covers every match, not just the rows currently rendered on screen.
+    wrap.appendChild(bulkBar("prod", () => getMatches().map(e => e.p.id),
       productBulkDelete, productBulkActions()));
   } else {
     const bulkRow = el("div", { style: { display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" } });
     bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: openBulkProductModal }, "\u{1F4CB} Bulk add products"));
-    if (list.length) bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => bulkToggleMode("prod") }, "\u2611\uFE0F Select"));
+    bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => bulkToggleMode("prod") }, "\u2611\uFE0F Select"));
     wrap.appendChild(bulkRow);
   }
 
-  const listCt = el("div", { id: "prod-list" });
-  if (list.length === 0) {
-    listCt.appendChild(emptyState("\u{1F4E6}", "No products yet", "Add your first product"));
-  } else {
-    list.forEach(p => listCt.appendChild(renderProductItem(p)));
-  }
-  wrap.appendChild(listCt);
+  // An empty catalogue still shows the toolbar above, so Bulk add stays reachable.
+  const win = mountProductWindow(getMatches, prodView, () => all.length === 0
+    ? emptyState("\u{1F4E6}", "No products yet", "Add your first product")
+    : el("div", { class: "picker-empty" }, "No products match."));
+  wrap.appendChild(win.node);
   return wrap;
 };
 
@@ -626,37 +744,53 @@ const openProductPreview = (p) => {
   openModal(p.description, wrap, { guard: false });
 };
 
-const renderProductItem = (p) => {
-  const searchIdx = [p.description, p.partNumber, p.category, p.subCategory1, p.subCategory2,
-    p.subCategory3, p.hsn, p.notes, p.unit, p.packUnit, p.rate, p.packQty].filter(Boolean).join(" ").toLowerCase();
-  const catPath = pathKey(productPath(p));
-  const item = el("div", { class: "list-item" + (bulkSel.ids.has(p.id) && bulkActive("prod") ? " row-selected" : ""), "data-search": searchIdx, "data-category": p.category || "", "data-catpath": catPath, "data-id": p.id });
+// One row of the products table. `entry` carries the search haystack and
+// category path already computed by buildProductIndex; it's optional so any
+// other caller still works.
+const renderProductItem = (p, entry) => {
+  const idx = entry || productIndexEntry(p);
+  const item = el("div", {
+    class: "ptable-row" + (bulkSel.ids.has(p.id) && bulkActive("prod") ? " row-selected" : ""),
+    "data-search": idx.hay, "data-category": p.category || "", "data-catpath": idx.catPath, "data-id": p.id });
+
+  const cbCell = el("div", { class: "pt-cb" });
   const cbP = bulkCheckbox("prod", p.id);
-  if (cbP) item.appendChild(cbP);
-  const info = el("div", { class: "info", style: { cursor: "pointer" }, onclick: () => openProductPreview(p) });
-  info.appendChild(el("div", { class: "name" }, p.description));
-  const wt = p.weight ? ` • ${p.weight}kg/${p.unit}` : "";
-  const pk = Number(p.packQty) > 0 ? ` • ${p.packQty}/${p.packUnit || "box"}` : "";
-  const cats = [p.category, p.subCategory1, p.subCategory2, p.subCategory3].filter(Boolean);
-  if (cats.length) info.appendChild(el("div", { style: { display: "flex", gap: "4px", flexWrap: "wrap", margin: "3px 0" } },
-    cats.map(c => el("span", { style: { fontSize: "10px", fontWeight: 600, color: "var(--primary)", background: "var(--primary-tint)", padding: "1px 7px", borderRadius: "999px" } }, c))
-  ));
-  info.appendChild(el("div", { class: "sub" }, `${activeBiz().currency || "NPR"} ${fmt(p.rate)}/${p.unit}${wt}${pk}${p.taxable ? " • Taxable" : ""}`));
-  item.appendChild(info);
+  if (cbP) cbCell.appendChild(cbP);
+  item.appendChild(cbCell);
+
+  // Name + the identity/packing detail that used to sit on the "sub" line.
+  const name = el("div", { class: "pt-name", style: { cursor: "pointer" }, onclick: () => openProductPreview(p) });
+  name.appendChild(el("div", { class: "pt-title" }, p.description));
+  const bits = [];
+  if (p.partNumber) bits.push(p.partNumber);
+  if (p.weight) bits.push(`${p.weight}kg/${p.unit}`);
+  if (Number(p.packQty) > 0) bits.push(`${p.packQty}/${p.packUnit || "box"}`);
+  if (p.taxable) bits.push("Taxable");
+  if (bits.length) name.appendChild(el("div", { class: "pt-sub" }, bits.join(" • ")));
+  item.appendChild(name);
+
+  item.appendChild(el("div", { class: "pt-cat", title: idx.catPath }, idx.catPath || "—"));
+  item.appendChild(el("div", { class: "pt-hsn" }, p.hsn || ""));
+
   // Inline rate edit — tweak the price without opening the full product form.
+  const rateCell = el("div", { class: "pt-rate" });
   const rateInp = el("input", { type: "number", value: p.rate, step: "0.01", title: "Rate",
-    style: { width: "64px", flex: "none", textAlign: "right", fontSize: "12px", padding: "6px 7px" },
-    onclick: (e) => e.stopPropagation() });
+    class: "pt-rate-input", onclick: (e) => e.stopPropagation() });
   rateInp.addEventListener("change", (e) => {
     const newRate = parseFloat(e.target.value) || 0;
     const oldRate = Number(p.rate) || 0;
     if (newRate === oldRate) return;
     p.rate = newRate;
-    saveDB(); render();
-    if (oldRate !== newRate) offerRateUpdate(p, oldRate, newRate);
+    // No render() here — it would rebuild the list and throw away the scroll
+    // position mid-edit. The row already shows the new value.
+    saveDB();
+    offerRateUpdate(p, oldRate, newRate);
   });
-  item.appendChild(rateInp);
-  const actions = el("div", { class: "actions" });
+  rateCell.appendChild(rateInp);
+  rateCell.appendChild(el("span", { class: "pt-unit" }, `/${p.unit || ""}`));
+  item.appendChild(rateCell);
+
+  const actions = el("div", { class: "pt-actions" });
   actions.appendChild(el("button", { class: "btn-icon", title: "Preview", onclick: () => openProductPreview(p) }, "👁️"));
   actions.appendChild(el("button", { class: "btn-icon", title: "Share", onclick: () => shareText(productToLine(p), p.description) }, "📤"));
   actions.appendChild(el("button", { class: "btn-icon", title: "Edit", onclick: () => openProductModal(p) }, "✏️"));

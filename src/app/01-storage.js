@@ -4,13 +4,24 @@ const loadDB = () => {
   try { return JSON.parse(localStorage.getItem(DB_KEY)) || defaultDB(); }
   catch (e) { return defaultDB(); }
 };
-const saveDB = () => {
+const _writeDB = () => {
   try {
     localStorage.setItem(DB_KEY, JSON.stringify(db));
   } catch (e) {
     console.error("Save failed:", e);
     toast("Save failed — storage may be full (try a smaller logo/signature image)", "err");
   }
+};
+// Every saveDB() re-serialises the whole database. Bulk loops (CSV import,
+// mass-add, move-to-category) call it once per record — thousands of full
+// stringify + localStorage writes. suspendSave/resumeSave collapse a whole
+// batch into one write at the end. Always pair them in a try/finally.
+let _saveDepth = 0, _saveDirty = false;
+const saveDB = () => { if (_saveDepth > 0) { _saveDirty = true; return; } _writeDB(); };
+const suspendSave = () => { _saveDepth++; };
+const resumeSave = () => {
+  if (_saveDepth === 0) return;
+  if (--_saveDepth === 0 && _saveDirty) { _saveDirty = false; _writeDB(); }
 };
 const defaultDB = () => ({
   businesses: [],

@@ -70,8 +70,10 @@ label { display: block; font-size: 12px; font-weight: 600; color: #374151; margi
 .tab .tab-icon svg { width: 16px; height: 16px; }
 .tab:hover { color: var(--primary-light); }
 .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
-.content { flex: 1; padding: 16px; max-width: 900px; width: 100%; margin: 0 auto; animation: fadeIn .25s var(--ease); }
-@media (min-width: 768px) { .content { padding: 24px; } }
+/* Full width on phones — a percentage gutter on top of the padding just wastes
+   a small screen. From tablet up the app uses 90% of the viewport. */
+.content { flex: 1; padding: 16px; width: 100%; max-width: none; margin: 0 auto; animation: fadeIn .25s var(--ease); }
+@media (min-width: 768px) { .content { width: 90%; padding: 24px 0; } }
 
 /* Cards */
 .card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); transition: box-shadow .2s var(--ease), transform .2s var(--ease); animation: fadeUp .3s var(--ease) both; }
@@ -177,7 +179,10 @@ label { display: block; font-size: 12px; font-weight: 600; color: #374151; margi
 
 /* Preview — A4 (210mm x 297mm) @ 96dpi = 794x1123px */
 .preview-wrap { background: #55606e; padding: 20px 12px; overflow-x: auto; }
-.pv-scaler { transform-origin: top center; transition: transform .2s var(--ease); }
+/* The modal is now wide enough that the page often needs no scaling at all —
+   centre it in the leftover gutter. Margin auto rather than flex centring, so
+   an overscaled page still scrolls instead of clipping on the left. */
+.pv-scaler { transform-origin: top center; transition: transform .2s var(--ease); width: fit-content; margin: 0 auto; }
 /* Book: stack of A4 pages. Each .pv-page is captured as its own PDF page. */
 .pv-book { display: flex; flex-direction: column; gap: 20px; align-items: center; }
 .pv-page { background: white; width: 794px; height: 1123px; padding: 28px 30px 46px 30px; font-family: "Trebuchet MS", Arial, sans-serif; font-size: 11px; color: #000; box-shadow: 0 8px 28px rgba(0,0,0,.35); position: relative; box-sizing: border-box; overflow: hidden; }
@@ -320,6 +325,80 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 .cat-card-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
 .pack-chip { display: inline-block; background: #eef2ff; color: #4338ca; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
 .pack-note { margin-top: 6px; }
+
+/* ---- Products table ----
+   A dense, column-aligned list. Rates line up in one column so a mistyped
+   price is obvious, and rows are about half the height of the old cards, so
+   twice as many products fit on screen. Deliberately no per-row box-shadow or
+   entry animation past the first few: at a few thousand rows those were the
+   bulk of the paint cost. */
+/* No overflow:hidden — it would make .ptable a scroll container and stop the
+   header sticking to the page. Corners are rounded on the head/last row. */
+.ptable { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); }
+.ptable-head, .ptable-row {
+  display: grid;
+  grid-template-columns: 28px minmax(200px, 2.4fr) minmax(130px, 1.3fr) 100px 168px 184px;
+  gap: 10px; align-items: center; padding: 7px 12px;
+}
+/* Sticks below the topbar (49px) + tab strip (~41px). The bulk bar has a
+   higher z-index, so in select mode it paints over this rather than clashing. */
+.ptable-head { position: sticky; top: 90px; z-index: 4; background: var(--primary-tint); color: var(--muted);
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding-top: 9px; padding-bottom: 9px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.ptable-row:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+.ptable-row { border-top: 1px solid var(--divider); font-size: 13px;
+  /* Rows scrolled out of view skip layout and paint entirely. */
+  content-visibility: auto; contain-intrinsic-size: 0 46px; }
+.ptable-row:hover { background: #f7f9fb; }
+.ptable-row.row-selected { background: var(--primary-tint); }
+.ptable-row:nth-child(-n+8) { animation: rowIn .3s var(--ease) both; }
+.pt-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-sub { font-size: 11px; color: var(--muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-cat, .pt-hsn { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-rate { display: flex; align-items: center; justify-content: flex-end; gap: 5px; text-align: right; }
+.pt-rate-input { width: 92px; flex: none; text-align: right; font-size: 12.5px; padding: 5px 7px; font-variant-numeric: tabular-nums; }
+.pt-unit { font-size: 11px; color: var(--muted); flex: none; min-width: 34px; text-align: left; }
+.pt-actions { display: flex; gap: 4px; justify-content: flex-end; }
+/* Table rows are a pointer context — the 40px touch targets belong to the
+   stacked card layout below. */
+.ptable-row .btn-icon { min-width: 32px; min-height: 32px; padding: 5px 7px; box-shadow: none; background: transparent; }
+.ptable-row .btn-icon:hover { background: #e5e7eb; }
+.prod-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 2px 4px; }
+.prod-count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pt-cb .bulk-cb { margin: 0; }
+
+/* ---- Wide screens ----
+   Now that .content fills 90% of the viewport, the single-column lists and the
+   stretch-to-fill .row children would sprawl. Give the lists columns and stop
+   buttons and stat tiles from growing without limit. */
+@media (min-width: 1200px) {
+  #cust-list, #doc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 8px; align-content: start; }
+  #cust-list > .list-item, #doc-list > .list-item { margin-bottom: 0; }
+  #cust-list > .search-empty, #doc-list > .search-empty { grid-column: 1 / -1; }
+  .row > .btn { flex: 0 1 280px; }
+  .row > .stat-tile { flex: 0 1 260px; }
+}
+
+/* Below the table breakpoint, the same markup restacks into the card rows the
+   app used before — nothing is hidden except the rarely-filled HSN column. */
+@media (max-width: 899px) {
+  .ptable { background: transparent; border: none; box-shadow: none; overflow: visible; }
+  .ptable-head { display: none; }
+  .ptable-row {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "cb name actions" "cb cat rate";
+    padding: 11px 12px; margin-bottom: 8px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow-sm);
+    contain-intrinsic-size: 0 84px;
+  }
+  .pt-cb { grid-area: cb; }
+  .pt-name { grid-area: name; }
+  .pt-cat { grid-area: cat; align-self: center; }
+  .pt-rate { grid-area: rate; justify-content: flex-end; }
+  .pt-actions { grid-area: actions; }
+  .pt-hsn { display: none; }
+  .ptable-row .btn-icon { min-width: 40px; min-height: 40px; }
+}
 /* Bulk selection */
 .bulk-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; background: var(--primary-tint); border: 1px solid var(--primary-light); border-radius: var(--radius-sm); padding: 8px 10px; margin-bottom: 12px; position: sticky; top: 0; z-index: 5; }
 .bulk-mini { padding: 6px 12px !important; font-size: 12px !important; flex: none !important; }
@@ -352,12 +431,14 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 .rpt-stat-l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
 .rpt-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
 /* ---- Stepped document builder ---- */
-.modal-wide { max-width: 860px; width: 100%; }
-.modal-settings { max-width: 980px; width: 100%; }
+/* Wide enough for the 794px A4 preview to show at 100% instead of scaled down,
+   and for the builder to sit beside it on a laptop. */
+.modal-wide { max-width: min(1400px, 95vw); width: 100%; }
+.modal-settings { max-width: min(1200px, 92vw); width: 100%; }
 
 /* Settings modal — sidebar + content shell */
 .settings-wrap { display: flex; flex-direction: column; min-height: 0; }
-.settings-shell { display: grid; grid-template-columns: 220px 1fr; gap: 14px; min-height: 460px; max-height: calc(90vh - 130px); }
+.settings-shell { display: grid; grid-template-columns: minmax(220px, 260px) 1fr; gap: 14px; min-height: 460px; max-height: calc(90vh - 130px); }
 .settings-sidebar { background: var(--surface); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); padding: 12px 8px; overflow-y: auto; overflow-x: hidden; min-height: 0; }
 .settings-side-hdr { padding: 6px 10px 12px; font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--divider); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-side-group { padding: 10px 10px 4px; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
@@ -388,6 +469,28 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
   .settings-side-item { background: var(--surface); box-shadow: var(--shadow-sm); margin-bottom: 8px; padding: 12px 10px; }
 }
 .builder-shell { display: flex; flex-direction: column; max-height: calc(100vh - 160px); }
+/* Live preview beside the form — only where there's room for both. Below this
+   the pane is hidden entirely and the builder behaves exactly as it did. */
+.builder-preview { display: none; }
+@media (min-width: 1200px) {
+  .builder-shell {
+    display: grid; gap: 0 16px;
+    grid-template-columns: minmax(380px, 1fr) minmax(400px, 660px);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "tabs preview" "body preview" "foot preview";
+  }
+  .step-tabs { grid-area: tabs; }
+  .step-body { grid-area: body; }
+  .step-footer { grid-area: foot; }
+  .builder-preview { grid-area: preview; display: flex; flex-direction: column; min-height: 0;
+    border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--shadow-inset); }
+  .builder-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 7px 10px; background: #3f4854; flex: none; }
+  .builder-preview-ttl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #dfe4ea; }
+  .builder-preview-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+    background: #55606e; padding: 12px; }
+  .builder-preview-msg { color: #dfe4ea; font-size: 12.5px; text-align: center; padding: 28px 16px; }
+}
 .step-tabs { display: flex; gap: 4px; background: #eef0f3; padding: 4px; border-radius: var(--radius-sm); margin-bottom: 10px; flex: none; }
 .step-tab { flex: 1; padding: 9px 6px; border: none; background: transparent; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .18s var(--ease); min-height: 40px; }
 .step-tab.active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }

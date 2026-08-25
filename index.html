@@ -81,8 +81,10 @@ label { display: block; font-size: 12px; font-weight: 600; color: #374151; margi
 .tab .tab-icon svg { width: 16px; height: 16px; }
 .tab:hover { color: var(--primary-light); }
 .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
-.content { flex: 1; padding: 16px; max-width: 900px; width: 100%; margin: 0 auto; animation: fadeIn .25s var(--ease); }
-@media (min-width: 768px) { .content { padding: 24px; } }
+/* Full width on phones — a percentage gutter on top of the padding just wastes
+   a small screen. From tablet up the app uses 90% of the viewport. */
+.content { flex: 1; padding: 16px; width: 100%; max-width: none; margin: 0 auto; animation: fadeIn .25s var(--ease); }
+@media (min-width: 768px) { .content { width: 90%; padding: 24px 0; } }
 
 /* Cards */
 .card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); transition: box-shadow .2s var(--ease), transform .2s var(--ease); animation: fadeUp .3s var(--ease) both; }
@@ -188,7 +190,10 @@ label { display: block; font-size: 12px; font-weight: 600; color: #374151; margi
 
 /* Preview — A4 (210mm x 297mm) @ 96dpi = 794x1123px */
 .preview-wrap { background: #55606e; padding: 20px 12px; overflow-x: auto; }
-.pv-scaler { transform-origin: top center; transition: transform .2s var(--ease); }
+/* The modal is now wide enough that the page often needs no scaling at all —
+   centre it in the leftover gutter. Margin auto rather than flex centring, so
+   an overscaled page still scrolls instead of clipping on the left. */
+.pv-scaler { transform-origin: top center; transition: transform .2s var(--ease); width: fit-content; margin: 0 auto; }
 /* Book: stack of A4 pages. Each .pv-page is captured as its own PDF page. */
 .pv-book { display: flex; flex-direction: column; gap: 20px; align-items: center; }
 .pv-page { background: white; width: 794px; height: 1123px; padding: 28px 30px 46px 30px; font-family: "Trebuchet MS", Arial, sans-serif; font-size: 11px; color: #000; box-shadow: 0 8px 28px rgba(0,0,0,.35); position: relative; box-sizing: border-box; overflow: hidden; }
@@ -331,6 +336,80 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 .cat-card-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
 .pack-chip { display: inline-block; background: #eef2ff; color: #4338ca; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
 .pack-note { margin-top: 6px; }
+
+/* ---- Products table ----
+   A dense, column-aligned list. Rates line up in one column so a mistyped
+   price is obvious, and rows are about half the height of the old cards, so
+   twice as many products fit on screen. Deliberately no per-row box-shadow or
+   entry animation past the first few: at a few thousand rows those were the
+   bulk of the paint cost. */
+/* No overflow:hidden — it would make .ptable a scroll container and stop the
+   header sticking to the page. Corners are rounded on the head/last row. */
+.ptable { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); }
+.ptable-head, .ptable-row {
+  display: grid;
+  grid-template-columns: 28px minmax(200px, 2.4fr) minmax(130px, 1.3fr) 100px 168px 184px;
+  gap: 10px; align-items: center; padding: 7px 12px;
+}
+/* Sticks below the topbar (49px) + tab strip (~41px). The bulk bar has a
+   higher z-index, so in select mode it paints over this rather than clashing. */
+.ptable-head { position: sticky; top: 90px; z-index: 4; background: var(--primary-tint); color: var(--muted);
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding-top: 9px; padding-bottom: 9px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.ptable-row:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+.ptable-row { border-top: 1px solid var(--divider); font-size: 13px;
+  /* Rows scrolled out of view skip layout and paint entirely. */
+  content-visibility: auto; contain-intrinsic-size: 0 46px; }
+.ptable-row:hover { background: #f7f9fb; }
+.ptable-row.row-selected { background: var(--primary-tint); }
+.ptable-row:nth-child(-n+8) { animation: rowIn .3s var(--ease) both; }
+.pt-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-sub { font-size: 11px; color: var(--muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-cat, .pt-hsn { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-rate { display: flex; align-items: center; justify-content: flex-end; gap: 5px; text-align: right; }
+.pt-rate-input { width: 92px; flex: none; text-align: right; font-size: 12.5px; padding: 5px 7px; font-variant-numeric: tabular-nums; }
+.pt-unit { font-size: 11px; color: var(--muted); flex: none; min-width: 34px; text-align: left; }
+.pt-actions { display: flex; gap: 4px; justify-content: flex-end; }
+/* Table rows are a pointer context — the 40px touch targets belong to the
+   stacked card layout below. */
+.ptable-row .btn-icon { min-width: 32px; min-height: 32px; padding: 5px 7px; box-shadow: none; background: transparent; }
+.ptable-row .btn-icon:hover { background: #e5e7eb; }
+.prod-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 2px 4px; }
+.prod-count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pt-cb .bulk-cb { margin: 0; }
+
+/* ---- Wide screens ----
+   Now that .content fills 90% of the viewport, the single-column lists and the
+   stretch-to-fill .row children would sprawl. Give the lists columns and stop
+   buttons and stat tiles from growing without limit. */
+@media (min-width: 1200px) {
+  #cust-list, #doc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 8px; align-content: start; }
+  #cust-list > .list-item, #doc-list > .list-item { margin-bottom: 0; }
+  #cust-list > .search-empty, #doc-list > .search-empty { grid-column: 1 / -1; }
+  .row > .btn { flex: 0 1 280px; }
+  .row > .stat-tile { flex: 0 1 260px; }
+}
+
+/* Below the table breakpoint, the same markup restacks into the card rows the
+   app used before — nothing is hidden except the rarely-filled HSN column. */
+@media (max-width: 899px) {
+  .ptable { background: transparent; border: none; box-shadow: none; overflow: visible; }
+  .ptable-head { display: none; }
+  .ptable-row {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "cb name actions" "cb cat rate";
+    padding: 11px 12px; margin-bottom: 8px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow-sm);
+    contain-intrinsic-size: 0 84px;
+  }
+  .pt-cb { grid-area: cb; }
+  .pt-name { grid-area: name; }
+  .pt-cat { grid-area: cat; align-self: center; }
+  .pt-rate { grid-area: rate; justify-content: flex-end; }
+  .pt-actions { grid-area: actions; }
+  .pt-hsn { display: none; }
+  .ptable-row .btn-icon { min-width: 40px; min-height: 40px; }
+}
 /* Bulk selection */
 .bulk-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; background: var(--primary-tint); border: 1px solid var(--primary-light); border-radius: var(--radius-sm); padding: 8px 10px; margin-bottom: 12px; position: sticky; top: 0; z-index: 5; }
 .bulk-mini { padding: 6px 12px !important; font-size: 12px !important; flex: none !important; }
@@ -363,12 +442,14 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 .rpt-stat-l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
 .rpt-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
 /* ---- Stepped document builder ---- */
-.modal-wide { max-width: 860px; width: 100%; }
-.modal-settings { max-width: 980px; width: 100%; }
+/* Wide enough for the 794px A4 preview to show at 100% instead of scaled down,
+   and for the builder to sit beside it on a laptop. */
+.modal-wide { max-width: min(1400px, 95vw); width: 100%; }
+.modal-settings { max-width: min(1200px, 92vw); width: 100%; }
 
 /* Settings modal — sidebar + content shell */
 .settings-wrap { display: flex; flex-direction: column; min-height: 0; }
-.settings-shell { display: grid; grid-template-columns: 220px 1fr; gap: 14px; min-height: 460px; max-height: calc(90vh - 130px); }
+.settings-shell { display: grid; grid-template-columns: minmax(220px, 260px) 1fr; gap: 14px; min-height: 460px; max-height: calc(90vh - 130px); }
 .settings-sidebar { background: var(--surface); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); padding: 12px 8px; overflow-y: auto; overflow-x: hidden; min-height: 0; }
 .settings-side-hdr { padding: 6px 10px 12px; font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--divider); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-side-group { padding: 10px 10px 4px; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
@@ -399,6 +480,28 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
   .settings-side-item { background: var(--surface); box-shadow: var(--shadow-sm); margin-bottom: 8px; padding: 12px 10px; }
 }
 .builder-shell { display: flex; flex-direction: column; max-height: calc(100vh - 160px); }
+/* Live preview beside the form — only where there's room for both. Below this
+   the pane is hidden entirely and the builder behaves exactly as it did. */
+.builder-preview { display: none; }
+@media (min-width: 1200px) {
+  .builder-shell {
+    display: grid; gap: 0 16px;
+    grid-template-columns: minmax(380px, 1fr) minmax(400px, 660px);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "tabs preview" "body preview" "foot preview";
+  }
+  .step-tabs { grid-area: tabs; }
+  .step-body { grid-area: body; }
+  .step-footer { grid-area: foot; }
+  .builder-preview { grid-area: preview; display: flex; flex-direction: column; min-height: 0;
+    border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--shadow-inset); }
+  .builder-preview-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 7px 10px; background: #3f4854; flex: none; }
+  .builder-preview-ttl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #dfe4ea; }
+  .builder-preview-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+    background: #55606e; padding: 12px; }
+  .builder-preview-msg { color: #dfe4ea; font-size: 12.5px; text-align: center; padding: 28px 16px; }
+}
 .step-tabs { display: flex; gap: 4px; background: #eef0f3; padding: 4px; border-radius: var(--radius-sm); margin-bottom: 10px; flex: none; }
 .step-tab { flex: 1; padding: 9px 6px; border: none; background: transparent; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; transition: all .18s var(--ease); min-height: 40px; }
 .step-tab.active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }
@@ -3333,13 +3436,24 @@ const loadDB = () => {
   try { return JSON.parse(localStorage.getItem(DB_KEY)) || defaultDB(); }
   catch (e) { return defaultDB(); }
 };
-const saveDB = () => {
+const _writeDB = () => {
   try {
     localStorage.setItem(DB_KEY, JSON.stringify(db));
   } catch (e) {
     console.error("Save failed:", e);
     toast("Save failed — storage may be full (try a smaller logo/signature image)", "err");
   }
+};
+// Every saveDB() re-serialises the whole database. Bulk loops (CSV import,
+// mass-add, move-to-category) call it once per record — thousands of full
+// stringify + localStorage writes. suspendSave/resumeSave collapse a whole
+// batch into one write at the end. Always pair them in a try/finally.
+let _saveDepth = 0, _saveDirty = false;
+const saveDB = () => { if (_saveDepth > 0) { _saveDirty = true; return; } _writeDB(); };
+const suspendSave = () => { _saveDepth++; };
+const resumeSave = () => {
+  if (_saveDepth === 0) return;
+  if (--_saveDepth === 0 && _saveDirty) { _saveDirty = false; _writeDB(); }
 };
 const defaultDB = () => ({
   businesses: [],
@@ -3540,10 +3654,13 @@ const btnBusy = (btn, label) => {
 // Run `fn(item, i)` over a list in chunks so the button's spinner and its
 // "12/340" counter stay live instead of the whole tab freezing. Small lists
 // finish in one pass — the yield only costs a frame when it's worth it.
+// Saving is suspended for the whole run and flushed once at the end, so a
+// 3,000-item batch writes localStorage once instead of 3,000 times.
 const runBulk = async (btn, label, items, fn, chunk = 40) => {
   const total = items.length;
   const busy = btnBusy(btn, total > chunk ? `${label} 0/${total}` : label);
   await nextFrame();
+  suspendSave();
   try {
     for (let i = 0; i < total; i++) {
       fn(items[i], i);
@@ -3552,7 +3669,7 @@ const runBulk = async (btn, label, items, fn, chunk = 40) => {
         await nextFrame();
       }
     }
-  } finally { busy.done(); }
+  } finally { resumeSave(); busy.done(); }
 };
 
 // Soft delete with an undo window. Removes the record immediately (so the UI
@@ -3583,6 +3700,8 @@ const deleteWithUndo = (label, removeFn, restoreFn, ms = 8000) => {
 // and shows an action bar; deletes route through deleteWithUndo so they're
 // recoverable.
 const bulkSel = { kind: null, ids: new Set() };
+// Above this many rows, a bulk delete asks first — undo is only an 8s window.
+const BULK_CONFIRM_AT = 200;
 
 const bulkActive = (kind) => bulkSel.kind === kind;
 const bulkToggleMode = (kind) => {
@@ -3597,36 +3716,55 @@ const bulkToggleId = (id) => {
 // Checkbox prepended to a row when its list is in select mode.
 const bulkCheckbox = (kind, id) => {
   if (!bulkActive(kind)) return null;
-  const cb = el("input", { type: "checkbox", class: "bulk-cb",
+  const cb = el("input", { type: "checkbox", class: "bulk-cb", "data-id": id,
     onclick: (e) => { e.stopPropagation(); bulkToggleId(id); } });
   cb.checked = bulkSel.ids.has(id);
   return cb;
 };
 
-// Recomputes the count/label in the bar without a full re-render.
+// Repaints the bar and every on-screen row straight from the selection set —
+// no re-render. Only rows currently in the DOM are touched, so this stays cheap
+// even when the set holds thousands of ids from a windowed list.
 const updateBulkBar = () => {
   const lbl = document.getElementById("bulk-count");
   if (lbl) lbl.textContent = `${bulkSel.ids.size} selected`;
   const del = document.getElementById("bulk-delete");
   if (del) del.disabled = bulkSel.ids.size === 0;
+  const all = document.getElementById("bulk-selectall");
+  if (all) all.textContent = bulkAllLabel();
   document.querySelectorAll(".bulk-cb").forEach(cb => {
-    const row = cb.closest(".list-item");
+    const id = Number(cb.dataset.id);
+    // Drive the box from the set — "Select all" no longer re-renders the rows.
+    cb.checked = bulkSel.ids.has(id);
+    const row = cb.closest(".ptable-row, .list-item");
     if (row) row.classList.toggle("row-selected", cb.checked);
   });
 };
 
+// "Select all (3,240)" / "Deselect all" — the count makes it obvious the action
+// covers every match, not just the rows rendered on screen.
+let _bulkAllIds = () => [];
+const bulkAllLabel = () => {
+  const visible = _bulkAllIds();
+  const allOn = visible.length > 0 && visible.every(id => bulkSel.ids.has(id));
+  return allOn ? "Deselect all" : `Select all (${visible.length.toLocaleString()})`;
+};
+
 // The bar shown above a list while selecting. `onDelete` receives the ids.
 const bulkBar = (kind, allIds, onDelete, extraActions) => {
+  _bulkAllIds = allIds;
   const bar = el("div", { class: "bulk-bar" });
   const left = el("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } });
   left.appendChild(el("span", { id: "bulk-count", style: { fontSize: "12.5px", fontWeight: 700, color: "var(--primary)" } },
     `${bulkSel.ids.size} selected`));
-  left.appendChild(el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
+  // Toggling thousands of ids is trivial; re-rendering the app for it was not.
+  // updateBulkBar() repaints the on-screen rows in place instead.
+  left.appendChild(el("button", { class: "btn btn-secondary bulk-mini", id: "bulk-selectall", onclick: () => {
     const visible = allIds();
-    const allOn = visible.every(id => bulkSel.ids.has(id));
+    const allOn = visible.length > 0 && visible.every(id => bulkSel.ids.has(id));
     visible.forEach(id => allOn ? bulkSel.ids.delete(id) : bulkSel.ids.add(id));
-    render();
-  }}, "Select all"));
+    updateBulkBar();
+  }}, bulkAllLabel()));
   bar.appendChild(left);
   const right = el("div", { style: { display: "flex", gap: "6px", flexWrap: "wrap" } });
   (extraActions || []).forEach(b => right.appendChild(b));
@@ -3673,7 +3811,10 @@ const toast = (msg, kind = "ok", ms = 1800) => {
   }, ms);
 };
 
-const fmt = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Built once and reused. toLocaleString() constructs a fresh formatter on every
+// call, and fmt() runs once per product row and once per document line.
+const _moneyFmt = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n) => _moneyFmt.format(Number(n || 0));
 
 // Convert a number to words using the Indian numbering system (Lakh / Crore).
 // Used for the "In words" line on documents.
@@ -4288,23 +4429,29 @@ const renderCustomers = () => {
         .filter(i => i.style.display !== "none")
         .map(i => Number(i.dataset.id)).filter(Boolean),
       (ids) => {
-        const custSnap = db.customers.filter(c => ids.includes(c.id));
-        const docSnap = db.documents.filter(d => ids.includes(d.customerId));
-        const doIt = () => deleteWithUndo(`${ids.length} customer${ids.length === 1 ? "" : "s"}`,
+        const idSet = new Set(ids);
+        const custSnap = db.customers.filter(c => idSet.has(c.id));
+        const docSnap = db.documents.filter(d => idSet.has(d.customerId));
+        const label = `${ids.length} customer${ids.length === 1 ? "" : "s"}`;
+        const doIt = () => deleteWithUndo(label,
           () => {
-            db.customers = db.customers.filter(c => !ids.includes(c.id));
-            db.documents = db.documents.filter(d => !ids.includes(d.customerId));
+            db.customers = db.customers.filter(c => !idSet.has(c.id));
+            db.documents = db.documents.filter(d => !idSet.has(d.customerId));
             bulkSel.ids.clear();
           },
           () => { db.customers.push(...custSnap); db.documents.push(...docSnap); });
         if (docSnap.length) {
           confirmModal(`This also deletes ${docSnap.length} document${docSnap.length === 1 ? "" : "s"} belonging to the selected customer${ids.length === 1 ? "" : "s"}.`, doIt, { confirmLabel: "Delete anyway" });
+        } else if (ids.length > BULK_CONFIRM_AT) {
+          confirmModal(`Delete ${label}? You'll have a few seconds to undo.`, doIt,
+            { title: "Delete customers?", confirmLabel: `Delete ${ids.length}`, danger: true });
         } else doIt();
       },
       [el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
         const ids = [...bulkSel.ids];
         if (!ids.length) { toast("Nothing selected", "err"); return; }
-        const text = db.customers.filter(c => ids.includes(c.id)).map(customerToLine).join("\n");
+        const idSet = new Set(ids);
+        const text = db.customers.filter(c => idSet.has(c.id)).map(customerToLine).join("\n");
         shareText(text, "Customers");
       }}, "📤 Share"),
       ...(db.businesses.length > 1 ? [el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
@@ -4659,23 +4806,11 @@ const renderCustomerItem = (c) => {
   return item;
 };
 
-// Token search: every word must appear somewhere in the row, in any order.
-// Combined search + category-prefix filter for the flat product list.
-const filterProductList = (q, catPathKey) => {
-  const terms = (q || "").toLowerCase().trim().split(/\s+/).filter(Boolean);
-  const root = document.getElementById("prod-list");
-  if (!root) return;
-  const catFilter = (catPathKey || "").trim();
-  root.querySelectorAll(".list-item").forEach(i => {
-    const hay = i.dataset.search || "";
-    const searchOK = terms.every(t => hay.includes(t));
-    const path = i.dataset.catpath || "";
-    // Category filter is a "starts-with" match on the ` > `-joined path
-    const catOK = !catFilter || path === catFilter || path.startsWith(catFilter + " \u203A ");
-    i.style.display = (searchOK && catOK) ? "" : "none";
-  });
-};
+// The products list used to be filtered by hiding rows in the DOM, which meant
+// every product had to be rendered first. It now filters the data instead \u2014 see
+// productMatches / mountProductWindow in 16-keyboard-shortcuts.js.
 
+// Token search: every word must appear somewhere in the row, in any order.
 // So "pvc elbow" matches "Elbow PVC 110mm", and "110 elbow" works too.
 const filterList = (kind, q) => {
   const terms = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
@@ -4820,11 +4955,21 @@ const assignProductPath = (p, path) => {
 
 // Delete handler for the products bulk bar — routed through deleteWithUndo so
 // a mis-tap on a multi-selection is recoverable.
+// `ids.includes()` inside a filter is O(N×M) — with a few thousand products
+// selected that alone froze the tab. A Set makes each pass linear.
 const productBulkDelete = (ids) => {
-  const snapshot = db.products.filter(p => ids.includes(p.id));
-  deleteWithUndo(`${ids.length} product${ids.length === 1 ? "" : "s"}`,
-    () => { db.products = db.products.filter(p => !ids.includes(p.id)); bulkSel.ids.clear(); },
+  const idSet = new Set(ids);
+  const snapshot = db.products.filter(p => idSet.has(p.id));
+  const label = `${ids.length} product${ids.length === 1 ? "" : "s"}`;
+  const go = () => deleteWithUndo(label,
+    () => { db.products = db.products.filter(p => !idSet.has(p.id)); bulkSel.ids.clear(); },
     () => { db.products.push(...snapshot); });
+  // Undo is only an 8-second window — a mis-tapped "select all" delete deserves
+  // a deliberate confirmation first.
+  if (ids.length > BULK_CONFIRM_AT) {
+    confirmModal(`Delete ${label}? You'll have a few seconds to undo.`, go,
+      { title: "Delete products?", confirmLabel: `Delete ${ids.length}`, danger: true });
+  } else go();
 };
 
 // Extra buttons for the products bulk bar. Shared by the Categories browser and
@@ -4834,8 +4979,9 @@ const productBulkActions = () => [
     const btn = e.currentTarget;
     const ids = [...bulkSel.ids];
     if (!ids.length) { toast("Nothing selected", "err"); return; }
+    const idSet = new Set(ids);
     openCategoryPicker(async (path) => {
-      const targets = db.products.filter(p => ids.includes(p.id));
+      const targets = db.products.filter(p => idSet.has(p.id));
       await runBulk(btn, "Moving", targets, (p) => assignProductPath(p, path));
       saveDB(); bulkSel.ids.clear(); render();
       toast(`Moved ${targets.length} to ${pathKey(path)}`);
@@ -4844,7 +4990,8 @@ const productBulkActions = () => [
   el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
     const ids = [...bulkSel.ids];
     if (!ids.length) { toast("Nothing selected", "err"); return; }
-    shareText(db.products.filter(p => ids.includes(p.id)).map(productToLine).join("\n"), "Products");
+    const idSet = new Set(ids);
+    shareText(db.products.filter(p => idSet.has(p.id)).map(productToLine).join("\n"), "Products");
   }}, "\u{1F4E4} Share"),
 ];
 
@@ -5166,7 +5313,107 @@ const downloadTemplate = (kind) => {
   toast("Template downloaded");
 };
 
-const prodView = { mode: "categories", path: [] };
+const prodView = { mode: "categories", path: [], q: "", filterCat: "", shown: 0 };
+
+// ---- Product list indexing + windowing ----
+// A catalogue of a few thousand products used to be rendered in full, every
+// time: ~20 nodes and ~9 listeners per row, all built in one synchronous tick.
+// Now rows are built a page at a time and searching happens over the data, so
+// the cost no longer scales with catalogue size.
+const PROD_PAGE = 100;
+// Window state for the Categories browser's product list, reset on drill-down.
+const catView = { key: null, shown: 0 };
+
+// One pass over the catalogue builds the lowercase haystack and category path
+// per product. renderProductItem used to recompute both for every row.
+const productIndexEntry = (p) => ({
+  p,
+  hay: [p.description, p.partNumber, p.category, p.subCategory1, p.subCategory2,
+    p.subCategory3, p.hsn, p.notes, p.unit, p.packUnit, p.rate, p.packQty]
+    .filter(Boolean).join(" ").toLowerCase(),
+  catPath: pathKey(productPath(p)),
+});
+
+// numeric:true so "PVC 90mm" sorts before "PVC 110mm" instead of after it.
+const prodCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const buildProductIndex = (list) => list.map(productIndexEntry)
+  .sort((a, b) => prodCollator.compare(a.p.description || "", b.p.description || ""));
+
+// Same semantics the old DOM filter had: every term must appear somewhere, in
+// any order; the category filter is a starts-with match on the joined path.
+const productMatches = (entry, terms, catFilter) => {
+  for (const t of terms) if (!entry.hay.includes(t)) return false;
+  if (!catFilter) return true;
+  return entry.catPath === catFilter || entry.catPath.startsWith(catFilter + " › ");
+};
+const searchTerms = (q) => (q || "").toLowerCase().trim().split(/\s+/).filter(Boolean);
+
+const productTableHead = () => el("div", { class: "ptable-head" },
+  el("div", {}, ""),
+  el("div", {}, "Product"),
+  el("div", {}, "Category"),
+  el("div", {}, "HSN"),
+  el("div", { class: "pt-rate" }, `Rate (${activeBiz().currency || "NPR"})`),
+  el("div", {}, ""));
+
+// Renders `getEntries()` a page at a time into a table. Scrolling near the end
+// (or the Show more button) grows the window in place — never a full render(),
+// so the scroll position and any open search survive.
+const mountProductWindow = (getEntries, state, emptyEl) => {
+  const node = el("div");
+  const table = el("div", { class: "ptable", id: "prod-list" });
+  const body = el("div", { class: "ptable-body" });
+  table.appendChild(productTableHead());
+  table.appendChild(body);
+  const foot = el("div", { class: "prod-foot" });
+  node.appendChild(table);
+  node.appendChild(foot);
+  let io = null;
+
+  const draw = () => {
+    const entries = getEntries();
+    const total = entries.length;
+    if (!state.shown || state.shown < PROD_PAGE) state.shown = PROD_PAGE;
+    const shown = Math.min(state.shown, total);
+    if (io) { io.disconnect(); io = null; }
+    body.innerHTML = "";
+    foot.innerHTML = "";
+
+    if (!total) {
+      table.style.display = "none";
+      foot.appendChild(emptyEl ? emptyEl() : el("div", { class: "picker-empty" }, "No products match."));
+      return;
+    }
+    table.style.display = "";
+
+    // One reflow for the whole page of rows instead of one per row.
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < shown; i++) frag.appendChild(renderProductItem(entries[i].p, entries[i]));
+    body.appendChild(frag);
+
+    foot.appendChild(el("div", { class: "prod-count" },
+      shown < total ? `Showing ${shown.toLocaleString()} of ${total.toLocaleString()}`
+                    : `${total.toLocaleString()} product${total === 1 ? "" : "s"}`));
+
+    if (shown < total) {
+      const more = () => { state.shown += PROD_PAGE; draw(); };
+      // Button first — it's the keyboard-reachable path and the fallback for
+      // browsers where the observer never fires.
+      foot.appendChild(el("button", { class: "btn btn-secondary", onclick: more },
+        `Show more (${(total - shown).toLocaleString()} left)`));
+      if (typeof IntersectionObserver === "function") {
+        io = new IntersectionObserver((ents) => { if (ents.some(e => e.isIntersecting)) more(); },
+          { rootMargin: "600px 0px" });
+        io.observe(foot);
+      }
+    }
+    // Row checkboxes are rebuilt on every draw — resync them with the set.
+    if (bulkActive("prod")) updateBulkBar();
+  };
+
+  draw();
+  return { node, draw };
+};
 
 const renderProducts = () => {
   const wrap = el("div");
@@ -5175,7 +5422,14 @@ const renderProducts = () => {
   const seg = el("div", { class: "subtabs" });
   const mkSeg = (key, label) => el("button", {
     class: "subtab" + (prodView.mode === key ? " active" : ""),
-    onclick: () => { prodView.mode = key; if (key === "categories") prodView.path = []; render(); }
+    // Reset the window (and any search) so switching sub-tabs starts at one
+    // page rather than re-rendering however far the last view had scrolled.
+    onclick: () => {
+      prodView.mode = key;
+      prodView.shown = PROD_PAGE;
+      if (key === "categories") { prodView.path = []; catView.key = null; }
+      render();
+    }
   }, label);
   seg.appendChild(mkSeg("categories", "Categories"));
   seg.appendChild(mkSeg("all", "All products"));
@@ -5468,9 +5722,12 @@ const renderCategoryBrowser = () => {
         el("button", { class: "btn btn-secondary bulk-mini", onclick: () => bulkToggleMode("prod") },
           "☑️ Select products to move")));
     }
-    const box = el("div", { id: "prod-list" });
-    here.forEach(p => box.appendChild(renderProductItem(p)));
-    wrap.appendChild(box);
+    // A single category can hold thousands too, so it gets the same window.
+    // Drilling into a different category starts the window over.
+    const key = pathKey(node.path);
+    if (catView.key !== key) { catView.key = key; catView.shown = PROD_PAGE; }
+    const hereEntries = buildProductIndex(here);
+    wrap.appendChild(mountProductWindow(() => hereEntries, catView).node);
   } else if (!node.children.length) {
     wrap.appendChild(el("div", { class: "picker-empty" }, "Nothing here."));
   }
@@ -5480,20 +5737,34 @@ const renderCategoryBrowser = () => {
 // ---- All products view: flat, searchable ----
 const renderAllProducts = () => {
   const wrap = el("div");
-  // State for the category filter (persists across renders inside this session)
-  if (!prodView.filterCat) prodView.filterCat = "";
+  const all = bizProducts();
+  // Indexed and sorted once per render; searching only re-filters this array.
+  const entries = buildProductIndex(all);
+  const getMatches = () => {
+    const terms = searchTerms(prodView.q);
+    const cat = (prodView.filterCat || "").trim();
+    if (!terms.length && !cat) return entries;
+    return entries.filter(e => productMatches(e, terms, cat));
+  };
+
   const searchRow = el("div", { style: { display: "flex", gap: "8px", marginBottom: "10px", flexWrap: "wrap" } });
-  const search = el("div", { class: "search", style: { flex: "2", minWidth: "180px" } });
-  search.appendChild(el("input", { placeholder: "Search all products...", oninput: (e) => filterProductList(e.target.value, prodView.filterCat) }));
+  const search = el("div", { class: "search", style: { flex: "2", minWidth: "180px", marginBottom: "0" } });
+  const searchInput = el("input", { placeholder: "Search all products...", value: prodView.q || "" });
+  // Debounced so a fast typist doesn't pay for a redraw on every keystroke.
+  let searchTimer = null;
+  searchInput.addEventListener("input", (e) => {
+    prodView.q = e.target.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { prodView.shown = PROD_PAGE; win.draw(); }, 120);
+  });
+  search.appendChild(searchInput);
   searchRow.appendChild(search);
   // Category filter — flat list of every top-level and sub-level category path
-  const all = bizProducts();
-  const catPaths = Array.from(new Set(all.map(p => pathKey(productPath(p))).filter(Boolean))).sort();
+  const catPaths = Array.from(new Set(entries.map(e => e.catPath).filter(Boolean))).sort();
   const catSel = el("select", { style: { flex: "1", minWidth: "140px" }, onchange: (e) => {
     prodView.filterCat = e.target.value;
-    // Re-filter the list in place
-    const q = search.querySelector("input").value;
-    filterProductList(q, prodView.filterCat);
+    prodView.shown = PROD_PAGE;
+    win.draw();
   }});
   catSel.appendChild(el("option", { value: "" }, "All categories"));
   catPaths.forEach(p => {
@@ -5504,28 +5775,22 @@ const renderAllProducts = () => {
   searchRow.appendChild(catSel);
   wrap.appendChild(searchRow);
 
-  const list = all.slice().sort((a, b) => (a.description || "").localeCompare(b.description || ""));
-
   if (bulkActive("prod")) {
-    wrap.appendChild(bulkBar("prod",
-      () => [...document.querySelectorAll("#prod-list .list-item")]
-        .filter(i => i.style.display !== "none")
-        .map(i => Number(i.dataset.id)).filter(Boolean),
+    // Covers every match, not just the rows currently rendered on screen.
+    wrap.appendChild(bulkBar("prod", () => getMatches().map(e => e.p.id),
       productBulkDelete, productBulkActions()));
   } else {
     const bulkRow = el("div", { style: { display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" } });
     bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: openBulkProductModal }, "\u{1F4CB} Bulk add products"));
-    if (list.length) bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => bulkToggleMode("prod") }, "\u2611\uFE0F Select"));
+    bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => bulkToggleMode("prod") }, "\u2611\uFE0F Select"));
     wrap.appendChild(bulkRow);
   }
 
-  const listCt = el("div", { id: "prod-list" });
-  if (list.length === 0) {
-    listCt.appendChild(emptyState("\u{1F4E6}", "No products yet", "Add your first product"));
-  } else {
-    list.forEach(p => listCt.appendChild(renderProductItem(p)));
-  }
-  wrap.appendChild(listCt);
+  // An empty catalogue still shows the toolbar above, so Bulk add stays reachable.
+  const win = mountProductWindow(getMatches, prodView, () => all.length === 0
+    ? emptyState("\u{1F4E6}", "No products yet", "Add your first product")
+    : el("div", { class: "picker-empty" }, "No products match."));
+  wrap.appendChild(win.node);
   return wrap;
 };
 
@@ -5550,37 +5815,53 @@ const openProductPreview = (p) => {
   openModal(p.description, wrap, { guard: false });
 };
 
-const renderProductItem = (p) => {
-  const searchIdx = [p.description, p.partNumber, p.category, p.subCategory1, p.subCategory2,
-    p.subCategory3, p.hsn, p.notes, p.unit, p.packUnit, p.rate, p.packQty].filter(Boolean).join(" ").toLowerCase();
-  const catPath = pathKey(productPath(p));
-  const item = el("div", { class: "list-item" + (bulkSel.ids.has(p.id) && bulkActive("prod") ? " row-selected" : ""), "data-search": searchIdx, "data-category": p.category || "", "data-catpath": catPath, "data-id": p.id });
+// One row of the products table. `entry` carries the search haystack and
+// category path already computed by buildProductIndex; it's optional so any
+// other caller still works.
+const renderProductItem = (p, entry) => {
+  const idx = entry || productIndexEntry(p);
+  const item = el("div", {
+    class: "ptable-row" + (bulkSel.ids.has(p.id) && bulkActive("prod") ? " row-selected" : ""),
+    "data-search": idx.hay, "data-category": p.category || "", "data-catpath": idx.catPath, "data-id": p.id });
+
+  const cbCell = el("div", { class: "pt-cb" });
   const cbP = bulkCheckbox("prod", p.id);
-  if (cbP) item.appendChild(cbP);
-  const info = el("div", { class: "info", style: { cursor: "pointer" }, onclick: () => openProductPreview(p) });
-  info.appendChild(el("div", { class: "name" }, p.description));
-  const wt = p.weight ? ` • ${p.weight}kg/${p.unit}` : "";
-  const pk = Number(p.packQty) > 0 ? ` • ${p.packQty}/${p.packUnit || "box"}` : "";
-  const cats = [p.category, p.subCategory1, p.subCategory2, p.subCategory3].filter(Boolean);
-  if (cats.length) info.appendChild(el("div", { style: { display: "flex", gap: "4px", flexWrap: "wrap", margin: "3px 0" } },
-    cats.map(c => el("span", { style: { fontSize: "10px", fontWeight: 600, color: "var(--primary)", background: "var(--primary-tint)", padding: "1px 7px", borderRadius: "999px" } }, c))
-  ));
-  info.appendChild(el("div", { class: "sub" }, `${activeBiz().currency || "NPR"} ${fmt(p.rate)}/${p.unit}${wt}${pk}${p.taxable ? " • Taxable" : ""}`));
-  item.appendChild(info);
+  if (cbP) cbCell.appendChild(cbP);
+  item.appendChild(cbCell);
+
+  // Name + the identity/packing detail that used to sit on the "sub" line.
+  const name = el("div", { class: "pt-name", style: { cursor: "pointer" }, onclick: () => openProductPreview(p) });
+  name.appendChild(el("div", { class: "pt-title" }, p.description));
+  const bits = [];
+  if (p.partNumber) bits.push(p.partNumber);
+  if (p.weight) bits.push(`${p.weight}kg/${p.unit}`);
+  if (Number(p.packQty) > 0) bits.push(`${p.packQty}/${p.packUnit || "box"}`);
+  if (p.taxable) bits.push("Taxable");
+  if (bits.length) name.appendChild(el("div", { class: "pt-sub" }, bits.join(" • ")));
+  item.appendChild(name);
+
+  item.appendChild(el("div", { class: "pt-cat", title: idx.catPath }, idx.catPath || "—"));
+  item.appendChild(el("div", { class: "pt-hsn" }, p.hsn || ""));
+
   // Inline rate edit — tweak the price without opening the full product form.
+  const rateCell = el("div", { class: "pt-rate" });
   const rateInp = el("input", { type: "number", value: p.rate, step: "0.01", title: "Rate",
-    style: { width: "64px", flex: "none", textAlign: "right", fontSize: "12px", padding: "6px 7px" },
-    onclick: (e) => e.stopPropagation() });
+    class: "pt-rate-input", onclick: (e) => e.stopPropagation() });
   rateInp.addEventListener("change", (e) => {
     const newRate = parseFloat(e.target.value) || 0;
     const oldRate = Number(p.rate) || 0;
     if (newRate === oldRate) return;
     p.rate = newRate;
-    saveDB(); render();
-    if (oldRate !== newRate) offerRateUpdate(p, oldRate, newRate);
+    // No render() here — it would rebuild the list and throw away the scroll
+    // position mid-edit. The row already shows the new value.
+    saveDB();
+    offerRateUpdate(p, oldRate, newRate);
   });
-  item.appendChild(rateInp);
-  const actions = el("div", { class: "actions" });
+  rateCell.appendChild(rateInp);
+  rateCell.appendChild(el("span", { class: "pt-unit" }, `/${p.unit || ""}`));
+  item.appendChild(rateCell);
+
+  const actions = el("div", { class: "pt-actions" });
   actions.appendChild(el("button", { class: "btn-icon", title: "Preview", onclick: () => openProductPreview(p) }, "👁️"));
   actions.appendChild(el("button", { class: "btn-icon", title: "Share", onclick: () => shareText(productToLine(p), p.description) }, "📤"));
   actions.appendChild(el("button", { class: "btn-icon", title: "Edit", onclick: () => openProductModal(p) }, "✏️"));
@@ -5622,17 +5903,25 @@ const renderDocuments = () => {
   const list = bizDocs().filter(d => docTypeFilter === "All" || d.type === docTypeFilter).slice().reverse();
   if (bulkActive("doc")) {
     wrap.appendChild(bulkBar("doc",
+      // Numbers, to match the ids the row checkboxes put in the set — this used
+      // to hand back strings, so "Select all" never lit the rows up.
       () => [...document.querySelectorAll("#doc-list .list-item")]
         .filter(i => i.style.display !== "none")
-        .map(i => i.dataset.id).filter(Boolean),
+        .map(i => Number(i.dataset.id)).filter(Boolean),
       (ids) => {
-        const snapshot = db.documents.filter(x => ids.includes(String(x.id)) || ids.includes(x.id));
-        deleteWithUndo(`${ids.length} document${ids.length === 1 ? "" : "s"}`,
+        const idSet = new Set(ids);
+        const snapshot = db.documents.filter(x => idSet.has(x.id));
+        const label = `${ids.length} document${ids.length === 1 ? "" : "s"}`;
+        const go = () => deleteWithUndo(label,
           () => {
-            db.documents = db.documents.filter(x => !(ids.includes(String(x.id)) || ids.includes(x.id)));
+            db.documents = db.documents.filter(x => !idSet.has(x.id));
             bulkSel.ids.clear();
           },
           () => { db.documents.push(...snapshot); });
+        if (ids.length > BULK_CONFIRM_AT) {
+          confirmModal(`Delete ${label}? You'll have a few seconds to undo.`, go,
+            { title: "Delete documents?", confirmLabel: `Delete ${ids.length}`, danger: true });
+        } else go();
       }));
   } else if (list.length) {
     const selRow = el("div", { style: { marginBottom: "12px" } });
@@ -7835,6 +8124,77 @@ const openDocBuilder = () => {
   const body = el("div", { class: "step-body" });
   STEP_ORDER.forEach(k => body.appendChild(steps[k]));
 
+  // ---- Live preview pane (wide screens only; CSS hides it below 1200px) ----
+  // Building the A4 preview is not cheap: renderPreview measures rows by
+  // appending an offscreen page and reading scrollHeight, then paginates into
+  // 794x1123 pages. That's fine for a normal document, so it refreshes as you
+  // work — but past LIVE_PREVIEW_MAX lines it waits for an explicit tap rather
+  // than becoming the new thing that freezes the tab.
+  const LIVE_PREVIEW_MAX = 60;
+  const pvPane = el("div", { class: "builder-preview no-print" });
+  const pvBody = el("div", { class: "builder-preview-body" });
+  const pvMsg = (t) => el("div", { class: "builder-preview-msg" }, t);
+
+  // Shrink the fixed-width page into whatever the column gives us. The page
+  // itself is never resized, so the PDF still captures a full 794px page.
+  const fitPreview = () => {
+    const scaler = pvBody.querySelector(".pv-scaler");
+    const book = scaler && scaler.firstChild;
+    if (!book) return;
+    const avail = pvBody.clientWidth - 24;
+    if (avail <= 0) return;
+    const scale = Math.min(1, avail / 794);
+    scaler.style.transform = `scale(${scale})`;
+    scaler.style.height = (book.offsetHeight * scale) + "px";
+  };
+
+  const drawPreview = () => {
+    // A debounced refresh can land after the modal is gone — don't pay for a
+    // pagination pass into a detached node.
+    if (!pvPane.isConnected) return;
+    pvBody.innerHTML = "";
+    const cust = db.customers.find(c => c.id === docBuilder.customerId);
+    if (!cust) { pvBody.appendChild(pvMsg("Pick a customer to see the preview.")); return; }
+    if (!docBuilder.lineItems.length) { pvBody.appendChild(pvMsg("Add a line item to see the preview.")); return; }
+    try {
+      recomputeTotals();
+      const pv = renderPreview(docBuilder, activeBiz(), cust);
+      const scaler = el("div", { class: "pv-scaler" });
+      scaler.appendChild(pv);
+      pvBody.appendChild(scaler);
+      fitPreview();
+      setTimeout(fitPreview, 120); // after images/fonts settle
+    } catch (e) {
+      console.error("Live preview failed", e);
+      pvBody.appendChild(pvMsg("Preview will appear once the remaining details are filled in."));
+    }
+  };
+
+  let pvTimer = null;
+  const pvBar = el("div", { class: "builder-preview-bar" });
+  pvBar.appendChild(el("span", { class: "builder-preview-ttl" }, "Live preview"));
+  const pvStale = el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
+    pvStale.style.display = "none";
+    clearTimeout(pvTimer);
+    drawPreview();
+  }}, "↻ Refresh");
+  pvStale.style.display = "none";
+  pvBar.appendChild(pvStale);
+  pvPane.appendChild(pvBar);
+  pvPane.appendChild(pvBody);
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(fitPreview).observe(pvBody);
+
+  const refreshPreview = () => {
+    if (docBuilder.lineItems.length > LIVE_PREVIEW_MAX) {
+      // Too big to rebuild on every edit — leave what's showing and let the
+      // Refresh button drive it.
+      pvStale.style.display = "";
+      return;
+    }
+    clearTimeout(pvTimer);
+    pvTimer = setTimeout(drawPreview, 300);
+  };
+
   const footer = el("div", { class: "step-footer" });
   const totalLine = el("div", { class: "step-total" });
   const footBtns = el("div", { class: "step-foot-btns" });
@@ -7870,6 +8230,9 @@ const openDocBuilder = () => {
       footBtns.appendChild(el("button", { class: "btn btn-primary", onclick: saveDoc }, "Save & Preview"));
     }
     refreshFooter();
+    // Party/terms steps don't move totals, so they don't fire _onTotals —
+    // catch their edits when the user steps away from them.
+    refreshPreview();
     body.scrollTop = 0;
   };
 
@@ -7885,9 +8248,10 @@ const openDocBuilder = () => {
   shell.appendChild(tabsBar);
   shell.appendChild(body);
   shell.appendChild(footer);
+  shell.appendChild(pvPane);
 
-  // keep the footer total live as items/charges change
-  docBuilder._onTotals = refreshFooter;
+  // keep the footer total — and the live preview — current as items change
+  docBuilder._onTotals = () => { refreshFooter(); refreshPreview(); };
   goStep("party");
 
   openModal(`${docBuilder._editing ? "Edit" : "New"} ${DOC_TYPES[docBuilder.type].label}`, shell, { wide: true });

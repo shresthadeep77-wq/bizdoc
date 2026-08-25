@@ -868,6 +868,77 @@ const openDocBuilder = () => {
   const body = el("div", { class: "step-body" });
   STEP_ORDER.forEach(k => body.appendChild(steps[k]));
 
+  // ---- Live preview pane (wide screens only; CSS hides it below 1200px) ----
+  // Building the A4 preview is not cheap: renderPreview measures rows by
+  // appending an offscreen page and reading scrollHeight, then paginates into
+  // 794x1123 pages. That's fine for a normal document, so it refreshes as you
+  // work — but past LIVE_PREVIEW_MAX lines it waits for an explicit tap rather
+  // than becoming the new thing that freezes the tab.
+  const LIVE_PREVIEW_MAX = 60;
+  const pvPane = el("div", { class: "builder-preview no-print" });
+  const pvBody = el("div", { class: "builder-preview-body" });
+  const pvMsg = (t) => el("div", { class: "builder-preview-msg" }, t);
+
+  // Shrink the fixed-width page into whatever the column gives us. The page
+  // itself is never resized, so the PDF still captures a full 794px page.
+  const fitPreview = () => {
+    const scaler = pvBody.querySelector(".pv-scaler");
+    const book = scaler && scaler.firstChild;
+    if (!book) return;
+    const avail = pvBody.clientWidth - 24;
+    if (avail <= 0) return;
+    const scale = Math.min(1, avail / 794);
+    scaler.style.transform = `scale(${scale})`;
+    scaler.style.height = (book.offsetHeight * scale) + "px";
+  };
+
+  const drawPreview = () => {
+    // A debounced refresh can land after the modal is gone — don't pay for a
+    // pagination pass into a detached node.
+    if (!pvPane.isConnected) return;
+    pvBody.innerHTML = "";
+    const cust = db.customers.find(c => c.id === docBuilder.customerId);
+    if (!cust) { pvBody.appendChild(pvMsg("Pick a customer to see the preview.")); return; }
+    if (!docBuilder.lineItems.length) { pvBody.appendChild(pvMsg("Add a line item to see the preview.")); return; }
+    try {
+      recomputeTotals();
+      const pv = renderPreview(docBuilder, activeBiz(), cust);
+      const scaler = el("div", { class: "pv-scaler" });
+      scaler.appendChild(pv);
+      pvBody.appendChild(scaler);
+      fitPreview();
+      setTimeout(fitPreview, 120); // after images/fonts settle
+    } catch (e) {
+      console.error("Live preview failed", e);
+      pvBody.appendChild(pvMsg("Preview will appear once the remaining details are filled in."));
+    }
+  };
+
+  let pvTimer = null;
+  const pvBar = el("div", { class: "builder-preview-bar" });
+  pvBar.appendChild(el("span", { class: "builder-preview-ttl" }, "Live preview"));
+  const pvStale = el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
+    pvStale.style.display = "none";
+    clearTimeout(pvTimer);
+    drawPreview();
+  }}, "↻ Refresh");
+  pvStale.style.display = "none";
+  pvBar.appendChild(pvStale);
+  pvPane.appendChild(pvBar);
+  pvPane.appendChild(pvBody);
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(fitPreview).observe(pvBody);
+
+  const refreshPreview = () => {
+    if (docBuilder.lineItems.length > LIVE_PREVIEW_MAX) {
+      // Too big to rebuild on every edit — leave what's showing and let the
+      // Refresh button drive it.
+      pvStale.style.display = "";
+      return;
+    }
+    clearTimeout(pvTimer);
+    pvTimer = setTimeout(drawPreview, 300);
+  };
+
   const footer = el("div", { class: "step-footer" });
   const totalLine = el("div", { class: "step-total" });
   const footBtns = el("div", { class: "step-foot-btns" });
@@ -903,6 +974,9 @@ const openDocBuilder = () => {
       footBtns.appendChild(el("button", { class: "btn btn-primary", onclick: saveDoc }, "Save & Preview"));
     }
     refreshFooter();
+    // Party/terms steps don't move totals, so they don't fire _onTotals —
+    // catch their edits when the user steps away from them.
+    refreshPreview();
     body.scrollTop = 0;
   };
 
@@ -918,9 +992,10 @@ const openDocBuilder = () => {
   shell.appendChild(tabsBar);
   shell.appendChild(body);
   shell.appendChild(footer);
+  shell.appendChild(pvPane);
 
-  // keep the footer total live as items/charges change
-  docBuilder._onTotals = refreshFooter;
+  // keep the footer total — and the live preview — current as items change
+  docBuilder._onTotals = () => { refreshFooter(); refreshPreview(); };
   goStep("party");
 
   openModal(`${docBuilder._editing ? "Edit" : "New"} ${DOC_TYPES[docBuilder.type].label}`, shell, { wide: true });

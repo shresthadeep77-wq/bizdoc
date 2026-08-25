@@ -21,17 +21,25 @@ const renderDocuments = () => {
   const list = bizDocs().filter(d => docTypeFilter === "All" || d.type === docTypeFilter).slice().reverse();
   if (bulkActive("doc")) {
     wrap.appendChild(bulkBar("doc",
+      // Numbers, to match the ids the row checkboxes put in the set — this used
+      // to hand back strings, so "Select all" never lit the rows up.
       () => [...document.querySelectorAll("#doc-list .list-item")]
         .filter(i => i.style.display !== "none")
-        .map(i => i.dataset.id).filter(Boolean),
+        .map(i => Number(i.dataset.id)).filter(Boolean),
       (ids) => {
-        const snapshot = db.documents.filter(x => ids.includes(String(x.id)) || ids.includes(x.id));
-        deleteWithUndo(`${ids.length} document${ids.length === 1 ? "" : "s"}`,
+        const idSet = new Set(ids);
+        const snapshot = db.documents.filter(x => idSet.has(x.id));
+        const label = `${ids.length} document${ids.length === 1 ? "" : "s"}`;
+        const go = () => deleteWithUndo(label,
           () => {
-            db.documents = db.documents.filter(x => !(ids.includes(String(x.id)) || ids.includes(x.id)));
+            db.documents = db.documents.filter(x => !idSet.has(x.id));
             bulkSel.ids.clear();
           },
           () => { db.documents.push(...snapshot); });
+        if (ids.length > BULK_CONFIRM_AT) {
+          confirmModal(`Delete ${label}? You'll have a few seconds to undo.`, go,
+            { title: "Delete documents?", confirmLabel: `Delete ${ids.length}`, danger: true });
+        } else go();
       }));
   } else if (list.length) {
     const selRow = el("div", { style: { marginBottom: "12px" } });

@@ -43,10 +43,13 @@ const btnBusy = (btn, label) => {
 // Run `fn(item, i)` over a list in chunks so the button's spinner and its
 // "12/340" counter stay live instead of the whole tab freezing. Small lists
 // finish in one pass — the yield only costs a frame when it's worth it.
+// Saving is suspended for the whole run and flushed once at the end, so a
+// 3,000-item batch writes localStorage once instead of 3,000 times.
 const runBulk = async (btn, label, items, fn, chunk = 40) => {
   const total = items.length;
   const busy = btnBusy(btn, total > chunk ? `${label} 0/${total}` : label);
   await nextFrame();
+  suspendSave();
   try {
     for (let i = 0; i < total; i++) {
       fn(items[i], i);
@@ -55,7 +58,7 @@ const runBulk = async (btn, label, items, fn, chunk = 40) => {
         await nextFrame();
       }
     }
-  } finally { busy.done(); }
+  } finally { resumeSave(); busy.done(); }
 };
 
 // Soft delete with an undo window. Removes the record immediately (so the UI

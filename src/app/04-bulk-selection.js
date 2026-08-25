@@ -3,6 +3,8 @@
 // and shows an action bar; deletes route through deleteWithUndo so they're
 // recoverable.
 const bulkSel = { kind: null, ids: new Set() };
+// Above this many rows, a bulk delete asks first — undo is only an 8s window.
+const BULK_CONFIRM_AT = 200;
 
 const bulkActive = (kind) => bulkSel.kind === kind;
 const bulkToggleMode = (kind) => {
@@ -17,36 +19,55 @@ const bulkToggleId = (id) => {
 // Checkbox prepended to a row when its list is in select mode.
 const bulkCheckbox = (kind, id) => {
   if (!bulkActive(kind)) return null;
-  const cb = el("input", { type: "checkbox", class: "bulk-cb",
+  const cb = el("input", { type: "checkbox", class: "bulk-cb", "data-id": id,
     onclick: (e) => { e.stopPropagation(); bulkToggleId(id); } });
   cb.checked = bulkSel.ids.has(id);
   return cb;
 };
 
-// Recomputes the count/label in the bar without a full re-render.
+// Repaints the bar and every on-screen row straight from the selection set —
+// no re-render. Only rows currently in the DOM are touched, so this stays cheap
+// even when the set holds thousands of ids from a windowed list.
 const updateBulkBar = () => {
   const lbl = document.getElementById("bulk-count");
   if (lbl) lbl.textContent = `${bulkSel.ids.size} selected`;
   const del = document.getElementById("bulk-delete");
   if (del) del.disabled = bulkSel.ids.size === 0;
+  const all = document.getElementById("bulk-selectall");
+  if (all) all.textContent = bulkAllLabel();
   document.querySelectorAll(".bulk-cb").forEach(cb => {
-    const row = cb.closest(".list-item");
+    const id = Number(cb.dataset.id);
+    // Drive the box from the set — "Select all" no longer re-renders the rows.
+    cb.checked = bulkSel.ids.has(id);
+    const row = cb.closest(".ptable-row, .list-item");
     if (row) row.classList.toggle("row-selected", cb.checked);
   });
 };
 
+// "Select all (3,240)" / "Deselect all" — the count makes it obvious the action
+// covers every match, not just the rows rendered on screen.
+let _bulkAllIds = () => [];
+const bulkAllLabel = () => {
+  const visible = _bulkAllIds();
+  const allOn = visible.length > 0 && visible.every(id => bulkSel.ids.has(id));
+  return allOn ? "Deselect all" : `Select all (${visible.length.toLocaleString()})`;
+};
+
 // The bar shown above a list while selecting. `onDelete` receives the ids.
 const bulkBar = (kind, allIds, onDelete, extraActions) => {
+  _bulkAllIds = allIds;
   const bar = el("div", { class: "bulk-bar" });
   const left = el("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } });
   left.appendChild(el("span", { id: "bulk-count", style: { fontSize: "12.5px", fontWeight: 700, color: "var(--primary)" } },
     `${bulkSel.ids.size} selected`));
-  left.appendChild(el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
+  // Toggling thousands of ids is trivial; re-rendering the app for it was not.
+  // updateBulkBar() repaints the on-screen rows in place instead.
+  left.appendChild(el("button", { class: "btn btn-secondary bulk-mini", id: "bulk-selectall", onclick: () => {
     const visible = allIds();
-    const allOn = visible.every(id => bulkSel.ids.has(id));
+    const allOn = visible.length > 0 && visible.every(id => bulkSel.ids.has(id));
     visible.forEach(id => allOn ? bulkSel.ids.delete(id) : bulkSel.ids.add(id));
-    render();
-  }}, "Select all"));
+    updateBulkBar();
+  }}, bulkAllLabel()));
   bar.appendChild(left);
   const right = el("div", { style: { display: "flex", gap: "6px", flexWrap: "wrap" } });
   (extraActions || []).forEach(b => right.appendChild(b));
@@ -93,7 +114,10 @@ const toast = (msg, kind = "ok", ms = 1800) => {
   }, ms);
 };
 
-const fmt = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Built once and reused. toLocaleString() constructs a fresh formatter on every
+// call, and fmt() runs once per product row and once per document line.
+const _moneyFmt = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n) => _moneyFmt.format(Number(n || 0));
 
 // Convert a number to words using the Indian numbering system (Lakh / Crore).
 // Used for the "In words" line on documents.

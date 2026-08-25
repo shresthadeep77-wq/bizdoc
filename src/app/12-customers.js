@@ -13,23 +13,29 @@ const renderCustomers = () => {
         .filter(i => i.style.display !== "none")
         .map(i => Number(i.dataset.id)).filter(Boolean),
       (ids) => {
-        const custSnap = db.customers.filter(c => ids.includes(c.id));
-        const docSnap = db.documents.filter(d => ids.includes(d.customerId));
-        const doIt = () => deleteWithUndo(`${ids.length} customer${ids.length === 1 ? "" : "s"}`,
+        const idSet = new Set(ids);
+        const custSnap = db.customers.filter(c => idSet.has(c.id));
+        const docSnap = db.documents.filter(d => idSet.has(d.customerId));
+        const label = `${ids.length} customer${ids.length === 1 ? "" : "s"}`;
+        const doIt = () => deleteWithUndo(label,
           () => {
-            db.customers = db.customers.filter(c => !ids.includes(c.id));
-            db.documents = db.documents.filter(d => !ids.includes(d.customerId));
+            db.customers = db.customers.filter(c => !idSet.has(c.id));
+            db.documents = db.documents.filter(d => !idSet.has(d.customerId));
             bulkSel.ids.clear();
           },
           () => { db.customers.push(...custSnap); db.documents.push(...docSnap); });
         if (docSnap.length) {
           confirmModal(`This also deletes ${docSnap.length} document${docSnap.length === 1 ? "" : "s"} belonging to the selected customer${ids.length === 1 ? "" : "s"}.`, doIt, { confirmLabel: "Delete anyway" });
+        } else if (ids.length > BULK_CONFIRM_AT) {
+          confirmModal(`Delete ${label}? You'll have a few seconds to undo.`, doIt,
+            { title: "Delete customers?", confirmLabel: `Delete ${ids.length}`, danger: true });
         } else doIt();
       },
       [el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
         const ids = [...bulkSel.ids];
         if (!ids.length) { toast("Nothing selected", "err"); return; }
-        const text = db.customers.filter(c => ids.includes(c.id)).map(customerToLine).join("\n");
+        const idSet = new Set(ids);
+        const text = db.customers.filter(c => idSet.has(c.id)).map(customerToLine).join("\n");
         shareText(text, "Customers");
       }}, "📤 Share"),
       ...(db.businesses.length > 1 ? [el("button", { class: "btn btn-secondary bulk-mini", onclick: () => {
