@@ -5523,10 +5523,22 @@ const renderAllProducts = () => {
   if (list.length === 0) {
     listCt.appendChild(emptyState("\u{1F4E6}", "No products yet", "Add your first product"));
   } else {
-    list.forEach(p => listCt.appendChild(renderProductItem(p)));
+    renderProductChunks(list, listCt);
   }
   wrap.appendChild(listCt);
   return wrap;
+};
+
+// Append product rows in batches across frames instead of all at once —
+// 400+ rows built synchronously (each with its own inputs/listeners) is what
+// was freezing the All Products tab. Same idea as runBulk's chunking above.
+const renderProductChunks = async (list, container, chunk = 60) => {
+  for (let i = 0; i < list.length; i += chunk) {
+    const frag = document.createDocumentFragment();
+    list.slice(i, i + chunk).forEach(p => frag.appendChild(renderProductItem(p)));
+    container.appendChild(frag);
+    if (i + chunk < list.length) await nextFrame();
+  }
 };
 
 // Read-only product detail preview.
