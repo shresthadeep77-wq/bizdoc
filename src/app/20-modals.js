@@ -1,10 +1,13 @@
 // ==================== MODALS ====================
 const openModal = (title, contentEl, opts = {}) => {
   const bg = el("div", { class: "modal-bg", onclick: (e) => { if (e.target === bg) attemptClose(); } });
-  const m = el("div", { class: "modal" + (opts.wide ? " modal-wide" : "") + (opts.settings ? " modal-settings" : "") + (opts.flush ? " modal-flush" : "") });
+  const m = el("div", {
+    class: "modal" + (opts.wide ? " modal-wide" : "") + (opts.settings ? " modal-settings" : "") + (opts.flush ? " modal-flush" : ""),
+    role: "dialog", "aria-modal": "true", "aria-label": title,
+  });
   const h = el("div", { class: "modal-header" });
   h.appendChild(el("h2", {}, title));
-  h.appendChild(el("button", { class: "modal-close", onclick: () => attemptClose() }, "×"));
+  h.appendChild(el("button", { class: "modal-close", type: "button", "aria-label": "Close", onclick: () => attemptClose() }, "×"));
   const body = el("div", { class: "modal-body" });
   body.appendChild(contentEl);
   m.appendChild(h);
@@ -29,7 +32,30 @@ const openModal = (title, contentEl, opts = {}) => {
   modalStack.push(bg);
   document.getElementById("app").appendChild(bg);
   document.body.classList.add("modal-open");
+  // Move focus into the dialog so Escape and Tab act on it, and so a screen
+  // reader announces it. Deliberately the panel and not the first field —
+  // auto-focusing an input pops the on-screen keyboard open on every phone.
+  m.setAttribute("tabindex", "-1");
+  m.focus({ preventScroll: true });
 };
+
+// Keep Tab inside the topmost modal — without this, tabbing walks off into the
+// page behind it, which is invisible and impossible to get back from.
+const trapModalTab = (e) => {
+  if (e.key !== "Tab" || !modalStack.length) return;
+  const m = modalStack[modalStack.length - 1].querySelector(".modal");
+  if (!m) return;
+  const items = [...m.querySelectorAll('a[href], button, input, textarea, select, [tabindex]:not([tabindex="-1"])')]
+    .filter(x => !x.disabled && x.offsetParent !== null);
+  if (!items.length) return;
+  const firstEl = items[0], lastEl = items[items.length - 1];
+  if (e.shiftKey && (document.activeElement === firstEl || !m.contains(document.activeElement))) {
+    e.preventDefault(); lastEl.focus();
+  } else if (!e.shiftKey && document.activeElement === lastEl) {
+    e.preventDefault(); firstEl.focus();
+  }
+};
+document.addEventListener("keydown", trapModalTab);
 
 // Close the top modal, asking first if the user typed something they'd lose.
 const attemptClose = () => {
@@ -41,6 +67,10 @@ const attemptClose = () => {
   }
   closeModal();
 };
+// Set while we rewind our own reserved history entry, so the popstate handler
+// knows the back button wasn't actually pressed.
+let unwindingModalHistory = false;
+
 // Closes only the topmost modal — any modal underneath (e.g. a document you were
 // mid-way through building) reappears exactly as you left it.
 const closeModal = () => {
@@ -48,9 +78,22 @@ const closeModal = () => {
   if (bg && bg.parentNode) bg.parentNode.removeChild(bg);
   if (!modalStack.length) {
     document.body.classList.remove("modal-open");
+    // Give back the history entry we reserved when the chain opened. Without
+    // this it stays on the stack, and the next back press does nothing at all
+    // before a second press finally leaves the app.
+    if (modalHistoryPushed) {
+      modalHistoryPushed = false;
+      unwindingModalHistory = true;
+      history.back();
+    }
     // Nothing left open — refresh the underlying view so edits made in the
     // modal show immediately (no page reload needed).
     render();
+    // render() rebuilds the page, so whatever had focus before the modal is
+    // gone. Park focus on the content area instead of letting it fall back to
+    // the top of the document, so Tab carries on roughly where it left off.
+    const main = document.getElementById("main");
+    if (main) { main.setAttribute("tabindex", "-1"); main.focus({ preventScroll: true }); }
   }
 };
 
@@ -58,6 +101,7 @@ const closeModal = () => {
 // navigating the browser away from the app. If nothing is open, this is just
 // the reserved entry being consumed by a real "leave the app" navigation.
 window.addEventListener("popstate", () => {
+  if (unwindingModalHistory) { unwindingModalHistory = false; return; }
   modalHistoryPushed = false;
   if (modalStack.length) {
     modalStack = [];

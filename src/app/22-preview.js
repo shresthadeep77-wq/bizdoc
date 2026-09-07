@@ -41,7 +41,11 @@ const openDocPreview = (d) => {
     const errBox = el("div", { style: { padding: "24px" } });
     errBox.appendChild(el("div", { style: { fontWeight: 700, color: "#b91c1c", marginBottom: "8px" } }, "Couldn't build the preview."));
     errBox.appendChild(el("div", { style: { fontSize: "13px", color: "#555" } },
-      `This document has bad/missing data (${e.message}). Try Edit → re-save it, or tell Deepesh's AI the error above so it can fix it.`));
+      `Something in this document is missing or damaged (${e.message}). Open it with Edit, check the customer and line items, and save again.`));
+    const fix = el("div", { class: "action-bar" });
+    fix.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Close"));
+    fix.appendChild(el("button", { class: "btn btn-primary", onclick: () => { closeModal(); editDoc(d); } }, "Edit this document"));
+    errBox.appendChild(fix);
     openModal(`${d.type} #${d.number}`, errBox, { wide: true });
     return;
   }
@@ -82,7 +86,9 @@ const openDocPreview = (d) => {
   pdfBtn.addEventListener("click", () => downloadPDF(pv, d, pdfBtn));
   actions.appendChild(pdfBtn);
   actions.appendChild(iconLabelBtn({ class: "btn btn-secondary icon-only", icon: "print", label: "Print", title: "Print this document", onclick: () => printDoc(pv) }));
-  actions.appendChild(iconLabelBtn({ class: "btn btn-secondary", icon: "image", label: "PNG", onclick: () => downloadPNG(pv, d) }));
+  const pngBtn = iconLabelBtn({ class: "btn btn-secondary", icon: "image", label: "PNG" });
+  pngBtn.addEventListener("click", () => downloadPNG(pv, d, pngBtn));
+  actions.appendChild(pngBtn);
   const waBtn = iconLabelBtn({ class: "btn btn-green keep-label", icon: "whatsapp", label: "WhatsApp", title: "Send the document image with details" });
   waBtn.addEventListener("click", () => shareWhatsAppImage(pv, d, cust, biz, waBtn));
   actions.appendChild(waBtn);

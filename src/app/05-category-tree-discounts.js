@@ -89,13 +89,6 @@ const resolveDiscount = (product, rules) => {
   return { pct: best ? (Number(best.pct) || 0) : 0, rule: best };
 };
 
-// Net unit rate after the customer's category discount.
-const discountedRate = (product, rules) => {
-  const { pct } = resolveDiscount(product, rules);
-  const rate = Number(product.rate) || 0;
-  return pct ? +(rate * (1 - pct / 100)).toFixed(2) : rate;
-};
-
 const customerRules = (custId) => {
   const c = db.customers.find(x => x.id === custId);
   return (c && Array.isArray(c.discountRules)) ? c.discountRules : [];
@@ -222,8 +215,6 @@ const DOC_TYPES = {
   INV: { label: "Tax Invoice", shortLabel: "INV", seqKey: "nextInv", fmtKey: "invFormat", defaultFmt: "INV-{YYYY}-{####}", partyLabel: "Customer", title: "TAX INVOICE", numLabel: "Invoice #", hasExpiry: false, convertsTo: ["DN"] },
   DN: { label: "Delivery Note", shortLabel: "DN", seqKey: "nextDn", fmtKey: "dnFormat", defaultFmt: "DN-{YYYY}-{####}", partyLabel: "Deliver To", title: "DELIVERY NOTE", numLabel: "Delivery Note #", hasExpiry: false, hidePrices: true, hasDelivery: true },
 };
-// Human label for the "converted from" chain link.
-const convertSourceLabel = (d) => d && d.fromDoc ? `from ${DOC_TYPES[d.fromDoc.type].shortLabel} #${d.fromDoc.number}` : "";
 let docTypeFilter = "All";
 
 const TERM_PRESETS = [

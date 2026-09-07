@@ -1,15 +1,18 @@
 // ==================== HELPERS ====================
 const $ = (sel) => document.querySelector(sel);
+// Attributes whose presence alone means "on", so `checked: false` has to
+// remove them rather than set the string "false" (which reads as on).
+const BOOL_ATTRS = new Set(["checked", "disabled", "selected", "readonly", "required", "multiple", "open", "hidden"]);
 const el = (tag, props = {}, ...kids) => {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
     if (k === "class") e.className = v;
     else if (k === "style") Object.assign(e.style, v);
     else if (k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(), v);
-    else if (k === "html") e.innerHTML = v;
     // A textarea's text lives in its content, not a value attribute — setting
     // the attribute silently leaves the box empty. Assign the property instead.
     else if (k === "value" && tag === "textarea") e.value = v ?? "";
+    else if (BOOL_ATTRS.has(k)) e[k] = !!v;
     else if (v !== null && v !== undefined) e.setAttribute(k, v);
   }
   for (const k of kids.flat()) {

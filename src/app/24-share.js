@@ -89,24 +89,33 @@ const capturePreviewAsCanvas = async (previewEl) => {
   return out;
 };
 
-const downloadPNG = async (previewEl, d) => {
-  const canvas = await capturePreviewAsCanvas(previewEl);
-  const filename = docBaseName(d, "png");
-  const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
-  const savedPng = blob && await writeToFolder(blob, filename);
-  if (savedPng) {
-    toast(`Saved to folder "${savedPng.name}" — ${filename}`, "ok", 6000);
-    return;
+const downloadPNG = async (previewEl, d, btn) => {
+  const busy = btnBusy(btn, "Saving…");
+  try {
+    const canvas = await capturePreviewAsCanvas(previewEl);
+    const filename = docBaseName(d, "png");
+    const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
+    if (!blob) throw new Error("the image could not be created");
+    const savedPng = await writeToFolder(blob, filename);
+    if (savedPng) {
+      toast(`Saved to folder "${savedPng.name}" — ${filename}`, "ok", 6000);
+      return;
+    }
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.download = docFileName(d, "png");
+    link.href = blobUrl;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+    toast(`Image saved to your Downloads folder as ${docFileName(d, "png")}`, "ok", 6000);
+  } catch (e) {
+    console.error("PNG export failed:", e);
+    toast("Couldn't save the image — " + (e.message || "please try again"), "err", 5000);
+  } finally {
+    busy.done();
   }
-  const blobUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.download = docFileName(d, "png");
-  link.href = blobUrl;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-  toast(`Image saved to your Downloads folder as ${docFileName(d, "png")}`, "ok", 6000);
 };
 
 // Real PDF download (A4) — no browser print dialog. Falls back to print() if the
@@ -240,10 +249,3 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
   }
 };
 
-const shareWhatsApp = (d, cust, biz) => {
-  if (!cust || !cust.phone) { toast("Customer phone number is missing", "err"); return; }
-  const phone = cust.phone.replace(/[^0-9]/g, "");
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(shareMessage(d, cust, biz))}`;
-  window.open(url, "_blank");
-  if (d.status === "Draft") { d.status = "Sent"; saveDB(); }
-};

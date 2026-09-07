@@ -1,8 +1,8 @@
 // ==================== TOPBAR & TABS ====================
 const renderTopbar = () => {
-  const bar = el("div", { class: "topbar" });
+  const bar = el("header", { class: "topbar" });
   bar.appendChild(el("h1", {}, "PI & PO Maker"));
-  const sw = el("select", { class: "biz-switcher", onchange: (e) => {
+  const sw = el("select", { class: "biz-switcher", "aria-label": "Active business", onchange: (e) => {
     if (e.target.value === "__new__") { openBusinessModal(); return; }
     db.activeBusinessId = parseInt(e.target.value);
     saveDB();
@@ -19,7 +19,7 @@ const renderTopbar = () => {
 };
 
 const renderTabs = () => {
-  const tabs = el("div", { class: "tabs" });
+  const tabs = el("nav", { class: "tabs", "aria-label": "Sections" });
   const items = [
     ["dashboard", "Home", "home"],
     ["customers", "Customers", "users"],
@@ -30,6 +30,8 @@ const renderTabs = () => {
   items.forEach(([k, label, iconName]) => {
     const t = el("button", {
       class: "tab" + (currentTab === k ? " active" : ""),
+      type: "button",
+      "aria-current": currentTab === k ? "page" : undefined,
       onclick: () => {
         if (k === "settings") { openSettingsModal(); return; }
         currentTab = k; bulkSel.kind = null; bulkSel.ids.clear(); render();

@@ -2,45 +2,42 @@
 const renderDashboard = () => {
   const wrap = el("div");
   const biz = activeBiz();
-  const wel = el("div", { class: "card" });
-  wel.appendChild(el("div", { class: "eyebrow" }, "Active business"));
-  wel.appendChild(el("div", { class: "display-name", style: { marginTop: "6px" } }, biz.name));
-  wrap.appendChild(wel);
 
-  // Quick actions
-  const qa = el("div", { class: "card" });
-  qa.appendChild(el("div", { class: "card-title" }, "Quick actions"));
-  const row = el("div", { class: "row" });
-  const npi = el("button", { class: "btn btn-primary btn-full", onclick: () => startNewDoc("PI") }, "+ New PI");
-  const npo = el("button", { class: "btn btn-secondary btn-full", onclick: () => startNewDoc("PO") }, "+ New PO");
-  const nqt = el("button", { class: "btn btn-secondary btn-full", onclick: () => startNewDoc("QT") }, "+ New Quotation");
-  row.appendChild(npi);
-  row.appendChild(npo);
-  row.appendChild(nqt);
-  qa.appendChild(row);
-  wrap.appendChild(qa);
-
-  // Stats
-  const stats = el("div", { class: "card" });
-  stats.appendChild(el("div", { class: "card-title" }, "This business"));
-  const s = el("div", { class: "row" });
-  const stat = (label, val) => {
-    const c = el("div", { class: "stat-tile" });
+  // One card, not two: the business name heads the same card as its counts,
+  // and the counts stay side by side instead of stacking down the phone.
+  const overview = el("div", { class: "card" });
+  overview.appendChild(el("div", { class: "eyebrow" }, "Active business"));
+  overview.appendChild(el("h2", { class: "display-name", style: { margin: "6px 0 14px" } }, biz.name));
+  const stat = (label, val, tab) => {
+    const c = el("button", { class: "stat-tile", type: "button",
+      "aria-label": `${val} ${label} — open the ${label} tab`,
+      onclick: () => { currentTab = tab; bulkSel.kind = null; bulkSel.ids.clear(); render(); } });
     c.appendChild(el("div", { class: "stat-num" }, String(val)));
     c.appendChild(el("div", { class: "stat-label" }, label));
     return c;
   };
-  s.appendChild(stat("Customers", bizCustomers().length));
-  s.appendChild(stat("Products", bizProducts().length));
-  s.appendChild(stat("Documents", bizDocs().length));
-  stats.appendChild(s);
-  wrap.appendChild(stats);
+  const s = el("div", { class: "stat-row" });
+  s.appendChild(stat("Customers", bizCustomers().length, "customers"));
+  s.appendChild(stat("Products", bizProducts().length, "products"));
+  s.appendChild(stat("Documents", bizDocs().length, "documents"));
+  overview.appendChild(s);
+  wrap.appendChild(overview);
+
+  // Quick actions
+  const qa = el("div", { class: "card" });
+  qa.appendChild(el("h2", { class: "card-title" }, "Create a document"));
+  const row = el("div", { class: "row" });
+  row.appendChild(el("button", { class: "btn btn-primary btn-full", onclick: () => startNewDoc("PI") }, "+ New PI"));
+  row.appendChild(el("button", { class: "btn btn-secondary btn-full", onclick: () => startNewDoc("PO") }, "+ New PO"));
+  row.appendChild(el("button", { class: "btn btn-secondary btn-full", onclick: () => startNewDoc("QT") }, "+ New Quotation"));
+  qa.appendChild(row);
+  wrap.appendChild(qa);
 
   // Recent docs
   const recent = bizDocs().slice(-5).reverse();
   if (recent.length > 0) {
     const rc = el("div", { class: "card" });
-    rc.appendChild(el("div", { class: "card-title" }, "Recent documents"));
+    rc.appendChild(el("h2", { class: "card-title" }, "Recent documents"));
     recent.forEach(d => rc.appendChild(renderDocListItem(d)));
     wrap.appendChild(rc);
   }
@@ -61,7 +58,7 @@ const openMoveCustomersModal = (ids) => {
   const bar = el("div", { class: "action-bar" });
   bar.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Cancel"));
   bar.appendChild(el("button", { class: "btn btn-primary", onclick: async (e) => {
-    const targetId = sel.value;
+    const targetId = Number(sel.value);
     const targets = db.customers.filter(c => ids.includes(c.id));
     await runBulk(e.currentTarget, "Moving", targets, (c) => {
       c.businessId = targetId;

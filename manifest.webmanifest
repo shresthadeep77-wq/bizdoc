@@ -1,0 +1,14 @@
+{
+  "name": "PI & PO Maker",
+  "short_name": "PI/PO",
+  "description": "Create proforma invoices, purchase orders and quotations offline.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e9edf3",
+  "theme_color": "#1F4E79",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

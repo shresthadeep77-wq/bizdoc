@@ -56,9 +56,7 @@ const deviceEntryNames = (e) =>
 // already data loaded that would be replaced.
 const restoreDeviceEntry = (entry) => {
   const apply = () => {
-    db = JSON.parse(JSON.stringify(entry.data));
-    if (!db.activeBusinessId) db.activeBusinessId = (db.businesses[0] || {}).id || null;
-    saveDB();
+    replaceDB(JSON.parse(JSON.stringify(entry.data)));
     if (modalStack.length) closeModal();
     render();
     toast(`Loaded ${entry.businesses} business${entry.businesses === 1 ? "" : "es"} from this device`, "ok", 4000);
@@ -116,7 +114,7 @@ const importBackup = () => {
         if (!imported.businesses) throw new Error("Invalid backup");
         confirmModal(
           "This replaces every business, customer, product, and document currently in the app with what's in this backup file. Your current data will be lost.",
-          () => { db = imported; saveDB(); render(); toast("Backup restored"); },
+          () => { replaceDB(imported); render(); toast("Backup restored"); },
           { title: "Replace all data?", confirmLabel: "Replace data" }
         );
       } catch (e) { toast("Invalid backup file: " + e.message, "err"); }

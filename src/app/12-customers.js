@@ -1,12 +1,14 @@
 // ==================== CUSTOMERS ====================
 const renderCustomers = () => {
   const wrap = el("div");
-  const search = el("div", { class: "search" });
-  const searchInput = el("input", { placeholder: "Search customers...", oninput: (e) => filterList("cust", e.target.value) });
-  search.appendChild(searchInput);
-  wrap.appendChild(search);
-
   const list = bizCustomers();
+  // A search box and a "select" button are only useful once there is something
+  // in the list, so an empty screen shows just the one thing worth doing.
+  if (list.length) {
+    const search = el("div", { class: "search" });
+    search.appendChild(el("input", { type: "search", "aria-label": "Search customers", placeholder: "Search customers…", oninput: (e) => filterList("cust", e.target.value) }));
+    wrap.appendChild(search);
+  }
   if (bulkActive("cust")) {
     wrap.appendChild(bulkBar("cust",
       () => [...document.querySelectorAll("#cust-list .list-item")]
@@ -38,21 +40,27 @@ const renderCustomers = () => {
         openMoveCustomersModal(ids);
       }}, "🏢 Move to…")] : [])]));
   } else {
-    const bulkRow = el("div", { style: { display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" } });
-    bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: openBulkCustomerModal }, "📋 Bulk add customers"));
-    if (list.length) bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => bulkToggleMode("cust") }, "☑️ Select"));
-    wrap.appendChild(bulkRow);
+    if (list.length) {
+      const bulkRow = el("div", { style: { display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" } });
+      bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: openBulkCustomerModal }, "📋 Bulk add customers"));
+      bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => bulkToggleMode("cust") }, "☑️ Select"));
+      wrap.appendChild(bulkRow);
+    }
   }
 
   const listCt = el("div", { id: "cust-list" });
   if (list.length === 0) {
-    listCt.appendChild(emptyState("👥", "No customers yet", "Add your first customer"));
+    listCt.appendChild(emptyState("\u{1F465}", "No customers yet",
+      "Customers appear on your documents as the bill-to party. Add one to get started.",
+      { label: "+ Add a customer", onclick: () => openCustomerModal(null) }));
+    listCt.appendChild(el("div", { style: { textAlign: "center", marginTop: "-8px" } },
+      el("button", { class: "btn btn-secondary", type: "button", onclick: openBulkCustomerModal }, "📋 Or paste a list")));
   } else {
     list.forEach(c => listCt.appendChild(renderCustomerItem(c)));
   }
   wrap.appendChild(listCt);
 
-  const fab = el("button", { class: "fab", onclick: () => openCustomerModal(null) }, "+");
+  const fab = el("button", { class: "fab", type: "button", "aria-label": "Add a customer", title: "Add a customer", onclick: () => openCustomerModal(null) }, "+");
   wrap.appendChild(fab);
   return wrap;
 };
@@ -95,7 +103,13 @@ const attachPreviewScaler = (wrapEl, scalerEl, pageEl) => {
   const PAGE_W = 794;
   let userZoom = null; // set when the user taps zoom controls
   let bar = null;      // zoom control bar, built below
+  const detach = () => { window.removeEventListener("resize", apply); if (ro) ro.disconnect(); };
+  let ro = null;
   const apply = () => {
+    // Every preview added a window resize listener that was never taken away,
+    // so they piled up for the life of the tab. Once the preview is gone from
+    // the page, unhook.
+    if (!document.contains(wrapEl)) { detach(); return; }
     const avail = wrapEl.clientWidth - 24; // minus padding
     if (avail <= 0) return;
     const fit = Math.min(1, avail / PAGE_W);
@@ -125,7 +139,7 @@ const attachPreviewScaler = (wrapEl, scalerEl, pageEl) => {
   wrapEl.parentNode.insertBefore(bar, wrapEl);
 
   // Re-fit on viewport changes.
-  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
+  ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
   if (ro) ro.observe(wrapEl);
   window.addEventListener("resize", apply);
   setTimeout(apply, 0);

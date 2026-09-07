@@ -13,10 +13,10 @@ const startNewDoc = (type) => {
   const biz = activeBiz();
   const cfg = DOC_TYPES[type];
   const seq = biz[cfg.seqKey] || 1;
-  const fmt = biz[cfg.fmtKey] || cfg.defaultFmt;
+  const numberFormat = biz[cfg.fmtKey] || cfg.defaultFmt;
   docBuilder = {
     type,
-    number: formatDocNumber(fmt, seq, today()),
+    number: formatDocNumber(numberFormat, seq, today()),
     _seq: seq,
     date: today(),
     expiryDate: cfg.hasExpiry ? addDays(today(), Number(biz[cfg.validityKey] ?? cfg.defaultValidity) || cfg.defaultValidity) : "",
@@ -52,10 +52,10 @@ const convertDoc = (src, targetType) => {
   const biz = activeBiz();
   const cfg = DOC_TYPES[targetType];
   const seq = biz[cfg.seqKey] || 1;
-  const fmt = biz[cfg.fmtKey] || cfg.defaultFmt;
+  const numberFormat = biz[cfg.fmtKey] || cfg.defaultFmt;
   const copy = JSON.parse(JSON.stringify(src));
   copy.type = targetType;
-  copy.number = formatDocNumber(fmt, seq, today());
+  copy.number = formatDocNumber(numberFormat, seq, today());
   copy._seq = seq;
   copy.id = undefined;              // a brand-new record
   copy._editing = false;
@@ -847,17 +847,22 @@ const openDocBuilder = () => {
     recomputeTotals();
     // Drop transient builder-only keys before persisting.
     delete docBuilder._onTotals;
-    if (docBuilder._editing) {
-      const idx = db.documents.findIndex(d => d.id === docBuilder.id);
-      db.documents[idx] = { ...docBuilder };
+    const idx = docBuilder._editing ? db.documents.findIndex(d => d.id === docBuilder.id) : -1;
+    let saved;
+    if (idx >= 0) {
+      saved = db.documents[idx] = { ...docBuilder };
     } else {
-      docBuilder.id = uid("doc");
-      db.documents.push(docBuilder);
-      const biz = activeBiz();
-      biz[DOC_TYPES[docBuilder.type].seqKey] = docBuilder._seq + 1;
+      // Either a brand-new document, or one that was deleted elsewhere while it
+      // was open here — save it rather than throwing the work away.
+      docBuilder.id = docBuilder.id || uid("doc");
+      saved = { ...docBuilder };
+      db.documents.push(saved);
+      if (!docBuilder._editing) {
+        const biz = activeBiz();
+        biz[DOC_TYPES[docBuilder.type].seqKey] = docBuilder._seq + 1;
+      }
     }
     saveDB();
-    const saved = docBuilder;
     closeModal();
     openDocPreview(saved);
     toast(`${DOC_TYPES[saved.type].shortLabel} #${saved.number} saved`);

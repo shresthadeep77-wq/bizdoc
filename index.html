@@ -2,11 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1F4E79">
-<title>PI & PO Maker</title>
+<title>PI &amp; PO Maker — Proforma Invoices, Purchase Orders &amp; Quotations</title>
+<meta name="description" content="Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes offline. Everything is stored in your own browser — no account, no server.">
+<link rel="canonical" href="https://shresthadeep77-wq.github.io/bizdoc/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PI &amp; PO Maker">
+<meta property="og:description" content="Create proforma invoices, purchase orders and quotations offline. Your data stays in your browser.">
+<meta property="og:url" content="https://shresthadeep77-wq.github.io/bizdoc/">
+<meta name="twitter:card" content="summary">
+<!-- Inline favicon: no extra request, and no 404 when the app runs from file:// -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231F4E79'/%3E%3Ctext x='50%25' y='55%25' font-family='Segoe UI,Arial' font-size='30' font-weight='700' fill='%23fff' text-anchor='middle' dominant-baseline='middle'%3EPI%3C/text%3E%3C/svg%3E">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root {
@@ -33,6 +42,7 @@
   --shadow-float: 0 16px 32px rgba(15,23,42,.28), 0 4px 10px rgba(15,23,42,.16);
   --ease: cubic-bezier(.4,0,.2,1);
   --spring: cubic-bezier(.34,1.56,.64,1);
+  --topbar-h: 49px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
@@ -41,6 +51,17 @@ body.modal-open { overflow: hidden; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; font-size: 14px; }
 input, select, textarea { font-family: inherit; font-size: 14px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); width: 100%; background: var(--surface); box-shadow: var(--shadow-inset); transition: border-color .18s var(--ease), box-shadow .18s var(--ease); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--shadow-inset), 0 0 0 3px rgba(31,78,121,.14); }
+/* Keyboard users need to see where they are. :focus-visible keeps the ring off
+   mouse/touch presses, so this costs nothing visually for everyone else. */
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+/* These only take focus programmatically (to move a keyboard user into a
+   dialog or back to the page); they should not draw a ring around everything. */
+.modal[tabindex="-1"]:focus, .content[tabindex="-1"]:focus { outline: none; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; }
+.topbar :focus-visible, .pv-zoom-btn:focus-visible { outline-color: #fff; }
+/* Skip link — first tab stop, lets keyboard users jump past the nav. */
+.skip-link { position: absolute; left: -9999px; top: 0; z-index: 300; background: var(--primary); color: #fff; padding: 10px 16px; border-radius: 0 0 var(--radius-sm) 0; font-weight: 600; font-size: 13px; }
+.skip-link:focus { left: 0; }
 /* Native number spinners (the up/down "slider" arrows browsers add to
    type=number) look inconsistent and dated crammed into narrow popup rows —
    drop them app-wide. Mobile keyboards still switch to numeric via inputmode. */
@@ -69,12 +90,14 @@ label { display: block; font-size: 12px; font-weight: 600; color: #374151; margi
 
 /* Layout */
 .app { display: flex; flex-direction: column; min-height: 100vh; }
-.topbar { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); color: white; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; box-shadow: var(--shadow-md); }
-.topbar h1 { font-size: 16px; font-weight: 700; letter-spacing: .01em; display: flex; align-items: center; gap: 8px; }
-.biz-switcher { background: var(--primary-tint); color: var(--primary-dark); border: none; box-shadow: var(--shadow-sm); padding: 7px 10px; border-radius: var(--radius-sm); font-size: 13px; max-width: 200px; transition: box-shadow .18s var(--ease), transform .18s var(--ease); }
+/* Fixed height so the sticky tab strip below can sit flush against it — see
+   --topbar-h, which both rules share instead of repeating a magic number. */
+.topbar { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); color: white; padding: 12px 18px; height: var(--topbar-h); display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 40; box-shadow: var(--shadow-md); }
+.topbar h1 { font-size: 16px; font-weight: 700; letter-spacing: .01em; display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.biz-switcher { background: var(--primary-tint); color: var(--primary-dark); border: none; box-shadow: var(--shadow-sm); padding: 7px 10px; border-radius: var(--radius-sm); font-size: 13px; max-width: 200px; min-width: 0; text-overflow: ellipsis; flex: 0 1 auto; transition: box-shadow .18s var(--ease), transform .18s var(--ease); }
 .biz-switcher:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .biz-switcher option { color: black; }
-.tabs { background: var(--surface); display: flex; justify-content: center; overflow-x: auto; border-bottom: 1px solid var(--divider); position: sticky; top: 49px; z-index: 30; }
+.tabs { background: var(--surface); display: flex; justify-content: center; overflow-x: auto; border-bottom: 1px solid var(--divider); position: sticky; top: var(--topbar-h); z-index: 30; }
 .tab { padding: 12px 16px; font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap; border-bottom: 2px solid transparent; transition: color .18s var(--ease), border-color .18s var(--ease), transform .18s var(--ease); position: relative; display: inline-flex; align-items: center; gap: 6px; }
 .tab.active { transform: translateY(-1px); }
 .tab .tab-icon { display: inline-flex; align-items: center; }
@@ -93,7 +116,13 @@ label { display: block; font-size: 12px; font-weight: 600; color: #374151; margi
 .stat-num { font-size: 30px; font-weight: 800; color: var(--primary); line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .stat-label { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: .05em; }
 .display-name { font-size: 20px; font-weight: 700; color: var(--primary); letter-spacing: -.01em; line-height: 1.2; }
-.stat-tile { text-align: center; padding: 16px 12px; background: var(--surface); border-radius: var(--radius-sm); box-shadow: var(--shadow-inset); }
+/* Counts stay three-across at every width — they are short numbers, and
+   stacking them ate most of a phone screen for no gain. Each is a shortcut
+   into the matching tab. */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stat-tile { text-align: center; padding: 16px 8px; background: var(--surface); border-radius: var(--radius-sm); box-shadow: var(--shadow-inset); width: 100%; transition: box-shadow .18s var(--ease); }
+button.stat-tile { cursor: pointer; }
+button.stat-tile:hover { box-shadow: var(--shadow-sm); }
 .doc-chain-link { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 20px 10px; padding: 9px 12px; background: var(--primary-tint); border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; color: var(--primary); cursor: pointer; box-shadow: var(--shadow-sm); }
 .doc-chain-link.kids { cursor: default; color: var(--muted); background: var(--surface); }
 .doc-chain-go { font-weight: 700; }
@@ -171,6 +200,8 @@ label { display: block; font-size: 12px; font-weight: 600; color: #374151; margi
 /* Empty state */
 .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
 .empty-icon { font-size: 40px; margin-bottom: 12px; animation: fadeUp .4s var(--ease) both; }
+.empty-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.empty-sub { font-size: 13px; margin: 6px auto 0; max-width: 34ch; line-height: 1.5; }
 
 /* Line items */
 .li-header, .li-row { display: grid; grid-template-columns: 40px 1fr 60px 80px 80px 28px; gap: 6px; align-items: center; padding: 6px 0; font-size: 12px; }
@@ -263,7 +294,10 @@ label { display: block; font-size: 12px; font-weight: 600; color: #374151; margi
 .action-bar button { flex: 1 1 auto; min-width: 88px; justify-content: center; }
 .action-bar button.icon-only { flex: 0 0 auto; min-width: 44px; padding: 9px 12px; }
 @media (max-width: 480px) {
-  .action-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  /* auto-fit rather than a fixed 4 columns: the document preview's five icon
+     buttons still tile 4-across, but a two-button confirm dialog fills the
+     row instead of huddling in the left quarter. */
+  .action-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; }
   .action-bar button { min-width: 0; padding: 10px 6px; flex: none; }
   .action-bar button .lbl { display: none; }
   .action-bar button.keep-label { grid-column: 1 / -1; }
@@ -413,12 +447,13 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 /* ---- Touch targets ---- */
 .btn-icon { min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
 .remove-btn { min-width: 36px; min-height: 36px; }
-/* ---- Status: colour + shape, not colour alone ---- */
+/* ---- Status: colour + shape, not colour alone, so it still reads when the
+   colours are hard to tell apart or the page is printed in black and white. --- */
 .status-badge::before { content: "●"; margin-right: 4px; font-size: 9px; }
-.status-Draft::before { content: "○"; }
-.status-Sent::before { content: "◐"; }
-.status-Accepted::before { content: "●"; }
-.status-Cancelled::before { content: "✕"; }
+.status-badge.st-Draft::before { content: "○"; }
+.status-badge.st-Sent::before { content: "◐"; }
+.status-badge.st-Confirmed::before { content: "●"; }
+.status-badge.st-Cancelled::before { content: "✕"; }
 /* Units-of-measure editor list */
 .units-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .unit-chip { display: inline-flex; align-items: center; gap: 2px; padding: 4px 4px 4px 10px; background: var(--surface); border-radius: 999px; box-shadow: var(--shadow-sm); font-size: 12.5px; font-weight: 600; color: #374151; animation: rowIn .2s var(--ease) both; }
@@ -597,6 +632,7 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to main content</a>
 <div id="app"></div>
 
 <script>
@@ -3329,18 +3365,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <script>
 // ==================== STORAGE ====================
 const DB_KEY = "pipomaker_v1";
-const loadDB = () => {
-  try { return JSON.parse(localStorage.getItem(DB_KEY)) || defaultDB(); }
-  catch (e) { return defaultDB(); }
-};
-const saveDB = () => {
-  try {
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
-  } catch (e) {
-    console.error("Save failed:", e);
-    toast("Save failed — storage may be full (try a smaller logo/signature image)", "err");
-  }
-};
+const DEFAULT_UNITS = ["pcs", "kg", "set", "box", "m", "ft", "litre", "bundle"];
+
 const defaultDB = () => ({
   businesses: [],
   activeBusinessId: null,
@@ -3349,52 +3375,104 @@ const defaultDB = () => ({
   documents: [],
   nextIds: { biz: 1, cust: 1001, prod: 1, doc: 1 }
 });
-let db = loadDB();
-// Migration: older businesses may not have a `units` list — seed with defaults.
-{
-  let migrated = false;
-  db.businesses.forEach(b => {
-    if (!Array.isArray(b.units) || b.units.length === 0) {
-      b.units = ["pcs", "kg", "set", "box", "m", "ft", "litre", "bundle"];
-      migrated = true;
-    }
+
+// Bring any database up to the shape the current code expects.
+//
+// Every way data gets in — normal load, a backup file, Google Drive, a copy
+// found in this browser's storage — goes through here. A backup made by an
+// older build (or hand-edited, or half-written) is missing fields that newer
+// features read, and one missing field used to blank the whole screen with no
+// way back. Filling the gaps up front means a partial backup loads and works
+// instead of bricking the app.
+const normalizeDB = (raw) => {
+  const db = (raw && typeof raw === "object") ? raw : {};
+  const base = defaultDB();
+
+  // Top-level lists must exist and be arrays before anything iterates them.
+  ["businesses", "customers", "products", "documents"].forEach(k => {
+    if (!Array.isArray(db[k])) db[k] = [];
   });
-  if (migrated) { try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch (e) {} }
-}
+  db.businesses = db.businesses.filter(b => b && typeof b === "object");
+  db.nextIds = Object.assign({}, base.nextIds, (db.nextIds && typeof db.nextIds === "object") ? db.nextIds : {});
+
+  db.businesses.forEach(b => {
+    if (!Array.isArray(b.units) || !b.units.length) b.units = DEFAULT_UNITS.slice();
+    if (!Array.isArray(b.banks)) b.banks = [];
+    // Every document type needs a next-number counter (see DOC_TYPES seqKeys).
+    ["nextPi", "nextPo", "nextQt", "nextInv", "nextDn"].forEach(k => {
+      if (!(Number(b[k]) > 0)) b[k] = 1;
+    });
+    if (!b.qtFormat) b.qtFormat = "QT-{YYYY}-{####}";
+    // Per-type validity: older records only had piValidityDays.
+    if (b.piValidityDays === undefined) b.piValidityDays = 5;
+    if (b.qtValidityDays === undefined) b.qtValidityDays = 15;
+    if (b.poValidityDays === undefined) b.poValidityDays = 30;
+  });
+
+  // Ids must be usable: ours are numbers, but CSV/JSON round-trips can turn
+  // them into strings, which then never match a === lookup and the record
+  // silently disappears from every list.
+  const numId = (v) => (typeof v === "string" && v.trim() !== "" && !isNaN(v)) ? Number(v) : v;
+  const bizIds = new Set(db.businesses.map(b => (b.id = numId(b.id))));
+  ["customers", "products", "documents"].forEach(k => {
+    db[k] = db[k].filter(r => r && typeof r === "object");
+    db[k].forEach(r => { r.id = numId(r.id); r.businessId = numId(r.businessId); });
+  });
+  db.customers.forEach(c => { if (!Array.isArray(c.discountRules)) c.discountRules = []; });
+
+  // Documents carry the most optional structure, so they need the most filling in.
+  db.documents.forEach(d => {
+    d.customerId = numId(d.customerId);
+    if (!d.shipping) d.shipping = { deliveryLocation: "", freightType: "", shipDate: "", grossWeight: "", cubicWeight: "", totalPackages: "" };
+    if (!d.currency) d.currency = (db.businesses.find(b => b.id === d.businessId) || {}).currency || "NPR";
+    if (!d.additional) d.additional = { origin: "", embarkation: "", discharge: "", reason: "" };
+    if (!Array.isArray(d.lineItems)) d.lineItems = [];
+    if (!d.status) d.status = "Draft";
+    const t = d.totals || (d.totals = {});
+    ["subtotal", "taxable", "tax", "delivery", "freight", "insurance", "legal", "inspection", "other1", "other2", "total", "discountGiven"].forEach(k => {
+      if (typeof t[k] !== "number" || isNaN(t[k])) t[k] = 0;
+    });
+    if (typeof t.taxRate !== "number" || isNaN(t.taxRate)) t.taxRate = 0;
+  });
+
+  // A pointer at a business that no longer exists renders an empty app.
+  db.activeBusinessId = numId(db.activeBusinessId);
+  if (!bizIds.has(db.activeBusinessId)) {
+    db.activeBusinessId = db.businesses.length ? db.businesses[0].id : null;
+  }
+
+  // Next ids must clear everything already stored, or the next record created
+  // reuses a live id and quietly overwrites/merges with an existing one.
+  const maxOf = (list) => list.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+  db.nextIds.biz = Math.max(Number(db.nextIds.biz) || 1, maxOf(db.businesses) + 1);
+  db.nextIds.cust = Math.max(Number(db.nextIds.cust) || 1001, maxOf(db.customers) + 1);
+  db.nextIds.prod = Math.max(Number(db.nextIds.prod) || 1, maxOf(db.products) + 1);
+  db.nextIds.doc = Math.max(Number(db.nextIds.doc) || 1, maxOf(db.documents) + 1);
+  return db;
+};
+
+const loadDB = () => {
+  try { return normalizeDB(JSON.parse(localStorage.getItem(DB_KEY))); }
+  catch (e) { return defaultDB(); }
+};
+
+const saveDB = () => {
+  try {
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+  } catch (e) {
+    console.error("Save failed:", e);
+    toast("Save failed — storage may be full (try a smaller logo/signature image)", "err");
+  }
+};
+
+// Swap in a whole database from a backup/restore. Always normalised first, so a
+// backup from an older build can't leave the app in a state it can't render.
+const replaceDB = (raw) => { db = normalizeDB(raw); saveDB(); };
+
+let db = loadDB();
 
 // Units for the active business (falls back to a sensible default outside biz context)
-const bizUnits = () => (activeBiz()?.units && activeBiz().units.length) ? activeBiz().units : ["pcs", "kg", "set", "box", "m", "ft", "litre", "bundle"];
-
-// Backfill fields that were added after some businesses were already saved,
-// so older data doesn't silently break newer features (e.g. Quotations).
-(db.businesses || []).forEach(b => {
-  if (!b.qtFormat) b.qtFormat = "QT-{YYYY}-{####}";
-  if (!b.nextQt) b.nextQt = 1;
-  if (!b.nextInv) b.nextInv = 1;
-  if (!b.nextDn) b.nextDn = 1;
-  if (!b.nextPi) b.nextPi = b.nextPi || 1;
-  if (!b.nextPo) b.nextPo = b.nextPo || 1;
-  if (!Array.isArray(b.banks)) b.banks = [];
-  // Per-type validity: older records only had piValidityDays.
-  if (b.piValidityDays === undefined) b.piValidityDays = 5;
-  if (b.qtValidityDays === undefined) b.qtValidityDays = 15;
-  if (b.poValidityDays === undefined) b.poValidityDays = 30;
-});
-
-// Backfill fields that older/imported documents may be missing. Any one of
-// these being undefined used to crash the preview silently (nothing happened
-// on tap) instead of showing an error.
-(db.documents || []).forEach(d => {
-  if (!d.shipping) d.shipping = { deliveryLocation: "", freightType: "", shipDate: "", grossWeight: "", cubicWeight: "", totalPackages: "" };
-  if (!d.currency) d.currency = (db.businesses.find(b => b.id === d.businessId) || {}).currency || "NPR";
-  if (!d.additional) d.additional = { origin: "", embarkation: "", discharge: "", reason: "" };
-  if (!Array.isArray(d.lineItems)) d.lineItems = [];
-  const t = d.totals || (d.totals = {});
-  ["subtotal", "taxable", "tax", "delivery", "freight", "insurance", "legal", "inspection", "other1", "other2", "total", "discountGiven"].forEach(k => {
-    if (typeof t[k] !== "number" || isNaN(t[k])) t[k] = 0;
-  });
-  if (typeof t.taxRate !== "number" || isNaN(t.taxRate)) t.taxRate = 0;
-});
+const bizUnits = () => (activeBiz()?.units && activeBiz().units.length) ? activeBiz().units : DEFAULT_UNITS;
 
 const uid = (kind) => { if (!db.nextIds) db.nextIds = {}; if (db.nextIds[kind] === undefined) db.nextIds[kind] = 1; const id = db.nextIds[kind]++; saveDB(); return id; };
 
@@ -3497,16 +3575,19 @@ const writeToFolder = async (blob, filename, subfolder) => {
 
 // ==================== HELPERS ====================
 const $ = (sel) => document.querySelector(sel);
+// Attributes whose presence alone means "on", so `checked: false` has to
+// remove them rather than set the string "false" (which reads as on).
+const BOOL_ATTRS = new Set(["checked", "disabled", "selected", "readonly", "required", "multiple", "open", "hidden"]);
 const el = (tag, props = {}, ...kids) => {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(props)) {
     if (k === "class") e.className = v;
     else if (k === "style") Object.assign(e.style, v);
     else if (k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(), v);
-    else if (k === "html") e.innerHTML = v;
     // A textarea's text lives in its content, not a value attribute — setting
     // the attribute silently leaves the box empty. Assign the property instead.
     else if (k === "value" && tag === "textarea") e.value = v ?? "";
+    else if (BOOL_ATTRS.has(k)) e[k] = !!v;
     else if (v !== null && v !== undefined) e.setAttribute(k, v);
   }
   for (const k of kids.flat()) {
@@ -3856,13 +3937,6 @@ const resolveDiscount = (product, rules) => {
   return { pct: best ? (Number(best.pct) || 0) : 0, rule: best };
 };
 
-// Net unit rate after the customer's category discount.
-const discountedRate = (product, rules) => {
-  const { pct } = resolveDiscount(product, rules);
-  const rate = Number(product.rate) || 0;
-  return pct ? +(rate * (1 - pct / 100)).toFixed(2) : rate;
-};
-
 const customerRules = (custId) => {
   const c = db.customers.find(x => x.id === custId);
   return (c && Array.isArray(c.discountRules)) ? c.discountRules : [];
@@ -3989,8 +4063,6 @@ const DOC_TYPES = {
   INV: { label: "Tax Invoice", shortLabel: "INV", seqKey: "nextInv", fmtKey: "invFormat", defaultFmt: "INV-{YYYY}-{####}", partyLabel: "Customer", title: "TAX INVOICE", numLabel: "Invoice #", hasExpiry: false, convertsTo: ["DN"] },
   DN: { label: "Delivery Note", shortLabel: "DN", seqKey: "nextDn", fmtKey: "dnFormat", defaultFmt: "DN-{YYYY}-{####}", partyLabel: "Deliver To", title: "DELIVERY NOTE", numLabel: "Delivery Note #", hasExpiry: false, hidePrices: true, hasDelivery: true },
 };
-// Human label for the "converted from" chain link.
-const convertSourceLabel = (d) => d && d.fromDoc ? `from ${DOC_TYPES[d.fromDoc.type].shortLabel} #${d.fromDoc.number}` : "";
 let docTypeFilter = "All";
 
 const TERM_PRESETS = [
@@ -4032,7 +4104,9 @@ let modalHistoryPushed = false;
 let docBuilder = null; // holds in-progress document
 
 // ==================== RENDER ROOT ====================
-const render = () => {
+// Draws the whole screen. Called after every change — there is no virtual DOM,
+// the view is simply rebuilt from `db`.
+const renderApp = () => {
   const root = $("#app");
   root.innerHTML = "";
   document.body.classList.toggle("modal-open", modalStack.length > 0);
@@ -4050,19 +4124,48 @@ const render = () => {
   const app = el("div", { class: "app" });
   app.appendChild(renderTopbar());
   app.appendChild(renderTabs());
-  const content = el("div", { class: "content" });
-  if (currentTab === "dashboard") content.appendChild(renderDashboard());
-  else if (currentTab === "customers") content.appendChild(renderCustomers());
+  const content = el("main", { class: "content", id: "main" });
+  if (currentTab === "customers") content.appendChild(renderCustomers());
   else if (currentTab === "products") content.appendChild(renderProducts());
   else if (currentTab === "documents") content.appendChild(renderDocuments());
-  else if (currentTab === "settings") content.appendChild(renderSettings());
+  else content.appendChild(renderDashboard());
   app.appendChild(content);
   root.appendChild(app);
 
   // Re-append every modal still open, in order — later ones paint on top,
   // so closing the topmost one reveals the one underneath intact.
   modalStack.forEach(bg => root.appendChild(bg));
-  document.body.classList.toggle("modal-open", modalStack.length > 0);
+};
+
+// Anything that throws while drawing used to leave a permanently blank white
+// screen with no way out — and the bad data is already saved, so reloading
+// doesn't help either. Show what went wrong plus the ways back instead.
+const render = () => {
+  try {
+    renderApp();
+  } catch (e) {
+    console.error("Render failed:", e);
+    renderRecovery(e);
+  }
+};
+
+const renderRecovery = (err) => {
+  const root = $("#app");
+  root.innerHTML = "";
+  modalStack = [];
+  document.body.classList.remove("modal-open");
+  const box = el("div", { class: "onboard" });
+  box.appendChild(el("h1", {}, "Something went wrong"));
+  box.appendChild(el("p", {}, "The app couldn't draw this screen — usually because some saved data is damaged. Your data is still stored on this device. Try one of these."));
+  box.appendChild(el("button", { class: "btn btn-primary btn-full", style: { marginBottom: "8px" },
+    onclick: () => location.reload() }, "Reload the app"));
+  box.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "8px" },
+    onclick: exportBackup }, "\u{1F4E5} Download a backup of my data"));
+  box.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "8px" },
+    onclick: importBackup }, "\u{1F4E4} Restore from a backup file"));
+  box.appendChild(el("div", { style: { fontSize: "11px", color: "var(--muted)", marginTop: "12px", wordBreak: "break-word" } },
+    "Technical detail: " + (err && err.message ? err.message : String(err))));
+  root.appendChild(box);
 };
 
 // ==================== ONBOARDING ====================
@@ -4153,9 +4256,9 @@ const iconLabelBtn = (opts) => {
 
 // ==================== TOPBAR & TABS ====================
 const renderTopbar = () => {
-  const bar = el("div", { class: "topbar" });
+  const bar = el("header", { class: "topbar" });
   bar.appendChild(el("h1", {}, "PI & PO Maker"));
-  const sw = el("select", { class: "biz-switcher", onchange: (e) => {
+  const sw = el("select", { class: "biz-switcher", "aria-label": "Active business", onchange: (e) => {
     if (e.target.value === "__new__") { openBusinessModal(); return; }
     db.activeBusinessId = parseInt(e.target.value);
     saveDB();
@@ -4172,7 +4275,7 @@ const renderTopbar = () => {
 };
 
 const renderTabs = () => {
-  const tabs = el("div", { class: "tabs" });
+  const tabs = el("nav", { class: "tabs", "aria-label": "Sections" });
   const items = [
     ["dashboard", "Home", "home"],
     ["customers", "Customers", "users"],
@@ -4183,6 +4286,8 @@ const renderTabs = () => {
   items.forEach(([k, label, iconName]) => {
     const t = el("button", {
       class: "tab" + (currentTab === k ? " active" : ""),
+      type: "button",
+      "aria-current": currentTab === k ? "page" : undefined,
       onclick: () => {
         if (k === "settings") { openSettingsModal(); return; }
         currentTab = k; bulkSel.kind = null; bulkSel.ids.clear(); render();
@@ -4201,45 +4306,42 @@ const renderTabs = () => {
 const renderDashboard = () => {
   const wrap = el("div");
   const biz = activeBiz();
-  const wel = el("div", { class: "card" });
-  wel.appendChild(el("div", { class: "eyebrow" }, "Active business"));
-  wel.appendChild(el("div", { class: "display-name", style: { marginTop: "6px" } }, biz.name));
-  wrap.appendChild(wel);
 
-  // Quick actions
-  const qa = el("div", { class: "card" });
-  qa.appendChild(el("div", { class: "card-title" }, "Quick actions"));
-  const row = el("div", { class: "row" });
-  const npi = el("button", { class: "btn btn-primary btn-full", onclick: () => startNewDoc("PI") }, "+ New PI");
-  const npo = el("button", { class: "btn btn-secondary btn-full", onclick: () => startNewDoc("PO") }, "+ New PO");
-  const nqt = el("button", { class: "btn btn-secondary btn-full", onclick: () => startNewDoc("QT") }, "+ New Quotation");
-  row.appendChild(npi);
-  row.appendChild(npo);
-  row.appendChild(nqt);
-  qa.appendChild(row);
-  wrap.appendChild(qa);
-
-  // Stats
-  const stats = el("div", { class: "card" });
-  stats.appendChild(el("div", { class: "card-title" }, "This business"));
-  const s = el("div", { class: "row" });
-  const stat = (label, val) => {
-    const c = el("div", { class: "stat-tile" });
+  // One card, not two: the business name heads the same card as its counts,
+  // and the counts stay side by side instead of stacking down the phone.
+  const overview = el("div", { class: "card" });
+  overview.appendChild(el("div", { class: "eyebrow" }, "Active business"));
+  overview.appendChild(el("h2", { class: "display-name", style: { margin: "6px 0 14px" } }, biz.name));
+  const stat = (label, val, tab) => {
+    const c = el("button", { class: "stat-tile", type: "button",
+      "aria-label": `${val} ${label} — open the ${label} tab`,
+      onclick: () => { currentTab = tab; bulkSel.kind = null; bulkSel.ids.clear(); render(); } });
     c.appendChild(el("div", { class: "stat-num" }, String(val)));
     c.appendChild(el("div", { class: "stat-label" }, label));
     return c;
   };
-  s.appendChild(stat("Customers", bizCustomers().length));
-  s.appendChild(stat("Products", bizProducts().length));
-  s.appendChild(stat("Documents", bizDocs().length));
-  stats.appendChild(s);
-  wrap.appendChild(stats);
+  const s = el("div", { class: "stat-row" });
+  s.appendChild(stat("Customers", bizCustomers().length, "customers"));
+  s.appendChild(stat("Products", bizProducts().length, "products"));
+  s.appendChild(stat("Documents", bizDocs().length, "documents"));
+  overview.appendChild(s);
+  wrap.appendChild(overview);
+
+  // Quick actions
+  const qa = el("div", { class: "card" });
+  qa.appendChild(el("h2", { class: "card-title" }, "Create a document"));
+  const row = el("div", { class: "row" });
+  row.appendChild(el("button", { class: "btn btn-primary btn-full", onclick: () => startNewDoc("PI") }, "+ New PI"));
+  row.appendChild(el("button", { class: "btn btn-secondary btn-full", onclick: () => startNewDoc("PO") }, "+ New PO"));
+  row.appendChild(el("button", { class: "btn btn-secondary btn-full", onclick: () => startNewDoc("QT") }, "+ New Quotation"));
+  qa.appendChild(row);
+  wrap.appendChild(qa);
 
   // Recent docs
   const recent = bizDocs().slice(-5).reverse();
   if (recent.length > 0) {
     const rc = el("div", { class: "card" });
-    rc.appendChild(el("div", { class: "card-title" }, "Recent documents"));
+    rc.appendChild(el("h2", { class: "card-title" }, "Recent documents"));
     recent.forEach(d => rc.appendChild(renderDocListItem(d)));
     wrap.appendChild(rc);
   }
@@ -4260,7 +4362,7 @@ const openMoveCustomersModal = (ids) => {
   const bar = el("div", { class: "action-bar" });
   bar.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Cancel"));
   bar.appendChild(el("button", { class: "btn btn-primary", onclick: async (e) => {
-    const targetId = sel.value;
+    const targetId = Number(sel.value);
     const targets = db.customers.filter(c => ids.includes(c.id));
     await runBulk(e.currentTarget, "Moving", targets, (c) => {
       c.businessId = targetId;
@@ -4276,12 +4378,14 @@ const openMoveCustomersModal = (ids) => {
 // ==================== CUSTOMERS ====================
 const renderCustomers = () => {
   const wrap = el("div");
-  const search = el("div", { class: "search" });
-  const searchInput = el("input", { placeholder: "Search customers...", oninput: (e) => filterList("cust", e.target.value) });
-  search.appendChild(searchInput);
-  wrap.appendChild(search);
-
   const list = bizCustomers();
+  // A search box and a "select" button are only useful once there is something
+  // in the list, so an empty screen shows just the one thing worth doing.
+  if (list.length) {
+    const search = el("div", { class: "search" });
+    search.appendChild(el("input", { type: "search", "aria-label": "Search customers", placeholder: "Search customers…", oninput: (e) => filterList("cust", e.target.value) }));
+    wrap.appendChild(search);
+  }
   if (bulkActive("cust")) {
     wrap.appendChild(bulkBar("cust",
       () => [...document.querySelectorAll("#cust-list .list-item")]
@@ -4313,21 +4417,27 @@ const renderCustomers = () => {
         openMoveCustomersModal(ids);
       }}, "🏢 Move to…")] : [])]));
   } else {
-    const bulkRow = el("div", { style: { display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" } });
-    bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: openBulkCustomerModal }, "📋 Bulk add customers"));
-    if (list.length) bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => bulkToggleMode("cust") }, "☑️ Select"));
-    wrap.appendChild(bulkRow);
+    if (list.length) {
+      const bulkRow = el("div", { style: { display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" } });
+      bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: openBulkCustomerModal }, "📋 Bulk add customers"));
+      bulkRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => bulkToggleMode("cust") }, "☑️ Select"));
+      wrap.appendChild(bulkRow);
+    }
   }
 
   const listCt = el("div", { id: "cust-list" });
   if (list.length === 0) {
-    listCt.appendChild(emptyState("👥", "No customers yet", "Add your first customer"));
+    listCt.appendChild(emptyState("\u{1F465}", "No customers yet",
+      "Customers appear on your documents as the bill-to party. Add one to get started.",
+      { label: "+ Add a customer", onclick: () => openCustomerModal(null) }));
+    listCt.appendChild(el("div", { style: { textAlign: "center", marginTop: "-8px" } },
+      el("button", { class: "btn btn-secondary", type: "button", onclick: openBulkCustomerModal }, "📋 Or paste a list")));
   } else {
     list.forEach(c => listCt.appendChild(renderCustomerItem(c)));
   }
   wrap.appendChild(listCt);
 
-  const fab = el("button", { class: "fab", onclick: () => openCustomerModal(null) }, "+");
+  const fab = el("button", { class: "fab", type: "button", "aria-label": "Add a customer", title: "Add a customer", onclick: () => openCustomerModal(null) }, "+");
   wrap.appendChild(fab);
   return wrap;
 };
@@ -4370,7 +4480,13 @@ const attachPreviewScaler = (wrapEl, scalerEl, pageEl) => {
   const PAGE_W = 794;
   let userZoom = null; // set when the user taps zoom controls
   let bar = null;      // zoom control bar, built below
+  const detach = () => { window.removeEventListener("resize", apply); if (ro) ro.disconnect(); };
+  let ro = null;
   const apply = () => {
+    // Every preview added a window resize listener that was never taken away,
+    // so they piled up for the life of the tab. Once the preview is gone from
+    // the page, unhook.
+    if (!document.contains(wrapEl)) { detach(); return; }
     const avail = wrapEl.clientWidth - 24; // minus padding
     if (avail <= 0) return;
     const fit = Math.min(1, avail / PAGE_W);
@@ -4400,7 +4516,7 @@ const attachPreviewScaler = (wrapEl, scalerEl, pageEl) => {
   wrapEl.parentNode.insertBefore(bar, wrapEl);
 
   // Re-fit on viewport changes.
-  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
+  ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
   if (ro) ro.observe(wrapEl);
   window.addEventListener("resize", apply);
   setTimeout(apply, 0);
@@ -4645,16 +4761,30 @@ const renderCustomerItem = (c) => {
   }
   item.appendChild(info);
   const actions = el("div", { class: "actions" });
-  actions.appendChild(el("button", { class: "btn-icon", title: "Preview", onclick: () => openCustomerPreview(c) }, "👁️"));
-  actions.appendChild(el("button", { class: "btn-icon", title: "Report", onclick: () => openCustomerReport(c) }, "📊"));
-  actions.appendChild(el("button", { class: "btn-icon", title: "Share", onclick: () => shareText(customerToLine(c), c.companyName) }, "📤"));
-  actions.appendChild(el("button", { class: "btn-icon", title: "Edit", onclick: () => openCustomerModal(c) }, "✏️"));
-  actions.appendChild(el("button", { class: "btn-icon danger", onclick: () => {
-    confirmModal(`Delete customer "${c.companyName}"? This can't be undone.`, () => {
-      db.customers = db.customers.filter(x => x.id !== c.id); saveDB(); render();
-      toast("Customer deleted");
-    }, { title: "Delete customer?", confirmLabel: "Delete" });
-  }}, "🗑️"));
+  const iconBtn = (label, glyph, onclick, danger) =>
+    el("button", { class: "btn-icon" + (danger ? " danger" : ""), type: "button",
+      title: label, "aria-label": `${label} ${c.companyName}`, onclick }, glyph);
+  actions.appendChild(iconBtn("Preview", "👁️", () => openCustomerPreview(c)));
+  actions.appendChild(iconBtn("Report", "📊", () => openCustomerReport(c)));
+  actions.appendChild(iconBtn("Share", "📤", () => shareText(customerToLine(c), c.companyName)));
+  actions.appendChild(iconBtn("Edit", "✏️", () => openCustomerModal(c)));
+  actions.appendChild(iconBtn("Delete", "🗑️", () => {
+    // Deleting one customer used to leave their documents behind with a blank
+    // party name. Match what selecting several of them already does: say what
+    // else goes, and keep it undoable.
+    const docSnap = db.documents.filter(d => d.customerId === c.id);
+    const doIt = () => deleteWithUndo(`Customer "${c.companyName}"`,
+      () => {
+        db.customers = db.customers.filter(x => x.id !== c.id);
+        db.documents = db.documents.filter(d => d.customerId !== c.id);
+      },
+      () => { db.customers.push(c); db.documents.push(...docSnap); });
+    confirmModal(
+      docSnap.length
+        ? `Deleting "${c.companyName}" also deletes their ${docSnap.length} document${docSnap.length === 1 ? "" : "s"}. You will have a few seconds to undo.`
+        : `Delete "${c.companyName}"? You will have a few seconds to undo.`,
+      doIt, { title: "Delete customer?", confirmLabel: "Delete" });
+  }, true));
   item.appendChild(actions);
   return item;
 };
@@ -4920,8 +5050,6 @@ const openMoveProductsModal = (targetPath) => {
   openModal("Move products", wrap);
 };
 
-// ==================== CSV EXPORT / IMPORT ====================
-
 // ==================== KEYBOARD SHORTCUTS ====================
 // Escape closes the top modal, "/" jumps to the visible search box, and Enter
 // submits a form's primary action when you're not in a textarea.
@@ -4954,6 +5082,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// ==================== CSV EXPORT / IMPORT ====================
 const csvEscape = (v) => {
   const s = v === null || v === undefined ? "" : String(v);
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -5166,6 +5295,7 @@ const downloadTemplate = (kind) => {
   toast("Template downloaded");
 };
 
+// ==================== PRODUCTS: BROWSE, UNITS, LIST ====================
 const prodView = { mode: "categories", path: [] };
 
 const renderProducts = () => {
@@ -5186,7 +5316,7 @@ const renderProducts = () => {
   else if (prodView.mode === "units") wrap.appendChild(renderUnitsManager());
   else wrap.appendChild(renderAllProducts());
 
-  wrap.appendChild(el("button", { class: "fab", onclick: () => openProductModal(null) }, "+"));
+  wrap.appendChild(el("button", { class: "fab", type: "button", "aria-label": "Add a product", title: "Add a product", onclick: () => openProductModal(null) }, "+"));
   return wrap;
 };
 
@@ -5401,7 +5531,9 @@ const renderUnitsManager = () => {
 const renderCategoryBrowser = () => {
   const wrap = el("div");
   const all = bizProducts();
-  if (all.length === 0) return emptyState("\u{1F4E6}", "No products yet", "Add your first product");
+  if (all.length === 0) return emptyState("\u{1F4E6}", "No products yet",
+    "Products are the items you put on a document — description, unit and rate.",
+    { label: "+ Add a product", onclick: () => openProductModal(null) });
 
   const tree = buildCategoryTree(all);
   // walk to the current path
@@ -5484,7 +5616,7 @@ const renderAllProducts = () => {
   if (!prodView.filterCat) prodView.filterCat = "";
   const searchRow = el("div", { style: { display: "flex", gap: "8px", marginBottom: "10px", flexWrap: "wrap" } });
   const search = el("div", { class: "search", style: { flex: "2", minWidth: "180px" } });
-  search.appendChild(el("input", { placeholder: "Search all products...", oninput: (e) => filterProductList(e.target.value, prodView.filterCat) }));
+  search.appendChild(el("input", { type: "search", "aria-label": "Search all products", placeholder: "Search all products…", oninput: (e) => filterProductList(e.target.value, prodView.filterCat) }));
   searchRow.appendChild(search);
   // Category filter — flat list of every top-level and sub-level category path
   const all = bizProducts();
@@ -5521,7 +5653,9 @@ const renderAllProducts = () => {
 
   const listCt = el("div", { id: "prod-list" });
   if (list.length === 0) {
-    listCt.appendChild(emptyState("\u{1F4E6}", "No products yet", "Add your first product"));
+    listCt.appendChild(emptyState("\u{1F4E6}", "No products yet",
+      "Products are the items you put on a document — description, unit and rate.",
+      { label: "+ Add a product", onclick: () => openProductModal(null) }));
   } else {
     renderProductChunks(list, listCt);
   }
@@ -5593,20 +5727,28 @@ const renderProductItem = (p) => {
   });
   item.appendChild(rateInp);
   const actions = el("div", { class: "actions" });
-  actions.appendChild(el("button", { class: "btn-icon", title: "Preview", onclick: () => openProductPreview(p) }, "👁️"));
-  actions.appendChild(el("button", { class: "btn-icon", title: "Share", onclick: () => shareText(productToLine(p), p.description) }, "📤"));
-  actions.appendChild(el("button", { class: "btn-icon", title: "Edit", onclick: () => openProductModal(p) }, "✏️"));
-  actions.appendChild(el("button", { class: "btn-icon", title: "Duplicate", onclick: () => {
+  const iconBtn = (label, glyph, onclick, danger) =>
+    el("button", { class: "btn-icon" + (danger ? " danger" : ""), type: "button",
+      title: label, "aria-label": `${label} ${p.description}`, onclick }, glyph);
+  actions.appendChild(iconBtn("Preview", "👁️", () => openProductPreview(p)));
+  actions.appendChild(iconBtn("Share", "📤", () => shareText(productToLine(p), p.description)));
+  actions.appendChild(iconBtn("Edit", "✏️", () => openProductModal(p)));
+  actions.appendChild(iconBtn("Duplicate", "📄", () => {
     const copy = { ...p, id: uid("prod"), description: p.description + " (copy)" };
     db.products.push(copy); saveDB(); render();
     toast("Product duplicated");
-  }}, "📄"));
-  actions.appendChild(el("button", { class: "btn-icon danger", title: "Delete", onclick: () => {
-    confirmModal(`Delete "${p.description}"? This can't be undone.`, () => {
-      db.products = db.products.filter(x => x.id !== p.id); saveDB(); render();
-      toast("Product deleted");
-    }, { title: "Delete product?", confirmLabel: "Delete" });
-  }}, "🗑️"));
+  }));
+  actions.appendChild(iconBtn("Delete", "🗑️", () => {
+    const used = bizDocs().filter(d => (d.lineItems || []).some(li => li.productId === p.id)).length;
+    confirmModal(
+      used
+        ? `Delete "${p.description}"? It stays on the ${used} document${used === 1 ? "" : "s"} that already use${used === 1 ? "s" : ""} it. You will have a few seconds to undo.`
+        : `Delete "${p.description}"? You will have a few seconds to undo.`,
+      () => deleteWithUndo(`"${p.description}"`,
+        () => { db.products = db.products.filter(x => x.id !== p.id); },
+        () => { db.products.push(p); }),
+      { title: "Delete product?", confirmLabel: "Delete" });
+  }, true));
   item.appendChild(actions);
   return item;
 };
@@ -5614,22 +5756,32 @@ const renderProductItem = (p) => {
 // ==================== DOCUMENTS ====================
 const renderDocuments = () => {
   const wrap = el("div");
-  const search = el("div", { class: "search" });
-  search.appendChild(el("input", { placeholder: "Search documents...", oninput: (e) => filterList("doc", e.target.value) }));
-  wrap.appendChild(search);
+  const anyDocs = bizDocs().length > 0;
+  if (anyDocs) {
+    const search = el("div", { class: "search" });
+    search.appendChild(el("input", { type: "search", "aria-label": "Search documents", placeholder: "Search documents…", oninput: (e) => filterList("doc", e.target.value) }));
+    wrap.appendChild(search);
+  }
 
-  const newDocRow = el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "12px" } });
-  newDocRow.appendChild(el("button", { class: "btn btn-primary", onclick: () => startNewDoc("PI") }, "+ PI"));
-  newDocRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => startNewDoc("PO") }, "+ PO"));
-  newDocRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => startNewDoc("QT") }, "+ QT"));
-  wrap.appendChild(newDocRow);
+  // Once there are documents this is a compact "new" row above the list. With
+  // none, the empty state below carries the same three buttons with full names,
+  // so a first-time screen isn't two rows of the same thing.
+  if (anyDocs) {
+    const newDocRow = el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "12px" } });
+    newDocRow.appendChild(el("button", { class: "btn btn-primary", onclick: () => startNewDoc("PI") }, "+ PI"));
+    newDocRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => startNewDoc("PO") }, "+ PO"));
+    newDocRow.appendChild(el("button", { class: "btn btn-secondary", onclick: () => startNewDoc("QT") }, "+ QT"));
+    wrap.appendChild(newDocRow);
+  }
 
-  const filterRow = el("div", { class: "row", style: { marginBottom: "12px" } });
-  const typeF = el("select", { onchange: (e) => { docTypeFilter = e.target.value; render(); } });
-  ["All", ...Object.keys(DOC_TYPES)].forEach(t => typeF.appendChild(el("option", { value: t, selected: t === docTypeFilter ? "" : undefined }, t === "All" ? "All types" : DOC_TYPES[t].label)));
-  typeF.value = docTypeFilter;
-  filterRow.appendChild(typeF);
-  wrap.appendChild(filterRow);
+  if (anyDocs) {
+    const filterRow = el("div", { class: "row", style: { marginBottom: "12px" } });
+    const typeF = el("select", { "aria-label": "Filter by document type", onchange: (e) => { docTypeFilter = e.target.value; render(); } });
+    ["All", ...Object.keys(DOC_TYPES)].forEach(t => typeF.appendChild(el("option", { value: t, selected: t === docTypeFilter }, t === "All" ? "All types" : DOC_TYPES[t].label)));
+    typeF.value = docTypeFilter;
+    filterRow.appendChild(typeF);
+    wrap.appendChild(filterRow);
+  }
 
   const list = bizDocs().filter(d => docTypeFilter === "All" || d.type === docTypeFilter).slice().reverse();
   if (bulkActive("doc")) {
@@ -5654,7 +5806,19 @@ const renderDocuments = () => {
 
   const listCt = el("div", { id: "doc-list" });
   if (list.length === 0) {
-    listCt.appendChild(emptyState("📄", "No documents yet", "Create your first PI, PO or Quotation"));
+    if (!anyDocs) {
+      listCt.appendChild(emptyState("\u{1F4C4}", "No documents yet",
+        "Pick what you want to create. A quotation can be converted into an invoice later without retyping it.",
+        { label: "+ New Proforma Invoice", onclick: () => startNewDoc("PI") }));
+      const more = el("div", { style: { display: "flex", justifyContent: "center", gap: "8px", flexWrap: "wrap", marginTop: "10px" } });
+      more.appendChild(el("button", { class: "btn btn-secondary", onclick: () => startNewDoc("QT") }, "+ New Quotation"));
+      more.appendChild(el("button", { class: "btn btn-secondary", onclick: () => startNewDoc("PO") }, "+ New Purchase Order"));
+      listCt.appendChild(more);
+    } else {
+      listCt.appendChild(emptyState("\u{1F50D}", `No ${DOC_TYPES[docTypeFilter].label.toLowerCase()}s yet`,
+        "Nothing of this type. Switch the filter back to All types, or create one now.",
+        { label: `+ New ${DOC_TYPES[docTypeFilter].label}`, onclick: () => startNewDoc(docTypeFilter) }));
+    }
   } else {
     list.forEach(d => listCt.appendChild(renderDocListItem(d)));
   }
@@ -5676,142 +5840,55 @@ const renderDocListItem = (d) => {
   info.appendChild(el("div", { class: "sub" }, `${cust?.companyName || "—"} • ${d.date} • ${d.currency} ${fmt(d.totals?.total || 0)}`));
   item.appendChild(info);
   const actions = el("div", { class: "actions" });
-  actions.appendChild(el("button", { class: "btn-icon", title: "Preview", onclick: () => openDocPreview(d) }, "👁️"));
-  actions.appendChild(el("button", { class: "btn-icon", title: "Edit", onclick: () => editDoc(d) }, "✏️"));
-  actions.appendChild(el("button", { class: "btn-icon danger", title: "Delete", onclick: () => {
-    confirmModal(`Delete ${DOC_TYPES[d.type].shortLabel} #${d.number}? This can't be undone.`, () => {
-      db.documents = db.documents.filter(x => x.id !== d.id); saveDB(); render();
-      toast(`${DOC_TYPES[d.type].shortLabel} #${d.number} deleted`);
-    }, { title: `Delete ${DOC_TYPES[d.type].label}?`, confirmLabel: "Delete" });
-  }}, "🗑️"));
+  const label = `${DOC_TYPES[d.type].shortLabel} #${d.number}`;
+  const iconBtn = (name, glyph, onclick, danger) =>
+    el("button", { class: "btn-icon" + (danger ? " danger" : ""), type: "button",
+      title: name, "aria-label": `${name} ${label}`, onclick }, glyph);
+  actions.appendChild(iconBtn("Preview", "👁️", () => openDocPreview(d)));
+  actions.appendChild(iconBtn("Edit", "✏️", () => editDoc(d)));
+  actions.appendChild(iconBtn("Delete", "🗑️", () => {
+    confirmModal(`Delete ${label}? You will have a few seconds to undo.`,
+      () => deleteWithUndo(label,
+        () => { db.documents = db.documents.filter(x => x.id !== d.id); },
+        () => { db.documents.push(d); }),
+      { title: `Delete ${DOC_TYPES[d.type].label}?`, confirmLabel: "Delete" });
+  }, true));
   item.appendChild(actions);
   return item;
 };
 
-// ==================== SETTINGS ====================
-const renderSettings = () => {
-  const wrap = el("div");
-  const biz = activeBiz();
-
-  // Business profile as tappable section cards — each opens a focused editor.
-  const bc = el("div", { class: "card" });
-  bc.appendChild(el("div", { class: "card-title" }, "Business profile"));
-  bc.appendChild(el("div", { style: { fontSize: "12px", color: "var(--muted)", marginBottom: "10px" } },
-    biz ? biz.name : ""));
-  const secList = el("div", { class: "settings-sections" });
-  BIZ_SECTIONS.forEach(s => {
-    const row = el("div", { class: "settings-row", onclick: () => openBizSection(s.key) });
-    row.appendChild(el("div", { class: "settings-icon" }, s.icon));
-    const txt = el("div", { style: { flex: "1", minWidth: "0" } });
-    txt.appendChild(el("div", { class: "settings-title" }, s.title));
-    let sub = s.desc;
-    if (s.key === "banks") {
-      const n = (biz.banks || []).filter(b => b.bankName || b.accountNumber).length;
-      sub = n ? `${n} account${n === 1 ? "" : "s"} set up` : "No accounts yet";
-    } else if (s.key === "identity") {
-      sub = [biz.phone, biz.pan ? "PAN " + biz.pan : "", biz.shortCode].filter(Boolean).join(" • ") || s.desc;
-    } else if (s.key === "numbering") {
-      sub = `${biz.currency || "NPR"} • ${biz.taxRate || 0}% tax`;
-    } else if (s.key === "branding") {
-      sub = [biz.logo ? "Logo set" : "No logo", biz.signature ? "signature set" : "no signature", biz.stamp ? "stamp set" : "no stamp"].join(" • ");
-    }
-    txt.appendChild(el("div", { class: "settings-sub" }, sub));
-    row.appendChild(txt);
-    row.appendChild(el("span", { class: "settings-chev" }, "›"));
-    secList.appendChild(row);
-  });
-  bc.appendChild(secList);
-  wrap.appendChild(bc);
-
-  const sf = el("div", { class: "card" });
-  sf.appendChild(el("div", { class: "card-title" }, "💾 Save location"));
-  if (supportsFSA()) {
-    sf.appendChild(el("div", { style: { fontSize: "12.5px", color: "var(--muted)", marginBottom: "10px" } },
-      "Pick a real folder on this device. PDFs, PNGs and backups will save straight there — no download prompts, no picking a folder every time."));
-    if (biz.saveFolderDisplayName) {
-      const row = el("div", { class: "list-item" });
-      const info = el("div", { class: "info" });
-      info.appendChild(el("div", { class: "name" }, `📁 ${biz.saveFolderDisplayName}`));
-      info.appendChild(el("div", { class: "sub" }, "All downloads for this business go here"));
-      row.appendChild(info);
-      const actions = el("div", { class: "actions" });
-      actions.appendChild(el("button", { class: "btn-icon", title: "Change folder", onclick: chooseSaveFolder }, "🔄"));
-      actions.appendChild(el("button", { class: "btn-icon danger", title: "Stop using this folder", onclick: clearSaveFolder }, "✖"));
-      row.appendChild(actions);
-      sf.appendChild(row);
-    } else {
-      sf.appendChild(el("button", { class: "btn btn-primary btn-full", onclick: chooseSaveFolder }, "📁 Choose or create a folder"));
-    }
-  } else {
-    sf.appendChild(el("div", { style: { fontSize: "12.5px", color: "var(--muted)" } },
-      "Direct folder picking needs Chrome or Edge. In this browser, use \"Save folder name\" under Document defaults above — downloads will land in a subfolder inside your normal Downloads folder."));
-  }
-  wrap.appendChild(sf);
-
-  const dc = el("div", { class: "card" });
-  dc.appendChild(el("div", { class: "card-title" }, "Data"));
-  // --- CSV export / import ---
-  dc.appendChild(el("div", { style: { fontSize: "12px", fontWeight: 600, color: "var(--muted)", margin: "2px 0 6px" } }, "Spreadsheets (CSV)"));
-  const csvGrid = el("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "10px" } });
-  csvGrid.appendChild(el("button", { class: "btn btn-secondary", style: { fontSize: "12px" }, onclick: exportProductsCSV }, "📤 Export products"));
-  csvGrid.appendChild(el("button", { class: "btn btn-secondary", style: { fontSize: "12px" }, onclick: () => importCSV("products") }, "📥 Import products"));
-  csvGrid.appendChild(el("button", { class: "btn btn-secondary", style: { fontSize: "12px" }, onclick: exportCustomersCSV }, "📤 Export customers"));
-  csvGrid.appendChild(el("button", { class: "btn btn-secondary", style: { fontSize: "12px" }, onclick: () => importCSV("customers") }, "📥 Import customers"));
-  csvGrid.appendChild(el("button", { class: "btn btn-secondary", style: { fontSize: "12px" }, onclick: exportDocumentsCSV }, "📤 Export documents"));
-  csvGrid.appendChild(el("button", { class: "btn btn-secondary", style: { fontSize: "12px" }, onclick: () => {
-    const w = el("div");
-    w.appendChild(el("div", { style: { fontSize: "12.5px", marginBottom: "10px" } }, "Blank CSV files with the right column headers — fill them in Excel, then import."));
-    w.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "6px" }, onclick: () => { downloadTemplate("products"); closeModal(); } }, "Products template"));
-    w.appendChild(el("button", { class: "btn btn-secondary btn-full", onclick: () => { downloadTemplate("customers"); closeModal(); } }, "Customers template"));
-    openModal("CSV templates", w);
-  }}, "📄 Templates"));
-  dc.appendChild(csvGrid);
-  dc.appendChild(el("div", { style: { fontSize: "12px", fontWeight: 600, color: "var(--muted)", margin: "2px 0 6px" } }, "Full backup"));
-  const bk = el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "8px" }, onclick: exportBackup }, "📥 Export backup (JSON)");
-  const rs = el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "8px" }, onclick: importBackup }, "📤 Import backup (JSON)");
-  const dl = el("button", { class: "btn btn-danger btn-full", onclick: () => {
-    confirmModal(
-      `This permanently deletes "${biz.name}" and every customer, product, and document under it. This cannot be undone.`,
-      () => {
-        const name = biz.name;
-        db.customers = db.customers.filter(c => c.businessId !== biz.id);
-        db.products = db.products.filter(p => p.businessId !== biz.id);
-        db.documents = db.documents.filter(d => d.businessId !== biz.id);
-        db.businesses = db.businesses.filter(b => b.id !== biz.id);
-        db.activeBusinessId = db.businesses[0]?.id || null;
-        saveDB(); render();
-        toast(`"${name}" and all its data deleted`);
-      },
-      { title: "Delete this business?", confirmLabel: "Delete everything", typeToConfirm: biz.name }
-    );
-  }}, "🗑️ Delete this business");
-  dc.appendChild(bk); dc.appendChild(rs); dc.appendChild(dl);
-  wrap.appendChild(dc);
-
-  return wrap;
-};
-
 // ==================== FORMS ====================
+// Every field gets a unique id so its <label> can point at it. Without the
+// link, tapping the label doesn't focus the box and screen readers announce
+// the input as unlabelled.
+let fieldIdCounter = 0;
+const nextFieldId = (key) => `f-${String(key).replace(/[^a-z0-9]/gi, "")}-${fieldIdCounter++}`;
+
 const inputField = (label, key, obj, opts = {}) => {
   const f = el("div", { class: "field" });
-  f.appendChild(el("label", {}, label));
+  const id = nextFieldId(key);
+  const hintId = opts.hint ? id + "-hint" : undefined;
+  f.appendChild(el("label", { for: id }, label));
   const inp = el(opts.textarea ? "textarea" : "input", {
-    type: opts.type || "text",
+    id,
+    type: opts.textarea ? undefined : (opts.type || "text"),
     inputmode: opts.type === "number" ? "decimal" : undefined,
+    "aria-describedby": hintId,
     value: obj[key] ?? "",
     placeholder: opts.placeholder || "",
     oninput: (e) => { obj[key] = opts.type === "number" ? parseFloat(e.target.value) || 0 : e.target.value; if (opts.onInput) opts.onInput(obj[key]); },
   });
   if (opts.rows) inp.rows = opts.rows;
   f.appendChild(inp);
-  if (opts.hint) f.appendChild(el("div", { style: { fontSize: "11px", color: "#6b7280", marginTop: "4px" } }, opts.hint));
+  if (opts.hint) f.appendChild(el("div", { id: hintId, style: { fontSize: "11px", color: "#6b7280", marginTop: "4px" } }, opts.hint));
   return f;
 };
 
 const selectField = (label, key, obj, options, opts = {}) => {
   const f = el("div", { class: "field" });
-  f.appendChild(el("label", {}, label));
-  const s = el("select", { onchange: (e) => { obj[key] = e.target.value; if (opts.onChange) opts.onChange(obj[key]); } });
+  const id = nextFieldId(key);
+  f.appendChild(el("label", { for: id }, label));
+  const s = el("select", { id, onchange: (e) => { obj[key] = e.target.value; if (opts.onChange) opts.onChange(obj[key]); } });
   options.forEach(o => {
     const opt = el("option", { value: o }, o);
     if (obj[key] === o) opt.selected = true;
@@ -5825,9 +5902,11 @@ const selectField = (label, key, obj, options, opts = {}) => {
 let comboIdCounter = 0;
 const comboField = (label, key, obj, suggestions = [], opts = {}) => {
   const f = el("div", { class: "field" });
-  f.appendChild(el("label", {}, label));
+  const id = nextFieldId(key);
+  f.appendChild(el("label", { for: id }, label));
   const listId = `dl-${key}-${comboIdCounter++}`;
   const inp = el("input", {
+    id,
     value: obj[key] ?? "",
     list: listId,
     placeholder: opts.placeholder || "",
@@ -6318,26 +6397,6 @@ const BIZ_SECTIONS = [
   { key: "docdefaults", icon: "\u2699\uFE0F",      title: "Document defaults", desc: "Validity periods, ship note, save folder" },
 ];
 
-// Opens a single settings section in its own modal.
-const openBizSection = (key) => {
-  const biz = activeBiz();
-  if (!biz) return;
-  const meta = BIZ_SECTIONS.find(s => s.key === key);
-  const form = renderBusinessForm(biz, () => {});
-  const sections = form._sections, data = form._data;
-  const wrap = el("div");
-  wrap.appendChild(sections[key]());
-  const bar = el("div", { class: "modal-footer-bar" });
-  bar.appendChild(el("button", { class: "btn btn-secondary", onclick: () => attemptClose() }, "Cancel"));
-  bar.appendChild(el("button", { class: "btn btn-primary", onclick: () => {
-    if (!String(data.name || "").trim()) { toast("Business name required", "err"); return; }
-    Object.assign(biz, data);
-    saveDB(); closeModal(); render();
-    toast("Saved");
-  } }, "Save"));
-  openModal(meta ? meta.title : "Edit", wrap, { footer: bar });
-};
-
 // Full Settings popup — sidebar of every settings section on the left,
 // selected section's form on the right. Saves the whole business on Save.
 const SETTINGS_NAV = [
@@ -6510,10 +6569,13 @@ const renderSettingsData = (biz) => {
 // ==================== MODALS ====================
 const openModal = (title, contentEl, opts = {}) => {
   const bg = el("div", { class: "modal-bg", onclick: (e) => { if (e.target === bg) attemptClose(); } });
-  const m = el("div", { class: "modal" + (opts.wide ? " modal-wide" : "") + (opts.settings ? " modal-settings" : "") + (opts.flush ? " modal-flush" : "") });
+  const m = el("div", {
+    class: "modal" + (opts.wide ? " modal-wide" : "") + (opts.settings ? " modal-settings" : "") + (opts.flush ? " modal-flush" : ""),
+    role: "dialog", "aria-modal": "true", "aria-label": title,
+  });
   const h = el("div", { class: "modal-header" });
   h.appendChild(el("h2", {}, title));
-  h.appendChild(el("button", { class: "modal-close", onclick: () => attemptClose() }, "×"));
+  h.appendChild(el("button", { class: "modal-close", type: "button", "aria-label": "Close", onclick: () => attemptClose() }, "×"));
   const body = el("div", { class: "modal-body" });
   body.appendChild(contentEl);
   m.appendChild(h);
@@ -6538,7 +6600,30 @@ const openModal = (title, contentEl, opts = {}) => {
   modalStack.push(bg);
   document.getElementById("app").appendChild(bg);
   document.body.classList.add("modal-open");
+  // Move focus into the dialog so Escape and Tab act on it, and so a screen
+  // reader announces it. Deliberately the panel and not the first field —
+  // auto-focusing an input pops the on-screen keyboard open on every phone.
+  m.setAttribute("tabindex", "-1");
+  m.focus({ preventScroll: true });
 };
+
+// Keep Tab inside the topmost modal — without this, tabbing walks off into the
+// page behind it, which is invisible and impossible to get back from.
+const trapModalTab = (e) => {
+  if (e.key !== "Tab" || !modalStack.length) return;
+  const m = modalStack[modalStack.length - 1].querySelector(".modal");
+  if (!m) return;
+  const items = [...m.querySelectorAll('a[href], button, input, textarea, select, [tabindex]:not([tabindex="-1"])')]
+    .filter(x => !x.disabled && x.offsetParent !== null);
+  if (!items.length) return;
+  const firstEl = items[0], lastEl = items[items.length - 1];
+  if (e.shiftKey && (document.activeElement === firstEl || !m.contains(document.activeElement))) {
+    e.preventDefault(); lastEl.focus();
+  } else if (!e.shiftKey && document.activeElement === lastEl) {
+    e.preventDefault(); firstEl.focus();
+  }
+};
+document.addEventListener("keydown", trapModalTab);
 
 // Close the top modal, asking first if the user typed something they'd lose.
 const attemptClose = () => {
@@ -6550,6 +6635,10 @@ const attemptClose = () => {
   }
   closeModal();
 };
+// Set while we rewind our own reserved history entry, so the popstate handler
+// knows the back button wasn't actually pressed.
+let unwindingModalHistory = false;
+
 // Closes only the topmost modal — any modal underneath (e.g. a document you were
 // mid-way through building) reappears exactly as you left it.
 const closeModal = () => {
@@ -6557,9 +6646,22 @@ const closeModal = () => {
   if (bg && bg.parentNode) bg.parentNode.removeChild(bg);
   if (!modalStack.length) {
     document.body.classList.remove("modal-open");
+    // Give back the history entry we reserved when the chain opened. Without
+    // this it stays on the stack, and the next back press does nothing at all
+    // before a second press finally leaves the app.
+    if (modalHistoryPushed) {
+      modalHistoryPushed = false;
+      unwindingModalHistory = true;
+      history.back();
+    }
     // Nothing left open — refresh the underlying view so edits made in the
     // modal show immediately (no page reload needed).
     render();
+    // render() rebuilds the page, so whatever had focus before the modal is
+    // gone. Park focus on the content area instead of letting it fall back to
+    // the top of the document, so Tab carries on roughly where it left off.
+    const main = document.getElementById("main");
+    if (main) { main.setAttribute("tabindex", "-1"); main.focus({ preventScroll: true }); }
   }
 };
 
@@ -6567,6 +6669,7 @@ const closeModal = () => {
 // navigating the browser away from the app. If nothing is open, this is just
 // the reserved entry being consumed by a real "leave the app" navigation.
 window.addEventListener("popstate", () => {
+  if (unwindingModalHistory) { unwindingModalHistory = false; return; }
   modalHistoryPushed = false;
   if (modalStack.length) {
     modalStack = [];
@@ -6992,10 +7095,10 @@ const startNewDoc = (type) => {
   const biz = activeBiz();
   const cfg = DOC_TYPES[type];
   const seq = biz[cfg.seqKey] || 1;
-  const fmt = biz[cfg.fmtKey] || cfg.defaultFmt;
+  const numberFormat = biz[cfg.fmtKey] || cfg.defaultFmt;
   docBuilder = {
     type,
-    number: formatDocNumber(fmt, seq, today()),
+    number: formatDocNumber(numberFormat, seq, today()),
     _seq: seq,
     date: today(),
     expiryDate: cfg.hasExpiry ? addDays(today(), Number(biz[cfg.validityKey] ?? cfg.defaultValidity) || cfg.defaultValidity) : "",
@@ -7031,10 +7134,10 @@ const convertDoc = (src, targetType) => {
   const biz = activeBiz();
   const cfg = DOC_TYPES[targetType];
   const seq = biz[cfg.seqKey] || 1;
-  const fmt = biz[cfg.fmtKey] || cfg.defaultFmt;
+  const numberFormat = biz[cfg.fmtKey] || cfg.defaultFmt;
   const copy = JSON.parse(JSON.stringify(src));
   copy.type = targetType;
-  copy.number = formatDocNumber(fmt, seq, today());
+  copy.number = formatDocNumber(numberFormat, seq, today());
   copy._seq = seq;
   copy.id = undefined;              // a brand-new record
   copy._editing = false;
@@ -7826,17 +7929,22 @@ const openDocBuilder = () => {
     recomputeTotals();
     // Drop transient builder-only keys before persisting.
     delete docBuilder._onTotals;
-    if (docBuilder._editing) {
-      const idx = db.documents.findIndex(d => d.id === docBuilder.id);
-      db.documents[idx] = { ...docBuilder };
+    const idx = docBuilder._editing ? db.documents.findIndex(d => d.id === docBuilder.id) : -1;
+    let saved;
+    if (idx >= 0) {
+      saved = db.documents[idx] = { ...docBuilder };
     } else {
-      docBuilder.id = uid("doc");
-      db.documents.push(docBuilder);
-      const biz = activeBiz();
-      biz[DOC_TYPES[docBuilder.type].seqKey] = docBuilder._seq + 1;
+      // Either a brand-new document, or one that was deleted elsewhere while it
+      // was open here — save it rather than throwing the work away.
+      docBuilder.id = docBuilder.id || uid("doc");
+      saved = { ...docBuilder };
+      db.documents.push(saved);
+      if (!docBuilder._editing) {
+        const biz = activeBiz();
+        biz[DOC_TYPES[docBuilder.type].seqKey] = docBuilder._seq + 1;
+      }
     }
     saveDB();
-    const saved = docBuilder;
     closeModal();
     openDocPreview(saved);
     toast(`${DOC_TYPES[saved.type].shortLabel} #${saved.number} saved`);
@@ -7948,7 +8056,11 @@ const openDocPreview = (d) => {
     const errBox = el("div", { style: { padding: "24px" } });
     errBox.appendChild(el("div", { style: { fontWeight: 700, color: "#b91c1c", marginBottom: "8px" } }, "Couldn't build the preview."));
     errBox.appendChild(el("div", { style: { fontSize: "13px", color: "#555" } },
-      `This document has bad/missing data (${e.message}). Try Edit → re-save it, or tell Deepesh's AI the error above so it can fix it.`));
+      `Something in this document is missing or damaged (${e.message}). Open it with Edit, check the customer and line items, and save again.`));
+    const fix = el("div", { class: "action-bar" });
+    fix.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Close"));
+    fix.appendChild(el("button", { class: "btn btn-primary", onclick: () => { closeModal(); editDoc(d); } }, "Edit this document"));
+    errBox.appendChild(fix);
     openModal(`${d.type} #${d.number}`, errBox, { wide: true });
     return;
   }
@@ -7989,7 +8101,9 @@ const openDocPreview = (d) => {
   pdfBtn.addEventListener("click", () => downloadPDF(pv, d, pdfBtn));
   actions.appendChild(pdfBtn);
   actions.appendChild(iconLabelBtn({ class: "btn btn-secondary icon-only", icon: "print", label: "Print", title: "Print this document", onclick: () => printDoc(pv) }));
-  actions.appendChild(iconLabelBtn({ class: "btn btn-secondary", icon: "image", label: "PNG", onclick: () => downloadPNG(pv, d) }));
+  const pngBtn = iconLabelBtn({ class: "btn btn-secondary", icon: "image", label: "PNG" });
+  pngBtn.addEventListener("click", () => downloadPNG(pv, d, pngBtn));
+  actions.appendChild(pngBtn);
   const waBtn = iconLabelBtn({ class: "btn btn-green keep-label", icon: "whatsapp", label: "WhatsApp", title: "Send the document image with details" });
   waBtn.addEventListener("click", () => shareWhatsAppImage(pv, d, cust, biz, waBtn));
   actions.appendChild(waBtn);
@@ -8551,24 +8665,33 @@ const capturePreviewAsCanvas = async (previewEl) => {
   return out;
 };
 
-const downloadPNG = async (previewEl, d) => {
-  const canvas = await capturePreviewAsCanvas(previewEl);
-  const filename = docBaseName(d, "png");
-  const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
-  const savedPng = blob && await writeToFolder(blob, filename);
-  if (savedPng) {
-    toast(`Saved to folder "${savedPng.name}" — ${filename}`, "ok", 6000);
-    return;
+const downloadPNG = async (previewEl, d, btn) => {
+  const busy = btnBusy(btn, "Saving…");
+  try {
+    const canvas = await capturePreviewAsCanvas(previewEl);
+    const filename = docBaseName(d, "png");
+    const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
+    if (!blob) throw new Error("the image could not be created");
+    const savedPng = await writeToFolder(blob, filename);
+    if (savedPng) {
+      toast(`Saved to folder "${savedPng.name}" — ${filename}`, "ok", 6000);
+      return;
+    }
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.download = docFileName(d, "png");
+    link.href = blobUrl;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+    toast(`Image saved to your Downloads folder as ${docFileName(d, "png")}`, "ok", 6000);
+  } catch (e) {
+    console.error("PNG export failed:", e);
+    toast("Couldn't save the image — " + (e.message || "please try again"), "err", 5000);
+  } finally {
+    busy.done();
   }
-  const blobUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.download = docFileName(d, "png");
-  link.href = blobUrl;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-  toast(`Image saved to your Downloads folder as ${docFileName(d, "png")}`, "ok", 6000);
 };
 
 // Real PDF download (A4) — no browser print dialog. Falls back to print() if the
@@ -8702,14 +8825,6 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
   }
 };
 
-const shareWhatsApp = (d, cust, biz) => {
-  if (!cust || !cust.phone) { toast("Customer phone number is missing", "err"); return; }
-  const phone = cust.phone.replace(/[^0-9]/g, "");
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(shareMessage(d, cust, biz))}`;
-  window.open(url, "_blank");
-  if (d.status === "Draft") { d.status = "Sent"; saveDB(); }
-};
-
 // ==================== GOOGLE DRIVE BACKUP ====================
 const GDRIVE_CLIENT_ID = "875334449474-2uqcceb5134tbpbk0e2spv67c5ah4muh.apps.googleusercontent.com";
 const GDRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
@@ -8781,7 +8896,7 @@ const gdriveRestore = async (btn) => {
     if (!imported.businesses) throw new Error("Backup file is invalid");
     confirmModal(
       "This replaces all current data with the backup from Google Drive. Your current data will be lost.",
-      () => { db = imported; saveDB(); render(); toast("Restored from Google Drive"); },
+      () => { replaceDB(imported); render(); toast("Restored from Google Drive"); },
       { title: "Replace all data?", confirmLabel: "Replace data" }
     );
   } catch (e) {
@@ -8849,9 +8964,7 @@ const deviceEntryNames = (e) =>
 // already data loaded that would be replaced.
 const restoreDeviceEntry = (entry) => {
   const apply = () => {
-    db = JSON.parse(JSON.stringify(entry.data));
-    if (!db.activeBusinessId) db.activeBusinessId = (db.businesses[0] || {}).id || null;
-    saveDB();
+    replaceDB(JSON.parse(JSON.stringify(entry.data)));
     if (modalStack.length) closeModal();
     render();
     toast(`Loaded ${entry.businesses} business${entry.businesses === 1 ? "" : "es"} from this device`, "ok", 4000);
@@ -8909,7 +9022,7 @@ const importBackup = () => {
         if (!imported.businesses) throw new Error("Invalid backup");
         confirmModal(
           "This replaces every business, customer, product, and document currently in the app with what's in this backup file. Your current data will be lost.",
-          () => { db = imported; saveDB(); render(); toast("Backup restored"); },
+          () => { replaceDB(imported); render(); toast("Backup restored"); },
           { title: "Replace all data?", confirmLabel: "Replace data" }
         );
       } catch (e) { toast("Invalid backup file: " + e.message, "err"); }
@@ -8920,56 +9033,55 @@ const importBackup = () => {
 };
 
 // ==================== UTILS ====================
-const emptyState = (icon, title, sub) => {
+// Empty-list placeholder. `action` is optional { label, onclick } — when given,
+// the empty screen offers the obvious next step instead of being a dead end.
+const emptyState = (icon, title, sub, action) => {
   const e = el("div", { class: "empty" });
   e.appendChild(el("div", { class: "empty-icon" }, icon));
-  e.appendChild(el("div", { style: { fontSize: 15, fontWeight: 600 } }, title));
-  e.appendChild(el("div", { style: { fontSize: 13, marginTop: 4 } }, sub));
+  e.appendChild(el("div", { class: "empty-title" }, title));
+  e.appendChild(el("div", { class: "empty-sub" }, sub));
+  if (action) {
+    e.appendChild(el("button", { class: "btn btn-primary", type: "button",
+      style: { marginTop: "16px" }, onclick: action.onclick }, action.label));
+  }
   return e;
 };
 
 // ==================== BOOT ====================
+// Persist anything normalizeDB() had to repair on load, then draw.
+saveDB();
 render();
 </script>
 <script>
-// PWA: inline manifest + service worker (no separate files) so the app can be
-// "Add to Home Screen" installed and run fullscreen. Only active over http(s).
-(function(){
+// PWA wiring — lets the app be installed to the home screen and opened with no
+// internet. Only runs over http(s); from a file:// path the browser refuses
+// both a manifest and a service worker, and the single index.html already works
+// offline on its own there.
+//
+// manifest.webmanifest, sw.js and icon.svg sit next to index.html. They used to
+// be generated in-page as blob: URLs, which looked tidier but never actually
+// worked: the browser rejects a service worker script served from blob:, so the
+// app was silently never cached.
+(function () {
   try {
-    const icon = "data:image/svg+xml," + encodeURIComponent(
-      "<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512'><rect width='512' height='512' rx='96' fill='#1F4E79'/><text x='50%' y='54%' font-family='Segoe UI,Arial' font-size='210' font-weight='700' fill='#fff' text-anchor='middle' dominant-baseline='middle'>PI</text></svg>");
-    const manifest = {
-      name: "PI & PO Maker", short_name: "PI/PO", start_url: ".", scope: ".",
-      display: "standalone", background_color: "#e9edf3", theme_color: "#1F4E79",
-      icons: [{ src: icon, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }]
-    };
-    const link = document.createElement("link");
-    link.rel = "manifest";
-    link.href = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" }));
-    document.head.appendChild(link);
-    const aicon = document.createElement("link");
-    aicon.rel = "apple-touch-icon"; aicon.href = icon; document.head.appendChild(aicon);
+    if (!location.protocol.startsWith("http")) return;
 
-    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-      const here = location.pathname;
-      const sw = 'const C="pipo-v2";const APP=' + JSON.stringify(here) + ';'
-        + 'self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.add(APP).catch(()=>{})));});'
-        + 'self.addEventListener("activate",e=>e.waitUntil(self.clients.claim()));'
-        + 'self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;'
-        // Navigations (opening the app) → serve cached page when offline.
-        + 'if(e.request.mode==="navigate"){e.respondWith(fetch(e.request).then(r=>{caches.open(C).then(c=>c.put(APP,r.clone()));return r;}).catch(()=>caches.match(APP).then(h=>h||caches.match(e.request))));return;}'
-        // Everything else → cache-first, fall back to network.
-        + 'e.respondWith(caches.open(C).then(c=>c.match(e.request).then(h=>'
-        + 'h||fetch(e.request).then(r=>{try{c.put(e.request,r.clone());}catch(_){ }return r;}).catch(()=>h))));});';
-      const swUrl = URL.createObjectURL(new Blob([sw], { type: "text/javascript" }));
-      navigator.serviceWorker.register(swUrl).catch(()=>{});
-      // Also cache this exact page now, so it's available offline even before
-      // the SW's install cache completes.
-      if ("caches" in window) {
-        caches.open("pipo-v2").then(c => c.add(location.href).catch(()=>{})).catch(()=>{});
-      }
+    const add = (rel, href) => {
+      const l = document.createElement("link");
+      l.rel = rel; l.href = href;
+      document.head.appendChild(l);
+    };
+    add("manifest", "manifest.webmanifest");
+    add("apple-touch-icon", "icon.svg");
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("sw.js").catch((e) => {
+          console.warn("Offline mode unavailable:", e.message);
+        });
+      });
     }
-  } catch(e) { /* best-effort */ }
+  } catch (e) { /* best-effort — never block the app from starting */ }
 })();
 </script>
 

@@ -1,24 +1,35 @@
 // ==================== FORMS ====================
+// Every field gets a unique id so its <label> can point at it. Without the
+// link, tapping the label doesn't focus the box and screen readers announce
+// the input as unlabelled.
+let fieldIdCounter = 0;
+const nextFieldId = (key) => `f-${String(key).replace(/[^a-z0-9]/gi, "")}-${fieldIdCounter++}`;
+
 const inputField = (label, key, obj, opts = {}) => {
   const f = el("div", { class: "field" });
-  f.appendChild(el("label", {}, label));
+  const id = nextFieldId(key);
+  const hintId = opts.hint ? id + "-hint" : undefined;
+  f.appendChild(el("label", { for: id }, label));
   const inp = el(opts.textarea ? "textarea" : "input", {
-    type: opts.type || "text",
+    id,
+    type: opts.textarea ? undefined : (opts.type || "text"),
     inputmode: opts.type === "number" ? "decimal" : undefined,
+    "aria-describedby": hintId,
     value: obj[key] ?? "",
     placeholder: opts.placeholder || "",
     oninput: (e) => { obj[key] = opts.type === "number" ? parseFloat(e.target.value) || 0 : e.target.value; if (opts.onInput) opts.onInput(obj[key]); },
   });
   if (opts.rows) inp.rows = opts.rows;
   f.appendChild(inp);
-  if (opts.hint) f.appendChild(el("div", { style: { fontSize: "11px", color: "#6b7280", marginTop: "4px" } }, opts.hint));
+  if (opts.hint) f.appendChild(el("div", { id: hintId, style: { fontSize: "11px", color: "#6b7280", marginTop: "4px" } }, opts.hint));
   return f;
 };
 
 const selectField = (label, key, obj, options, opts = {}) => {
   const f = el("div", { class: "field" });
-  f.appendChild(el("label", {}, label));
-  const s = el("select", { onchange: (e) => { obj[key] = e.target.value; if (opts.onChange) opts.onChange(obj[key]); } });
+  const id = nextFieldId(key);
+  f.appendChild(el("label", { for: id }, label));
+  const s = el("select", { id, onchange: (e) => { obj[key] = e.target.value; if (opts.onChange) opts.onChange(obj[key]); } });
   options.forEach(o => {
     const opt = el("option", { value: o }, o);
     if (obj[key] === o) opt.selected = true;
@@ -32,9 +43,11 @@ const selectField = (label, key, obj, options, opts = {}) => {
 let comboIdCounter = 0;
 const comboField = (label, key, obj, suggestions = [], opts = {}) => {
   const f = el("div", { class: "field" });
-  f.appendChild(el("label", {}, label));
+  const id = nextFieldId(key);
+  f.appendChild(el("label", { for: id }, label));
   const listId = `dl-${key}-${comboIdCounter++}`;
   const inp = el("input", {
+    id,
     value: obj[key] ?? "",
     list: listId,
     placeholder: opts.placeholder || "",
@@ -524,26 +537,6 @@ const BIZ_SECTIONS = [
   { key: "banks",       icon: "\u{1F3E6}",        title: "Bank accounts",     desc: "Accounts and payment QR codes" },
   { key: "docdefaults", icon: "\u2699\uFE0F",      title: "Document defaults", desc: "Validity periods, ship note, save folder" },
 ];
-
-// Opens a single settings section in its own modal.
-const openBizSection = (key) => {
-  const biz = activeBiz();
-  if (!biz) return;
-  const meta = BIZ_SECTIONS.find(s => s.key === key);
-  const form = renderBusinessForm(biz, () => {});
-  const sections = form._sections, data = form._data;
-  const wrap = el("div");
-  wrap.appendChild(sections[key]());
-  const bar = el("div", { class: "modal-footer-bar" });
-  bar.appendChild(el("button", { class: "btn btn-secondary", onclick: () => attemptClose() }, "Cancel"));
-  bar.appendChild(el("button", { class: "btn btn-primary", onclick: () => {
-    if (!String(data.name || "").trim()) { toast("Business name required", "err"); return; }
-    Object.assign(biz, data);
-    saveDB(); closeModal(); render();
-    toast("Saved");
-  } }, "Save"));
-  openModal(meta ? meta.title : "Edit", wrap, { footer: bar });
-};
 
 // Full Settings popup — sidebar of every settings section on the left,
 // selected section's form on the right. Saves the whole business on Save.

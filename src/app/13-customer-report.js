@@ -236,16 +236,30 @@ const renderCustomerItem = (c) => {
   }
   item.appendChild(info);
   const actions = el("div", { class: "actions" });
-  actions.appendChild(el("button", { class: "btn-icon", title: "Preview", onclick: () => openCustomerPreview(c) }, "👁️"));
-  actions.appendChild(el("button", { class: "btn-icon", title: "Report", onclick: () => openCustomerReport(c) }, "📊"));
-  actions.appendChild(el("button", { class: "btn-icon", title: "Share", onclick: () => shareText(customerToLine(c), c.companyName) }, "📤"));
-  actions.appendChild(el("button", { class: "btn-icon", title: "Edit", onclick: () => openCustomerModal(c) }, "✏️"));
-  actions.appendChild(el("button", { class: "btn-icon danger", onclick: () => {
-    confirmModal(`Delete customer "${c.companyName}"? This can't be undone.`, () => {
-      db.customers = db.customers.filter(x => x.id !== c.id); saveDB(); render();
-      toast("Customer deleted");
-    }, { title: "Delete customer?", confirmLabel: "Delete" });
-  }}, "🗑️"));
+  const iconBtn = (label, glyph, onclick, danger) =>
+    el("button", { class: "btn-icon" + (danger ? " danger" : ""), type: "button",
+      title: label, "aria-label": `${label} ${c.companyName}`, onclick }, glyph);
+  actions.appendChild(iconBtn("Preview", "👁️", () => openCustomerPreview(c)));
+  actions.appendChild(iconBtn("Report", "📊", () => openCustomerReport(c)));
+  actions.appendChild(iconBtn("Share", "📤", () => shareText(customerToLine(c), c.companyName)));
+  actions.appendChild(iconBtn("Edit", "✏️", () => openCustomerModal(c)));
+  actions.appendChild(iconBtn("Delete", "🗑️", () => {
+    // Deleting one customer used to leave their documents behind with a blank
+    // party name. Match what selecting several of them already does: say what
+    // else goes, and keep it undoable.
+    const docSnap = db.documents.filter(d => d.customerId === c.id);
+    const doIt = () => deleteWithUndo(`Customer "${c.companyName}"`,
+      () => {
+        db.customers = db.customers.filter(x => x.id !== c.id);
+        db.documents = db.documents.filter(d => d.customerId !== c.id);
+      },
+      () => { db.customers.push(c); db.documents.push(...docSnap); });
+    confirmModal(
+      docSnap.length
+        ? `Deleting "${c.companyName}" also deletes their ${docSnap.length} document${docSnap.length === 1 ? "" : "s"}. You will have a few seconds to undo.`
+        : `Delete "${c.companyName}"? You will have a few seconds to undo.`,
+      doIt, { title: "Delete customer?", confirmLabel: "Delete" });
+  }, true));
   item.appendChild(actions);
   return item;
 };

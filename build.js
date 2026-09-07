@@ -54,7 +54,7 @@ const build = () => {
 
   const left = out.match(/<!--include:.+?-->/);
   if (left) throw new Error(`Unresolved include: ${left[0]}`);
-  return out;
+  return out.trimEnd() + "\n"; // always end with one newline so git diffs stay clean
 };
 
 const out = build();
