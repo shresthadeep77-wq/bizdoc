@@ -1,0 +1,12 @@
+# Keep LF in the working tree on every platform.
+#
+# Without this, Git on Windows checks text files out with CRLF while build.js
+# writes LF, so `node build.js --check` reports all twelve outputs stale on a
+# fresh clone and `node build.js` leaves the tree permanently dirty. The repo
+# itself already stores LF; this only stops the checkout from rewriting it.
+* text=auto eol=lf
+
+# Never touched by line-ending conversion.
+*.png binary
+*.ico binary
+*.svg text eol=lf
