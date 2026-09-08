@@ -1,4 +1,5 @@
 [
+  "00-analytics.js",
   "00-pdf-libs.js",
   "01-storage.js",
   "02-save-folder-file-system-access-api.js",

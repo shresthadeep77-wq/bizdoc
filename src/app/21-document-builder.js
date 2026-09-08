@@ -849,9 +849,17 @@ const openDocBuilder = () => {
     delete docBuilder._onTotals;
     const idx = docBuilder._editing ? db.documents.findIndex(d => d.id === docBuilder.id) : -1;
     let saved;
+    // `date` is the document's own date and the user can set it to anything, so
+    // it cannot answer "how many were created today". These two can. Documents
+    // saved before this was added simply do not have them — /admin counts those
+    // separately rather than inventing a date for them.
+    const stamp = new Date().toISOString();
     if (idx >= 0) {
+      docBuilder.updatedAt = stamp;
       saved = db.documents[idx] = { ...docBuilder };
     } else {
+      docBuilder.createdAt = docBuilder.createdAt || stamp;
+      docBuilder.updatedAt = stamp;
       // Either a brand-new document, or one that was deleted elsewhere while it
       // was open here — save it rather than throwing the work away.
       docBuilder.id = docBuilder.id || uid("doc");
@@ -863,6 +871,8 @@ const openDocBuilder = () => {
       }
     }
     saveDB();
+    track(docBuilder._editing ? "document.edited" : "document.created",
+      { type: saved.type, lines: (saved.lineItems || []).length });
     closeModal();
     openDocPreview(saved);
     toast(`${DOC_TYPES[saved.type].shortLabel} #${saved.number} saved`);

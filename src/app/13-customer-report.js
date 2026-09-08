@@ -284,8 +284,13 @@ const filterProductList = (q, catPathKey) => {
 };
 
 // So "pvc elbow" matches "Elbow PVC 110mm", and "110 elbow" works too.
+let _searchTrackTimer = null;
 const filterList = (kind, q) => {
   const terms = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  // Debounced so a ten-letter search is one event, not ten. The text typed is
+  // deliberately not part of the event.
+  clearTimeout(_searchTrackTimer);
+  if (terms.length) _searchTrackTimer = setTimeout(() => track("search.performed", { list: kind }), 900);
   const root = document.getElementById(`${kind}-list`);
   if (!root) return;
   const items = root.querySelectorAll(".list-item");

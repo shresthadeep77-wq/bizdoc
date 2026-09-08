@@ -5,7 +5,9 @@
 // was producing blank pages). This window has nothing else in it to hide.
 const printDoc = (pv) => {
   const w = window.open("", "_blank");
-  if (!w) { toast("Popup blocked — allow popups for this page, then tap Print again", "err"); return; }
+  if (!w) { track("export.failed", { format: "print", reason: "popup-blocked" });
+    toast("Popup blocked — allow popups for this page, then tap Print again", "err"); return; }
+  track("document.printed");
   const mainStyle = document.querySelector("style");
   w.document.open();
   w.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Print</title></head><body></body></html>");

@@ -38,6 +38,7 @@ const CUSTOMER_COLS = ["clientNo", "companyName", "contactName", "phone", "vatNo
   "addr1", "addr2", "country", "regNo", "shipAddr1", "shipAddr2", "eximCode", "discountRules"];
 
 const exportProductsCSV = () => {
+  track("csv.exported", { kind: "products" });
   const rows = bizProducts().map(p => ({ ...p, taxable: p.taxable ? "yes" : "no" }));
   if (!rows.length) { toast("No products to export", "err"); return; }
   const code = (activeBiz()?.shortCode || autoShortCode(activeBiz()?.name)).replace(/\s+/g, "");
@@ -46,6 +47,7 @@ const exportProductsCSV = () => {
 };
 
 const exportCustomersCSV = () => {
+  track("csv.exported", { kind: "customers" });
   const rows = bizCustomers().map(c => ({
     ...c,
     clientNo: "C" + String(c.id).padStart(4, "0"),
@@ -59,6 +61,7 @@ const exportCustomersCSV = () => {
 };
 
 const exportDocumentsCSV = () => {
+  track("csv.exported", { kind: "documents" });
   const rows = bizDocs().map(d => {
     const c = db.customers.find(x => x.id === d.customerId);
     return {
@@ -195,6 +198,7 @@ const showImportPreview = (kind, header, body) => {
 
 // Downloadable blank templates so the expected columns are obvious.
 const downloadTemplate = (kind) => {
+  track("csv.template_downloaded", { kind });
   if (kind === "products") {
     downloadTextFile(toCSV([{
       partNumber: "ELB110", description: "PVC 110mm Elbow", unit: "pcs", rate: 250, weight: 0.4,

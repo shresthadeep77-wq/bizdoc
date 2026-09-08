@@ -68,8 +68,10 @@ const gdriveBackup = async (btn) => {
       body,
     });
     if (!res.ok) throw new Error("Upload failed (" + res.status + ")");
+    track("drive.backup");
     toast("Backed up to Google Drive", "ok", 5000);
   } catch (e) {
+    track("drive.failed", { op: "backup" });
     toast(e.message || "Drive backup failed", "err", 5000);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = orig; }
@@ -94,6 +96,7 @@ const gdriveRestore = async (btn) => {
       { title: "Replace all data?", confirmLabel: "Replace data" }
     );
   } catch (e) {
+    track("drive.failed", { op: "restore" });
     toast(e.message || "Drive restore failed", "err", 5000);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = orig; }

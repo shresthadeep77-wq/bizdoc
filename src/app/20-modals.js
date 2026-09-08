@@ -246,6 +246,7 @@ const openCustomerModal = (existing, onCreated, onSaved) => {
     if (existing) { Object.assign(existing, data); }
     else { data.id = uid("cust"); db.customers.push(data); isNew = true; }
     saveDB(); closeModal();
+    track(isNew ? "customer.created" : "customer.edited");
     if (onSaved) onSaved(existing || data);
     if (isNew && onCreated) onCreated(data);
     else toast(isNew ? "Customer added" : "Customer saved");
@@ -478,6 +479,7 @@ const openProductModal = (existing) => {
     if (existing) { Object.assign(existing, data); }
     else { data.id = uid("prod"); db.products.push(data); }
     saveDB(); closeModal();
+    track(isNew ? "product.created" : "product.edited");
     toast(isNew ? "Product added" : "Product saved");
     if (existing && oldRate !== newRate) offerRateUpdate(existing, oldRate, newRate);
   }}, existing ? "Save" : "Add product"));

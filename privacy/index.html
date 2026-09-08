@@ -250,13 +250,30 @@ to, no API it posts to and nowhere for your documents to be sent. Businesses,
 customers, products and documents are written to <code>localStorage</code> in your own
 browser, under a single key, on the device you are using.</p>
 
-<h2>No account, no analytics, no cookies</h2>
+<h2>No account, no cookies, no third parties</h2>
 <ul>
   <li>There is no sign-up and no login.</li>
-  <li>No analytics, telemetry, session recording or error reporting is loaded.</li>
+  <li>No third-party analytics or telemetry service is loaded. Nothing is sent to
+      Google Analytics, Plausible, Sentry or anything like them.</li>
   <li>The app sets no cookies and no tracking identifiers.</li>
-  <li>There are no third-party advertising or social scripts on the page.</li>
+  <li>There are no advertising or social scripts on the page.</li>
 </ul>
+
+<h2>The app does keep a usage log — on your device</h2>
+<p>So that there is some way to see what is being used and what is breaking, the
+app writes a short record of its own activity into your browser, alongside your
+documents. It never leaves the device, because there is no server for it to go to.</p>
+<p>Each entry is an action name, a time, and a couple of small details — for
+example <em>&ldquo;document created, type PI, 4 lines&rdquo;</em>, or
+<em>&ldquo;a search happened&rdquo;</em>. Uncaught errors are recorded the same way, so a
+fault can be seen rather than guessed at.</p>
+<p><strong>What is never written to it:</strong> document contents, line items or
+amounts; customer names, addresses or tax numbers; product names or rates; your
+business details; and the text of anything you type, including search boxes — only
+that a search took place.</p>
+<p>You can read the whole log, export it, change how long it is kept, or switch
+the recording off entirely and delete what is stored. Your documents are not
+affected either way.</p>
 
 <h2>The two things that do leave your device</h2>
 <p>Both are off until you start them, and neither runs in the background.</p>
@@ -283,6 +300,7 @@ until you choose a recipient and press send yourself.</p>
     <tr><th scope="row">Documents and totals</th><td>Your browser</td><td>No</td></tr>
     <tr><th scope="row">Bank account details for the payment QR</th><td>Your browser</td><td>No — the QR is drawn locally</td></tr>
     <tr><th scope="row">Backup file</th><td>Wherever you save it</td><td>Only to your own Drive, only when you ask</td></tr>
+    <tr><th scope="row">Usage log (actions and errors, no contents)</th><td>Your browser</td><td>No</td></tr>
   </tbody>
 </table>
 </div>
@@ -297,7 +315,7 @@ a schedule that matches how much work you would hate to retype.</p>
 
 <h2>Deleting everything</h2>
 <p>Clearing site data for this page in your browser's settings removes every trace of
-it. There is no copy anywhere else to ask us to delete, and no account to close.</p>
+it, the usage log included. There is no copy anywhere else to ask us to delete, and no account to close.</p>
 
 <h2>Where to go next</h2>
 <ul>

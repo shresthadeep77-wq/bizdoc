@@ -60,8 +60,12 @@ const tabFromHash = () => {
 // Swap in the metadata for a route. Called on every render, so it stays correct
 // no matter which way the tab changed — a click, the back button, or a link
 // someone was sent.
+let _lastTrackedTab = null;
 const applyRouteMeta = (tab) => {
   const r = ROUTES[tab] || ROUTES.dashboard;
+  // renderApp() runs on every change, not just navigation, so only a genuine
+  // section change counts as a page view.
+  if (tab !== _lastTrackedTab) { _lastTrackedTab = tab; track("page.viewed", { section: tab }); }
   document.title = r.title || BASE_TITLE;
   const meta = document.querySelector('meta[name="description"]');
   if (meta) meta.content = r.description || BASE_DESCRIPTION;

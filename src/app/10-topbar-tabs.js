@@ -35,7 +35,7 @@ const renderTabs = () => {
       type: "button",
       "aria-current": currentTab === k ? "page" : undefined,
       onclick: () => {
-        if (k === "settings") { openSettingsModal(); return; }
+        if (k === "settings") { track("settings.opened"); openSettingsModal(); return; }
         navigateTo(k);
       }
     });

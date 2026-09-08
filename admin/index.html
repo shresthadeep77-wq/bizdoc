@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14283c">
+<title>BizDoc Admin</title>
+<meta name="description" content="Internal usage dashboard for BizDoc. Not a public page.">
+<!-- Kept out of search results. This is not a security measure — see the
+     Settings page in the panel for what is and is not protected here. -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="../favicon.ico" sizes="32x32">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<style>
+/* Admin panel styling.
+   Shares BizDoc's palette so it is recognisably the same product, but drops the
+   soft neumorphic surfaces for flat panels on a dark sidebar — an admin should
+   never be in any doubt about which side of the app they are on. */
+:root {
+  --primary: #1F4E79;
+  --primary-dark: #163a5c;
+  --primary-light: #2f6aa0;
+  --primary-tint: #eef4fa;
+  --ink: #111827;
+  --muted: #5b6472;
+  --faint: #8b94a3;
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --line: #e2e7ee;
+  --ok: #15803d;
+  --bad: #dc2626;
+  --warn: #b45309;
+  --radius: 10px;
+  --sidebar: 216px;
+  --ease: cubic-bezier(.4, 0, .2, 1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: "Trebuchet MS", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--primary); }
+:focus-visible { outline: 3px solid var(--primary-light); outline-offset: 2px; border-radius: 4px; }
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 60;
+  background: var(--primary); color: #fff; padding: 10px 16px; font-weight: 600;
+}
+.skip-link:focus { left: 0; }
+
+/* Shell ------------------------------------------------------------------ */
+.admin-shell { display: flex; min-height: 100vh; align-items: stretch; }
+.sidebar {
+  width: var(--sidebar); flex: 0 0 var(--sidebar); background: #14283c; color: #cfdae6;
+  display: flex; flex-direction: column; padding: 18px 12px; gap: 4px;
+  position: sticky; top: 0; height: 100vh;
+}
+.admin-brand {
+  display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none;
+  padding: 4px 8px 16px; font-size: 15px;
+}
+.admin-brand strong { display: block; font-size: 15px; line-height: 1.1; }
+.admin-brand em { font-style: normal; font-size: 11px; color: #8fa6bd; letter-spacing: .09em; text-transform: uppercase; }
+.admin-mark {
+  width: 32px; height: 32px; border-radius: 8px; background: var(--primary-light); color: #fff;
+  display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: 0 0 32px;
+}
+.admin-nav { display: flex; flex-direction: column; gap: 2px; }
+.admin-nav a {
+  padding: 9px 12px; border-radius: 8px; color: #cfdae6; text-decoration: none;
+  font-size: 14px; font-weight: 500; transition: background .15s var(--ease), color .15s var(--ease);
+}
+.admin-nav a:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+.admin-nav a.active { background: var(--primary-light); color: #fff; font-weight: 600; }
+.back-link { margin-top: auto; padding: 10px 12px; color: #8fa6bd; text-decoration: none; font-size: 13px; }
+.back-link:hover { color: #fff; }
+
+.admin-main { flex: 1; min-width: 0; padding: 22px 26px 60px; }
+.admin-head {
+  display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: flex-start;
+  justify-content: space-between; margin-bottom: 20px;
+}
+.admin-head h1 { font-size: 23px; letter-spacing: -.01em; }
+.admin-body { display: flex; flex-direction: column; gap: 18px; }
+
+/* Date range ------------------------------------------------------------- */
+.rangebar { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.range-buttons { display: flex; flex-wrap: wrap; gap: 4px; background: var(--surface); padding: 4px; border-radius: 9px; border: 1px solid var(--line); }
+.range-btn {
+  border: none; background: none; font: inherit; font-size: 13px; cursor: pointer;
+  padding: 6px 11px; border-radius: 6px; color: var(--muted); white-space: nowrap;
+}
+.range-btn:hover { background: var(--primary-tint); color: var(--primary); }
+.range-btn.active { background: var(--primary); color: #fff; font-weight: 600; }
+.custom-range { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }
+.custom-range input {
+  font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--line);
+  border-radius: 7px; background: var(--surface); color: var(--ink);
+}
+.range-error { font-size: 12.5px; color: var(--bad); }
+.range-note { font-size: 12.5px; color: var(--faint); margin-top: 10px; }
+
+/* Panels ----------------------------------------------------------------- */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px 18px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.panel-head h2 { font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+.panel-note { font-size: 12.5px; color: var(--faint); margin-top: 12px; max-width: 76ch; }
+.cols-2 { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
+
+/* Tiles ------------------------------------------------------------------ */
+.tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); }
+.tile { border: 1px solid var(--line); border-radius: 9px; padding: 13px 14px; background: var(--surface); }
+.tile-muted { background: #fafbfc; border-style: dashed; }
+.tile-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 700; }
+.tile-value { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin-top: 6px; line-height: 1.15; }
+.tile-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.tile-delta { font-size: 12px; margin-top: 6px; font-weight: 600; }
+.tile-delta.up { color: var(--ok); }
+.tile-delta.down { color: var(--bad); }
+.tile-delta.flat { color: var(--faint); font-weight: 500; }
+.tile-na { font-size: 15px; font-weight: 600; color: var(--faint); margin-top: 8px; }
+.tile-na-why { font-size: 11.5px; color: var(--faint); margin-top: 3px; }
+
+/* States ----------------------------------------------------------------- */
+.state { border-radius: 9px; padding: 18px; text-align: center; }
+.state-title { font-weight: 700; font-size: 13.5px; }
+.state-reason { font-size: 12.5px; color: var(--muted); margin-top: 5px; max-width: 62ch; margin-inline: auto; }
+.state-needs { font-size: 12.5px; color: var(--faint); margin-top: 7px; max-width: 62ch; margin-inline: auto; }
+.state-empty { background: #fafbfc; border: 1px dashed var(--line); color: var(--muted); }
+.state-unavailable { background: var(--primary-tint); border: 1px dashed #b9cde0; }
+.state-error { background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; }
+.state-loading { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted); padding: 40px; }
+.spin {
+  width: 15px; height: 15px; border: 2px solid var(--line); border-top-color: var(--primary);
+  border-radius: 50%; animation: spin .7s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Notices ---------------------------------------------------------------- */
+.notice { background: var(--primary-tint); border-left: 3px solid var(--primary); border-radius: 8px; padding: 14px 16px; }
+.notice strong { display: block; margin-bottom: 5px; }
+.notice p { font-size: 13px; color: #33465c; max-width: 88ch; margin-bottom: 6px; }
+.notice-strong { background: #fff7ed; border-left-color: var(--warn); }
+.notice-strong p { color: #6b4413; }
+.notice-small { background: #fafbfc; border-left-color: var(--line); }
+.notice-small p { color: var(--muted); font-size: 12.5px; margin: 0; }
+.notice-link { font-size: 13px; font-weight: 600; text-decoration: none; }
+.notice-link:hover { text-decoration: underline; }
+
+/* Charts ----------------------------------------------------------------- */
+.chart-wrap { width: 100%; overflow-x: auto; }
+.chart { width: 100%; height: auto; display: block; }
+.chart-line { min-width: 420px; }
+.grid { stroke: #e8edf3; stroke-width: 1; }
+.axis { fill: #93a0b0; font-size: 10px; font-family: inherit; }
+.line-area { fill: rgba(31, 78, 121, .10); }
+.line-stroke { fill: none; stroke: var(--primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.line-dot { fill: var(--primary); stroke: #fff; stroke-width: 1.5; }
+.donut-wrap { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.donut-svg { max-width: 150px; flex: 0 0 auto; }
+.donut-total { font-size: 22px; font-weight: 700; fill: var(--ink); font-family: inherit; }
+.legend { display: flex; flex-direction: column; gap: 6px; min-width: 170px; flex: 1; }
+.legend-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 10px; }
+.legend-name { flex: 1; }
+.legend-val { color: var(--muted); font-variant-numeric: tabular-nums; }
+.bars { display: flex; flex-direction: column; gap: 9px; }
+.bar-row { display: grid; grid-template-columns: minmax(90px, 34%) 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+.bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { background: #eef1f5; border-radius: 5px; height: 17px; overflow: hidden; }
+.bar-fill { background: var(--primary); height: 100%; border-radius: 5px; }
+.bar-value { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 44px; text-align: right; }
+
+/* Tables ----------------------------------------------------------------- */
+.table-block { display: flex; flex-direction: column; gap: 10px; }
+.table-search input {
+  font: inherit; font-size: 13px; padding: 7px 11px; border: 1px solid var(--line);
+  border-radius: 7px; width: 100%; max-width: 300px; background: var(--surface);
+}
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 420px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:hover { background: #fafbfc; }
+.th-sort { border: none; background: none; font: inherit; color: inherit; cursor: pointer; padding: 0; text-transform: inherit; letter-spacing: inherit; }
+.th-sort:hover, .th-sort.active { color: var(--primary); }
+.table-foot { font-size: 12px; color: var(--faint); }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+.pill-ok { background: #eaf6ee; color: var(--ok); }
+.pill-bad { background: #fdeaea; color: var(--bad); }
+
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 7px 16px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { font-weight: 600; }
+.plain-list { margin-left: 18px; font-size: 13px; color: var(--muted); }
+.plain-list li { margin-bottom: 5px; }
+
+/* Buttons ---------------------------------------------------------------- */
+.btn {
+  font: inherit; border: 1px solid var(--line); background: var(--surface); color: var(--primary);
+  border-radius: 7px; padding: 7px 13px; cursor: pointer; font-weight: 600;
+}
+.btn:hover { background: var(--primary-tint); }
+.btn-sm { font-size: 12.5px; padding: 5px 11px; }
+.btn-danger { color: var(--bad); border-color: #f3c9c9; }
+.btn-danger:hover { background: #fdeaea; }
+
+.setting-row { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.setting-row:last-child { border-bottom: none; }
+.setting-row label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; cursor: pointer; }
+.setting-row label span { color: var(--muted); font-size: 12.5px; }
+.setting-row input[type="checkbox"] { width: 17px; height: 17px; margin-top: 2px; flex: 0 0 17px; accent-color: var(--primary); }
+.setting-row select { font: inherit; font-size: 13px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+.danger-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.danger-row span { font-size: 12.5px; color: var(--faint); }
+
+.arch {
+  background: #14283c; color: #cfdae6; border-radius: 8px; padding: 14px 16px; margin: 12px 0;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; line-height: 1.65;
+  overflow-x: auto;
+}
+.contract { margin-top: 12px; }
+.contract code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: var(--primary-tint); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+
+/* Responsive ------------------------------------------------------------- */
+@media (max-width: 860px) {
+  .admin-shell { flex-direction: column; }
+  .sidebar {
+    width: 100%; flex: none; height: auto; position: static;
+    flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 14px;
+  }
+  .admin-brand { padding: 0 8px 0 0; }
+  .admin-nav { flex-direction: row; flex-wrap: wrap; flex: 1; }
+  .admin-nav a { padding: 6px 10px; font-size: 13px; }
+  .back-link { margin-top: 0; }
+  .admin-main { padding: 18px 14px 48px; }
+  .rangebar { align-items: flex-start; width: 100%; }
+  .admin-head h1 { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<div id="admin"></div>
+
+<noscript>
+  <div style="max-width:640px;margin:48px auto;padding:24px;font-family:system-ui,sans-serif">
+    <h1 style="font-size:20px;margin-bottom:10px">BizDoc Admin needs JavaScript</h1>
+    <p style="color:#5b6472">The dashboard reads data stored in this browser and draws it here, so it
+    cannot run with JavaScript turned off.</p>
+    <p style="margin-top:12px"><a href="../">Back to BizDoc</a></p>
+  </div>
+</noscript>
+
+<script>
+// ==================== ADMIN: DATA LAYER ====================
+// Every number the dashboard shows comes through here, and every one of them is
+// either measured or explicitly marked unavailable. There is no third case:
+// nothing on this dashboard is estimated, sampled, extrapolated or made up.
+//
+// A metric is one of:
+//   ok(value)                       — measured, from real stored data
+//   nope(reason, needs)             — cannot be measured; says why and what for
+//
+// Pages render `nope` as a stated gap ("Needs a backend"), never as 0.
+
+const ok = (value, extra) => Object.assign({ ok: true, value }, extra || {});
+const nope = (reason, needs) => ({ ok: false, reason, needs });
+
+const NEEDS_BACKEND =
+  "A server that receives events from every visitor and stores them centrally. " +
+  "BizDoc has none — each browser only knows about itself.";
+
+/* ---- storage ------------------------------------------------------------ */
+
+const A_KEY = "pipomaker_analytics_v1";
+const DB_KEY = "pipomaker_v1";
+
+const readStore = () => {
+  try {
+    const raw = localStorage.getItem(A_KEY);
+    const a = raw ? JSON.parse(raw) : null;
+    if (!a || typeof a !== "object") return null;
+    return {
+      enabled: a.enabled !== false,
+      firstSeen: a.firstSeen || null,
+      sessions: a.sessions || 0,
+      retentionDays: a.retentionDays || 90,
+      events: Array.isArray(a.events) ? a.events : [],
+      errors: Array.isArray(a.errors) ? a.errors : [],
+      sessionLog: Array.isArray(a.sessionLog) ? a.sessionLog : [],
+    };
+  } catch (e) { return null; }
+};
+
+const writeStore = (patch) => {
+  try {
+    const raw = localStorage.getItem(A_KEY);
+    const a = raw ? JSON.parse(raw) : {};
+    localStorage.setItem(A_KEY, JSON.stringify(Object.assign(a, patch)));
+    return true;
+  } catch (e) { return false; }
+};
+
+const readAppDB = () => {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    const d = raw ? JSON.parse(raw) : null;
+    if (!d || typeof d !== "object") return null;
+    return {
+      businesses: Array.isArray(d.businesses) ? d.businesses : [],
+      customers: Array.isArray(d.customers) ? d.customers : [],
+      products: Array.isArray(d.products) ? d.products : [],
+      documents: Array.isArray(d.documents) ? d.documents : [],
+    };
+  } catch (e) { return null; }
+};
+
+/* ---- date ranges -------------------------------------------------------- */
+
+const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+const endOfDay = (d) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x.getTime(); };
+const daysAgo = (n) => startOfDay(Date.now() - n * 86400000);
+
+const RANGES = {
+  today: { label: "Today", from: () => startOfDay(Date.now()), to: () => endOfDay(Date.now()) },
+  yesterday: { label: "Yesterday", from: () => daysAgo(1), to: () => endOfDay(Date.now() - 86400000) },
+  "7d": { label: "Last 7 days", from: () => daysAgo(6), to: () => endOfDay(Date.now()) },
+  "30d": { label: "Last 30 days", from: () => daysAgo(29), to: () => endOfDay(Date.now()) },
+  month: {
+    label: "This month",
+    from: () => { const d = new Date(); return startOfDay(new Date(d.getFullYear(), d.getMonth(), 1)); },
+    to: () => endOfDay(Date.now()),
+  },
+  lastMonth: {
+    label: "Last month",
+    from: () => { const d = new Date(); return startOfDay(new Date(d.getFullYear(), d.getMonth() - 1, 1)); },
+    to: () => { const d = new Date(); return endOfDay(new Date(d.getFullYear(), d.getMonth(), 0)); },
+  },
+  custom: { label: "Custom range", from: () => daysAgo(6), to: () => endOfDay(Date.now()) },
+};
+
+// The equivalent window immediately before this one, for "vs previous period".
+const previousWindow = (from, to) => {
+  const span = to - from;
+  return { from: from - span - 1, to: from - 1 };
+};
+
+/* ---- aggregation -------------------------------------------------------- */
+
+const inWindow = (rows, from, to, key) =>
+  rows.filter(r => r && typeof r[key || "t"] === "number" && r[key || "t"] >= from && r[key || "t"] <= to);
+
+const countBy = (rows, fn) => {
+  const m = new Map();
+  rows.forEach(r => { const k = fn(r); if (k === undefined || k === null || k === "") return; m.set(k, (m.get(k) || 0) + 1); });
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+};
+
+// One bucket per day across the window, so a chart with three events still
+// draws a real axis rather than three points floating in space.
+const dailyBuckets = (rows, from, to) => {
+  const out = [];
+  const first = startOfDay(from);
+  for (let t = first; t <= to; t += 86400000) {
+    const next = t + 86400000;
+    out.push({ t, n: rows.filter(r => r.t >= t && r.t < next).length });
+  }
+  return out.length > 370 ? out.slice(-370) : out;
+};
+
+// Percent change, or null when there is nothing honest to compare against.
+// Growth from zero is not "+100%", it is not a percentage at all, so it
+// returns null and the UI shows the raw before/after instead.
+const delta = (current, prev) => {
+  if (!isFinite(current) || !isFinite(prev)) return null;
+  if (prev <= 0) return null;
+  return Math.round(((current - prev) / prev) * 100);
+};
+
+/* ---- event vocabulary --------------------------------------------------- */
+// Maps raw event names to the words a person reading the dashboard would use.
+// Anything not listed still shows, under its raw name, so a newly added event
+// is never silently dropped from the totals.
+
+const EVENT_LABELS = {
+  "document.created": "Document created",
+  "document.edited": "Document edited",
+  "document.deleted": "Document deleted",
+  "document.delete_undone": "Delete undone",
+  "document.exported": "Document exported",
+  "document.printed": "Document printed",
+  "document.shared": "Document shared",
+  "export.failed": "Export failed",
+  "customer.created": "Customer added",
+  "customer.edited": "Customer edited",
+  "product.created": "Product added",
+  "product.edited": "Product edited",
+  "search.performed": "Search",
+  "csv.exported": "CSV export",
+  "csv.template_downloaded": "CSV template",
+  "backup.exported": "Backup saved",
+  "backup.imported": "Backup restored",
+  "backup.device_restore": "Restored from device",
+  "drive.backup": "Google Drive backup",
+  "drive.failed": "Google Drive failed",
+  "settings.opened": "Settings opened",
+  "page.viewed": "Section opened",
+};
+const eventLabel = (e) => EVENT_LABELS[e] || e;
+
+// Which events count as "a feature was used". Page views and undo are movement
+// and correction, not feature usage, so counting them would inflate the table.
+const FEATURE_EVENTS = [
+  "document.created", "document.edited", "document.exported", "document.printed",
+  "document.shared", "search.performed", "csv.exported", "csv.template_downloaded",
+  "backup.exported", "backup.imported", "backup.device_restore", "drive.backup",
+  "customer.created", "product.created", "settings.opened",
+];
+
+const SECTION_LABELS = {
+  dashboard: "Home", customers: "Customers", products: "Products", documents: "Documents",
+};
+
+/* ---- the local source --------------------------------------------------- */
+// Real, measured, and strictly limited to this browser on this device.
+
+const localSource = {
+  id: "local",
+  title: "This browser",
+  available: () => !!readStore(),
+
+  meta() {
+    const s = readStore();
+    return {
+      enabled: s ? s.enabled : false,
+      firstSeen: s && s.firstSeen ? s.firstSeen : null,
+      sessions: s ? s.sessions : 0,
+      retentionDays: s ? s.retentionDays : 90,
+      events: s ? s.events.length : 0,
+      errors: s ? s.errors.length : 0,
+    };
+  },
+
+  // Everything a page needs for one window, computed once.
+  window(from, to) {
+    const s = readStore() || { events: [], errors: [], sessionLog: [], sessions: 0, firstSeen: null };
+    const db = readAppDB();
+    const ev = inWindow(s.events, from, to);
+    const prev = previousWindow(from, to);
+    const evPrev = inWindow(s.events, prev.from, prev.to);
+    const sess = inWindow(s.sessionLog, from, to);
+    const sessPrev = inWindow(s.sessionLog, prev.from, prev.to);
+
+    const docsCreated = ev.filter(e => e.e === "document.created");
+    const docsCreatedPrev = evPrev.filter(e => e.e === "document.created");
+    const featureRows = ev.filter(e => FEATURE_EVENTS.indexOf(e.e) >= 0);
+    const pageRows = ev.filter(e => e.e === "page.viewed");
+
+    // Documents that exist but predate creation-timestamping. Counted and
+    // shown as such rather than folded into a total that implies we know when
+    // they were made.
+    const allDocs = db ? db.documents : [];
+    const undated = allDocs.filter(d => !d.createdAt).length;
+
+    return {
+      from, to, prev,
+      events: ev,
+      eventsPrev: evPrev,
+      sessions: sess,
+      sessionsPrev: sessPrev,
+      db,
+      docsCreated,
+      docsCreatedPrev,
+      featureRows,
+      pageRows,
+      undatedDocs: undated,
+      totalDocsNow: allDocs.length,
+      errors: s.errors,
+      allEvents: s.events,
+      firstSeen: s.firstSeen,
+      totalSessions: s.sessions,
+    };
+  },
+};
+
+/* ---- the remote source (not connected) ---------------------------------- */
+// This is the seam. It is deliberately not implemented, because implementing it
+// against nothing would mean inventing the numbers. It documents the exact
+// contract a backend must satisfy, so the dashboard above it needs no changes
+// on the day one exists.
+
+const remoteSource = {
+  id: "remote",
+  title: "All visitors (backend)",
+  available: () => false,
+  configured: () => false,
+
+  // What a backend would have to expose for the greyed-out panels to light up.
+  contract: [
+    { name: "GET /api/stats/overview", gives: "visitors, unique visitors, sessions, new vs returning" },
+    { name: "GET /api/stats/timeseries?from&to", gives: "visitors and page views per day" },
+    { name: "GET /api/stats/sources", gives: "referrers, countries, devices, browsers" },
+    { name: "GET /api/events?from&to", gives: "the same event names this app already emits, from every device" },
+    { name: "POST /api/events", gives: "the endpoint the app would send its event batches to" },
+    { name: "POST /api/auth/login", gives: "a real admin session — the only way to protect any of the above" },
+  ],
+};
+
+/* ---- cross-source metrics ----------------------------------------------- */
+// The audience questions. Each one states plainly that it needs a backend,
+// rather than showing a number derived from a single browser and letting it be
+// read as a population figure.
+
+const audienceMetrics = () => ({
+  totalVisitors: nope("Cannot be measured from the browser", NEEDS_BACKEND),
+  uniqueVisitors: nope("Cannot be measured from the browser", NEEDS_BACKEND),
+  activeUsers: nope("Cannot be measured from the browser", NEEDS_BACKEND),
+  newUsers: nope("Cannot be measured from the browser", NEEDS_BACKEND),
+  returningUsers: nope("Cannot be measured from the browser", NEEDS_BACKEND),
+  countries: nope("Needs server-side IP lookup", NEEDS_BACKEND + " Country also requires resolving visitor IPs, which only a server sees."),
+  trafficSources: nope("Only this browser's own referrers are known", NEEDS_BACKEND),
+});
+
+// ==================== ADMIN: UI PRIMITIVES ====================
+// Same el() idea as the app, plus the four states every panel needs (data,
+// empty, unavailable, error) and three charts drawn as plain SVG. No chart
+// library: the app has no dependencies and adding 200 KB of one to draw a line
+// would undo the work just done on the bundle.
+
+const el = (tag, attrs, kids) => {
+  const n = document.createElement(tag);
+  Object.entries(attrs || {}).forEach(([k, v]) => {
+    if (v === undefined || v === null || v === false) return;
+    if (k === "class") n.className = v;
+    else if (k === "text") n.textContent = v;
+    else if (k === "html") n.innerHTML = v;
+    else if (k === "style") Object.assign(n.style, v);
+    else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  });
+  (Array.isArray(kids) ? kids : kids !== undefined ? [kids] : []).forEach((c) => {
+    if (c === null || c === undefined || c === false) return;
+    n.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(String(c)) : c);
+  });
+  return n;
+};
+
+const $ = (sel, root) => (root || document).querySelector(sel);
+
+/* ---- formatting --------------------------------------------------------- */
+
+const nf = new Intl.NumberFormat();
+const num = (n) => nf.format(n);
+
+const dateShort = (t) => new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+const dateTime = (t) => new Date(t).toLocaleString(undefined, {
+  day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+});
+
+const ago = (t) => {
+  const s = Math.round((Date.now() - t) / 1000);
+  if (s < 45) return "just now";
+  if (s < 5400) return Math.round(s / 60) + " min ago";
+  if (s < 172800) return Math.round(s / 3600) + " h ago";
+  return Math.round(s / 86400) + " days ago";
+};
+
+/* ---- states ------------------------------------------------------------- */
+
+// A metric that cannot be measured. Says what is missing and what would fix it —
+// this is the component that exists so no panel ever has to show a zero it
+// cannot justify.
+const unavailablePanel = (m, opts) => {
+  const box = el("div", { class: "state state-unavailable" + ((opts && opts.inline) ? " state-inline" : "") });
+  box.appendChild(el("div", { class: "state-title" }, "Not available yet"));
+  if (m && m.reason) box.appendChild(el("p", { class: "state-reason" }, m.reason));
+  if (m && m.needs) box.appendChild(el("p", { class: "state-needs" }, m.needs));
+  return box;
+};
+
+// Measurable, genuinely nothing recorded yet.
+const emptyPanel = (title, hint) => {
+  const box = el("div", { class: "state state-empty" });
+  box.appendChild(el("div", { class: "state-title" }, title || "No data collected yet"));
+  if (hint) box.appendChild(el("p", { class: "state-reason" }, hint));
+  return box;
+};
+
+const errorPanel = (message) => {
+  const box = el("div", { class: "state state-error" });
+  box.appendChild(el("div", { class: "state-title" }, "Could not read this"));
+  box.appendChild(el("p", { class: "state-reason" }, message));
+  return box;
+};
+
+const loadingPanel = () => el("div", { class: "state state-loading" }, [
+  el("span", { class: "spin" }), el("span", {}, "Reading stored data…"),
+]);
+
+/* ---- stat tile ---------------------------------------------------------- */
+// `metric` is either an ok() or a nope(). A tile never invents a value: an
+// unmeasurable metric shows the gap where the number would be.
+
+const statTile = (label, metric, opts) => {
+  const o = opts || {};
+  const tile = el("div", { class: "tile" + (o.wide ? " tile-wide" : "") });
+  tile.appendChild(el("div", { class: "tile-label" }, label));
+  if (!metric || metric.ok === false) {
+    tile.appendChild(el("div", { class: "tile-na" }, "Not available"));
+    tile.appendChild(el("div", { class: "tile-na-why" }, (metric && metric.reason) || "No data source"));
+    if (metric && metric.needs) tile.title = metric.needs;
+    tile.classList.add("tile-muted");
+    return tile;
+  }
+  tile.appendChild(el("div", { class: "tile-value" }, typeof metric.value === "number" ? num(metric.value) : String(metric.value)));
+  if (o.sub) tile.appendChild(el("div", { class: "tile-sub" }, o.sub));
+  // Comparisons appear only when the previous period actually had data. No
+  // baseline means no percentage — the raw previous value is shown instead.
+  if (metric.delta !== null && metric.delta !== undefined) {
+    const up = metric.delta > 0, flat = metric.delta === 0;
+    tile.appendChild(el("div", { class: "tile-delta " + (flat ? "flat" : up ? "up" : "down") },
+      (flat ? "→ " : up ? "↑ " : "↓ ") + Math.abs(metric.delta) + "% vs previous period"));
+  } else if (metric.prevValue !== undefined && metric.prevValue !== null) {
+    tile.appendChild(el("div", { class: "tile-delta flat" },
+      metric.prevValue === 0 ? "nothing in the previous period" : "was " + num(metric.prevValue)));
+  }
+  return tile;
+};
+
+const panel = (title, body, actions) => {
+  const p = el("section", { class: "panel" });
+  const head = el("div", { class: "panel-head" });
+  head.appendChild(el("h2", {}, title));
+  if (actions) head.appendChild(actions);
+  p.appendChild(head);
+  p.appendChild(body);
+  return p;
+};
+
+/* ---- charts ------------------------------------------------------------- */
+// Plain SVG. Each is theme-aware through currentColor and CSS variables, and
+// each degrades to an empty state rather than drawing an axis with nothing on it.
+
+const svgNS = "http://www.w3.org/2000/svg";
+const svgEl = (tag, attrs) => {
+  const n = document.createElementNS(svgNS, tag);
+  Object.entries(attrs || {}).forEach(([k, v]) => n.setAttribute(k, v));
+  return n;
+};
+
+// Line chart of daily counts.
+const lineChart = (buckets, opts) => {
+  const o = opts || {};
+  if (!buckets.length) return emptyPanel("Nothing recorded in this period");
+  const total = buckets.reduce((s, b) => s + b.n, 0);
+  if (total === 0) return emptyPanel("Nothing recorded in this period",
+    "The range is valid — there simply were no events between those dates.");
+
+  const W = 720, H = 200, padL = 34, padB = 24, padT = 10, padR = 8;
+  const max = Math.max(...buckets.map(b => b.n), 1);
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const x = (i) => padL + (buckets.length === 1 ? iw / 2 : (i / (buckets.length - 1)) * iw);
+  const y = (v) => padT + ih - (v / max) * ih;
+
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart chart-line",
+    role: "img", "aria-label": `${o.label || "Activity"}: ${total} in ${buckets.length} days, peak ${max}` });
+
+  // horizontal guides + y labels
+  [0, 0.5, 1].forEach((f) => {
+    const v = Math.round(max * f), yy = y(v);
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: yy, y2: yy, class: "grid" }));
+    const t = svgEl("text", { x: padL - 7, y: yy + 4, class: "axis", "text-anchor": "end" });
+    t.textContent = String(v);
+    svg.appendChild(t);
+  });
+
+  const pts = buckets.map((b, i) => [x(i), y(b.n)]);
+  const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const area = d + ` L ${pts[pts.length - 1][0].toFixed(1)} ${padT + ih} L ${pts[0][0].toFixed(1)} ${padT + ih} Z`;
+  svg.appendChild(svgEl("path", { d: area, class: "line-area" }));
+  svg.appendChild(svgEl("path", { d, class: "line-stroke" }));
+
+  // Only mark points when they are far enough apart to be distinguishable.
+  if (buckets.length <= 32) {
+    pts.forEach((p, i) => {
+      const c = svgEl("circle", { cx: p[0], cy: p[1], r: 3, class: "line-dot" });
+      const tt = svgEl("title");
+      tt.textContent = `${dateShort(buckets[i].t)}: ${buckets[i].n}`;
+      c.appendChild(tt);
+      svg.appendChild(c);
+    });
+  }
+
+  // first and last date only — a label per day is unreadable over 30 days
+  [[0, "start"], [buckets.length - 1, "end"]].forEach(([i, anchor]) => {
+    if (buckets.length < 2 && i > 0) return;
+    const t = svgEl("text", { x: x(i), y: H - 6, class: "axis", "text-anchor": anchor });
+    t.textContent = dateShort(buckets[i].t);
+    svg.appendChild(t);
+  });
+
+  return el("div", { class: "chart-wrap" }, svg);
+};
+
+// Horizontal bars — better than vertical for ranked lists with word labels.
+const barChart = (rows, opts) => {
+  const o = opts || {};
+  if (!rows.length) return emptyPanel(o.emptyTitle || "Nothing recorded yet", o.emptyHint);
+  const top = rows.slice(0, o.limit || 8);
+  const max = Math.max(...top.map(r => r[1]), 1);
+  const wrap = el("div", { class: "bars" });
+  top.forEach(([name, n]) => {
+    const row = el("div", { class: "bar-row" });
+    row.appendChild(el("div", { class: "bar-label", title: String(name) }, o.label ? o.label(name) : String(name)));
+    const track = el("div", { class: "bar-track" });
+    track.appendChild(el("div", { class: "bar-fill", style: { width: Math.max(2, (n / max) * 100) + "%" } }));
+    row.appendChild(track);
+    row.appendChild(el("div", { class: "bar-value" }, num(n)));
+    wrap.appendChild(row);
+  });
+  return wrap;
+};
+
+const DONUT_COLORS = ["#1F4E79", "#2f6aa0", "#5b8db8", "#89aecd", "#b4cbe0", "#d7e3ee"];
+
+const donutChart = (rows, opts) => {
+  const o = opts || {};
+  if (!rows.length) return emptyPanel(o.emptyTitle || "Nothing recorded yet", o.emptyHint);
+  const total = rows.reduce((s, r) => s + r[1], 0);
+  if (!total) return emptyPanel(o.emptyTitle || "Nothing recorded yet", o.emptyHint);
+
+  const size = 150, r = 60, cx = size / 2, cy = size / 2, circ = 2 * Math.PI * r;
+  const svg = svgEl("svg", { viewBox: `0 0 ${size} ${size}`, class: "chart chart-donut",
+    role: "img", "aria-label": rows.map(([k, v]) => `${k}: ${v}`).join(", ") });
+  let offset = 0;
+  rows.slice(0, DONUT_COLORS.length).forEach(([name, n], i) => {
+    const frac = n / total;
+    const seg = svgEl("circle", {
+      cx, cy, r, fill: "none", "stroke-width": 22,
+      stroke: DONUT_COLORS[i % DONUT_COLORS.length],
+      "stroke-dasharray": `${(frac * circ).toFixed(2)} ${circ.toFixed(2)}`,
+      "stroke-dashoffset": (-offset * circ).toFixed(2),
+      transform: `rotate(-90 ${cx} ${cy})`,
+    });
+    const t = svgEl("title");
+    t.textContent = `${name}: ${n} (${Math.round(frac * 100)}%)`;
+    seg.appendChild(t);
+    svg.appendChild(seg);
+    offset += frac;
+  });
+  const mid = svgEl("text", { x: cx, y: cy + 2, class: "donut-total", "text-anchor": "middle" });
+  mid.textContent = num(total);
+  svg.appendChild(mid);
+
+  const legend = el("div", { class: "legend" });
+  rows.slice(0, DONUT_COLORS.length).forEach(([name, n], i) => {
+    legend.appendChild(el("div", { class: "legend-row" }, [
+      el("span", { class: "legend-dot", style: { background: DONUT_COLORS[i % DONUT_COLORS.length] } }),
+      el("span", { class: "legend-name" }, o.label ? o.label(name) : String(name)),
+      el("span", { class: "legend-val" }, num(n) + " · " + Math.round((n / total) * 100) + "%"),
+    ]));
+  });
+
+  return el("div", { class: "donut-wrap" }, [el("div", { class: "chart-wrap donut-svg" }, svg), legend]);
+};
+
+/* ---- table -------------------------------------------------------------- */
+// Sortable, searchable, and capped so a huge event log cannot lock the page up.
+
+const dataTable = (cols, rows, opts) => {
+  const o = opts || {};
+  if (!rows.length) return emptyPanel(o.emptyTitle || "Nothing to show", o.emptyHint);
+
+  let sortCol = o.sort !== undefined ? o.sort : null;
+  let sortDir = o.dir || "desc";
+  let query = "";
+  const wrap = el("div", { class: "table-block" });
+
+  if (o.search) {
+    wrap.appendChild(el("div", { class: "table-search" }, el("input", {
+      type: "search", placeholder: o.search, "aria-label": o.search,
+      oninput: (e) => { query = e.target.value.toLowerCase().trim(); draw(); },
+    })));
+  }
+  const scroller = el("div", { class: "table-scroll" });
+  wrap.appendChild(scroller);
+  const foot = el("div", { class: "table-foot" });
+  wrap.appendChild(foot);
+
+  const draw = () => {
+    let view = rows;
+    if (query) view = view.filter(r => cols.some((c, i) => String(c.get(r) ?? "").toLowerCase().includes(query)));
+    if (sortCol !== null) {
+      const c = cols[sortCol];
+      view = view.slice().sort((a, b) => {
+        const av = c.sortValue ? c.sortValue(a) : c.get(a);
+        const bv = c.sortValue ? c.sortValue(b) : c.get(b);
+        const r = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv));
+        return sortDir === "asc" ? r : -r;
+      });
+    }
+    const cap = o.limit || 200;
+    const shown = view.slice(0, cap);
+
+    scroller.innerHTML = "";
+    if (!shown.length) { scroller.appendChild(emptyPanel("Nothing matches that search")); foot.textContent = ""; return; }
+
+    const table = el("table");
+    const thead = el("thead");
+    const hr = el("tr");
+    cols.forEach((c, i) => {
+      const th = el("th", { scope: "col", class: c.numeric ? "num" : "" });
+      if (c.sortable === false) { th.textContent = c.name; }
+      else {
+        const active = sortCol === i;
+        th.appendChild(el("button", { type: "button", class: "th-sort" + (active ? " active" : ""),
+          "aria-label": `Sort by ${c.name}`,
+          onclick: () => { if (sortCol === i) sortDir = sortDir === "asc" ? "desc" : "asc"; else { sortCol = i; sortDir = "desc"; } draw(); },
+        }, c.name + (active ? (sortDir === "asc" ? " ▲" : " ▼") : "")));
+      }
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    const tb = el("tbody");
+    shown.forEach((r) => {
+      const tr = el("tr");
+      cols.forEach((c) => {
+        const td = el("td", { class: c.numeric ? "num" : "" });
+        const v = c.render ? c.render(r) : c.get(r);
+        if (v instanceof Node) td.appendChild(v); else td.textContent = v === undefined || v === null ? "—" : String(v);
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+    table.appendChild(tb);
+    scroller.appendChild(table);
+    foot.textContent = view.length > cap
+      ? `Showing the first ${num(cap)} of ${num(view.length)} rows`
+      : `${num(view.length)} row${view.length === 1 ? "" : "s"}`;
+  };
+
+  draw();
+  return wrap;
+};
+
+/* ---- CSV ---------------------------------------------------------------- */
+
+const csvEscape = (v) => {
+  const s = v === undefined || v === null ? "" : String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+};
+
+const downloadCSV = (filename, header, rows) => {
+  const body = [header.map(csvEscape).join(",")]
+    .concat(rows.map(r => r.map(csvEscape).join(",")))
+    .join("\r\n");
+  const blob = new Blob(["﻿" + body], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = el("a", { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+};
+
+// ==================== ADMIN: PAGES ====================
+// Each page is a function returning a DOM node, given the current window.
+// The rule throughout: if it was measured, show it; if it cannot be measured,
+// say so and say what would be needed. Never a placeholder number.
+
+/* ---- shared pieces ------------------------------------------------------ */
+
+// The standing explanation of what this dashboard can and cannot see. It is on
+// the overview rather than buried in settings, because every number below it
+// has to be read in its light.
+const scopeNotice = () => {
+  const box = el("div", { class: "notice" });
+  box.appendChild(el("strong", {}, "This dashboard measures one browser — this one."));
+  box.appendChild(el("p", {}, "BizDoc is a static site with no server, so a visitor's browser " +
+    "never reports back to anywhere. Everything below was recorded locally by the copy of the app " +
+    "running on this device. It cannot tell you how many people use BizDoc, or what they do. " +
+    "Those numbers are marked “Not available” and need a backend."));
+  box.appendChild(el("a", { class: "notice-link", href: "#/settings" }, "What a backend would need to provide →"));
+  return box;
+};
+
+const rangeSummary = (w) =>
+  el("p", { class: "range-note" },
+    `${dateShort(w.from)} – ${dateShort(w.to)} · ${num(w.events.length)} events recorded in this period`);
+
+/* ---- 1. Overview -------------------------------------------------------- */
+
+const pageOverview = (w) => {
+  const root = el("div");
+  root.appendChild(scopeNotice());
+
+  const aud = audienceMetrics();
+
+  // Audience — the questions that need a backend. Shown first, and shown as
+  // gaps, because they are the questions most people open a dashboard to ask.
+  const audGrid = el("div", { class: "tiles" });
+  [["Total visitors", aud.totalVisitors], ["Unique visitors", aud.uniqueVisitors],
+   ["Active users", aud.activeUsers], ["New users", aud.newUsers],
+   ["Returning users", aud.returningUsers]]
+    .forEach(([label, m]) => audGrid.appendChild(statTile(label, m)));
+  root.appendChild(panel("Audience", audGrid));
+
+  // Activity — real, measured, this device.
+  const created = w.docsCreated.length;
+  const createdPrev = w.docsCreatedPrev.length;
+  const features = countBy(w.featureRows, r => r.e);
+  const pages = countBy(w.pageRows, r => (r.p && r.p.section) || "");
+
+  const grid = el("div", { class: "tiles" });
+  grid.appendChild(statTile("Documents created", ok(created, {
+    delta: delta(created, createdPrev), prevValue: createdPrev,
+  }), { sub: "in the selected period" }));
+  grid.appendChild(statTile("Documents on this device", ok(w.totalDocsNow), {
+    sub: w.undatedDocs ? `${num(w.undatedDocs)} saved before dates were tracked` : "all time",
+  }));
+  grid.appendChild(statTile("App opened", ok(w.sessions.length, {
+    delta: delta(w.sessions.length, w.sessionsPrev.length), prevValue: w.sessionsPrev.length,
+  }), { sub: "times in this period" }));
+  grid.appendChild(statTile("Most used feature",
+    features.length ? ok(eventLabel(features[0][0])) : nope("Nothing recorded yet", "Use the app for a while and this fills in."),
+    { sub: features.length ? num(features[0][1]) + " times" : null }));
+  grid.appendChild(statTile("Most visited section",
+    pages.length ? ok(SECTION_LABELS[pages[0][0]] || pages[0][0]) : nope("Nothing recorded yet", "Move between the app's tabs and this fills in."),
+    { sub: pages.length ? num(pages[0][1]) + " views" : null }));
+  grid.appendChild(statTile("Errors caught", ok(w.errors.length), {
+    sub: w.errors.length ? "see the Errors page" : "none so far",
+  }));
+  root.appendChild(panel("Activity on this device", el("div", {}, [grid, rangeSummary(w)])));
+
+  root.appendChild(panel("Activity over time",
+    lineChart(dailyBuckets(w.events, w.from, w.to), { label: "Events" })));
+
+  const two = el("div", { class: "cols-2" });
+  two.appendChild(panel("Documents by type", donutChart(
+    countBy(w.docsCreated, r => (r.p && r.p.type) || "?"),
+    { emptyTitle: "No documents created in this period" })));
+  two.appendChild(panel("Most used features", barChart(features, {
+    label: eventLabel, emptyTitle: "No feature use recorded in this period",
+  })));
+  root.appendChild(two);
+
+  return root;
+};
+
+/* ---- 2. Traffic --------------------------------------------------------- */
+
+const pageTraffic = (w) => {
+  const root = el("div");
+  const aud = audienceMetrics();
+
+  const grid = el("div", { class: "tiles" });
+  grid.appendChild(statTile("Visitors over time", aud.totalVisitors));
+  grid.appendChild(statTile("Sessions (all visitors)", aud.uniqueVisitors));
+  grid.appendChild(statTile("New vs returning", aud.returningUsers));
+  grid.appendChild(statTile("Traffic sources", aud.trafficSources));
+  grid.appendChild(statTile("Country / region", aud.countries));
+  root.appendChild(panel("Visitor analytics — needs a backend", el("div", {}, [
+    grid,
+    el("p", { class: "panel-note" },
+      "These are the metrics a hosted analytics service or a small backend would provide. " +
+      "They are left blank deliberately: there is no honest way to derive them from a single browser."),
+  ])));
+
+  // What this device genuinely knows about itself.
+  const s = w.sessions;
+  root.appendChild(panel("This device — app opens over time",
+    lineChart(dailyBuckets(s, w.from, w.to), { label: "App opens" })));
+
+  const two = el("div", { class: "cols-2" });
+
+  const refs = countBy(s, r => r.ref || "");
+  two.appendChild(panel("Where this browser arrived from", refs.length
+    ? barChart(refs, { label: (r) => r || "Direct / typed in" })
+    : emptyPanel("No referrers recorded",
+        "Only visits that followed a link from another site have a referrer, and only this browser's own visits are known.")));
+
+  // Environment is one data point — this browser. Presented as a description of
+  // this device, never as a "device breakdown" across an audience.
+  const ua = navigator.userAgent || "";
+  const browser = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera"
+    : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) && !/Chrome/.test(ua) ? "Safari"
+    : /Firefox\//.test(ua) ? "Firefox" : "Other";
+  const os = /Windows/.test(ua) ? "Windows" : /Android/.test(ua) ? "Android"
+    : /iPhone|iPad|iPod/.test(ua) ? "iOS" : /Mac OS X/.test(ua) ? "macOS"
+    : /Linux/.test(ua) ? "Linux" : "Other";
+  const touch = (navigator.maxTouchPoints || 0) > 0;
+  const rows = [
+    ["Device type", touch ? "Touch (phone or tablet)" : "Desktop / laptop"],
+    ["Browser", browser],
+    ["Operating system", os],
+    ["Screen size", `${screen.width} × ${screen.height}`],
+    ["Window size", `${innerWidth} × ${innerHeight}`],
+    ["Installed as an app", matchMedia("(display-mode: standalone)").matches ? "Yes" : "No"],
+    ["Language", navigator.language || "unknown"],
+    ["Online now", navigator.onLine ? "Yes" : "No"],
+  ];
+  const dl = el("dl", { class: "kv" });
+  rows.forEach(([k, v]) => { dl.appendChild(el("dt", {}, k)); dl.appendChild(el("dd", {}, v)); });
+  two.appendChild(panel("This device", el("div", {}, [
+    dl, el("p", { class: "panel-note" }, "One device — this one. Not a breakdown of your audience."),
+  ])));
+
+  root.appendChild(two);
+
+  root.appendChild(panel("Sections opened", barChart(
+    countBy(w.pageRows, r => (r.p && r.p.section) || ""),
+    { label: (k) => SECTION_LABELS[k] || k, emptyTitle: "No section views recorded in this period" })));
+
+  return root;
+};
+
+/* ---- 3. Users ----------------------------------------------------------- */
+
+const pageUsers = () => {
+  const root = el("div");
+  const db = readAppDB();
+
+  const box = el("div", { class: "notice notice-strong" });
+  box.appendChild(el("strong", {}, "BizDoc has no user accounts."));
+  box.appendChild(el("p", {}, "There is no sign-up, no login and no user record anywhere in the app — " +
+    "by design, so that nothing has to be trusted with your data. So “registered users”, " +
+    "“active users” and “most active users” are not metrics that are missing; " +
+    "they do not exist to be measured."));
+  box.appendChild(el("p", {}, "If you ever add accounts, they would need a backend with an " +
+    "authentication provider. That same backend is what would make the audience numbers on the " +
+    "other pages possible."));
+  root.appendChild(box);
+
+  const grid = el("div", { class: "tiles" });
+  ["Registered users", "New registrations", "Active users", "Most active users"].forEach((label) =>
+    grid.appendChild(statTile(label, nope("BizDoc has no accounts",
+      "Adding accounts requires a backend and an authentication provider such as Supabase or Firebase."))));
+  root.appendChild(panel("User accounts", grid));
+
+  // The nearest real thing: the businesses configured in this browser.
+  if (db && db.businesses.length) {
+    const cols = [
+      { name: "Business", get: (b) => b.name || "Unnamed" },
+      { name: "Customers", numeric: true, get: (b) => db.customers.filter(c => c.businessId === b.id).length },
+      { name: "Products", numeric: true, get: (b) => db.products.filter(p => p.businessId === b.id).length },
+      { name: "Documents", numeric: true, get: (b) => db.documents.filter(d => d.businessId === b.id).length },
+    ];
+    root.appendChild(panel("Businesses set up in this browser", el("div", {}, [
+      dataTable(cols, db.businesses, { sort: 3 }),
+      el("p", { class: "panel-note" }, "This is the closest thing BizDoc has to a “user”: " +
+        "a business profile stored on this device. It is not an account and it exists nowhere else."),
+    ])));
+  } else {
+    root.appendChild(panel("Businesses set up in this browser",
+      emptyPanel("No business configured yet", "Set one up in the app and it will appear here.")));
+  }
+
+  return root;
+};
+
+/* ---- 4. Documents ------------------------------------------------------- */
+
+const DOC_TYPE_NAMES = {
+  PI: "Proforma invoice", PO: "Purchase order", QT: "Quotation",
+  INV: "Tax invoice", DN: "Delivery note",
+};
+
+const pageDocuments = (w) => {
+  const root = el("div");
+  const db = w.db;
+
+  if (!db) {
+    root.appendChild(errorPanel("No BizDoc data found in this browser. Open the app first, then come back."));
+    return root;
+  }
+
+  const ev = w.events;
+  const byName = (n) => ev.filter(e => e.e === n).length;
+
+  const grid = el("div", { class: "tiles" });
+  grid.appendChild(statTile("Documents on this device", ok(db.documents.length), { sub: "all time" }));
+  grid.appendChild(statTile("Created", ok(byName("document.created"), {
+    delta: delta(byName("document.created"), w.docsCreatedPrev.length), prevValue: w.docsCreatedPrev.length,
+  }), { sub: "in this period" }));
+  grid.appendChild(statTile("Edited", ok(byName("document.edited")), { sub: "in this period" }));
+  grid.appendChild(statTile("Deleted", ok(byName("document.deleted")), { sub: "in this period" }));
+  grid.appendChild(statTile("Exported", ok(byName("document.exported")), { sub: "PDF and PNG" }));
+  grid.appendChild(statTile("Printed", ok(byName("document.printed")), { sub: "in this period" }));
+  root.appendChild(panel("Document activity", el("div", {}, [grid, rangeSummary(w)])));
+
+  if (w.undatedDocs) {
+    const n = el("div", { class: "notice notice-small" });
+    n.appendChild(el("p", {}, `${num(w.undatedDocs)} of the ${num(db.documents.length)} documents ` +
+      "on this device were saved before creation dates were recorded, so they cannot be placed on a " +
+      "timeline. They are counted in the totals and left out of the charts. Documents saved from now " +
+      "on carry a creation time."));
+    root.appendChild(n);
+  }
+
+  const two = el("div", { class: "cols-2" });
+  two.appendChild(panel("Documents held, by type", donutChart(
+    countBy(db.documents, d => d.type), {
+      label: (t) => DOC_TYPE_NAMES[t] || t,
+      emptyTitle: "No documents saved yet",
+    })));
+  two.appendChild(panel("Export formats used", barChart(
+    countBy(ev.filter(e => e.e === "document.exported"), r => (r.p && r.p.format) || "?"),
+    { label: (f) => String(f).toUpperCase(), emptyTitle: "No exports in this period" })));
+  root.appendChild(two);
+
+  root.appendChild(panel("Documents created over time",
+    lineChart(dailyBuckets(w.docsCreated, w.from, w.to), { label: "Documents created" })));
+
+  // Aggregate only — status and type, never a customer or an amount.
+  const statusRows = countBy(db.documents, d => d.status || "Draft");
+  root.appendChild(panel("Documents by status", el("div", {}, [
+    barChart(statusRows, { emptyTitle: "No documents saved yet" }),
+    el("p", { class: "panel-note" }, "Counts only. This dashboard never shows document contents, " +
+      "customer names or amounts."),
+  ])));
+
+  return root;
+};
+
+/* ---- 5. Features -------------------------------------------------------- */
+
+const pageFeatures = (w) => {
+  const root = el("div");
+  const rows = countBy(w.featureRows, r => r.e);
+  const total = w.featureRows.length;
+
+  root.appendChild(panel("Feature usage", el("div", {}, [
+    barChart(rows, { label: eventLabel, limit: 20,
+      emptyTitle: "No feature use recorded in this period",
+      emptyHint: "Events are recorded as you use the app. If you have just enabled tracking, use BizDoc for a bit and come back." }),
+    rangeSummary(w),
+  ])));
+
+  if (rows.length) {
+    const cols = [
+      { name: "Feature", get: (r) => eventLabel(r[0]) },
+      { name: "Event name", get: (r) => r[0] },
+      { name: "Uses", numeric: true, get: (r) => r[1] },
+      { name: "Share", numeric: true, sortValue: (r) => r[1],
+        get: (r) => Math.round((r[1] / total) * 100) + "%" },
+    ];
+    root.appendChild(panel("All features used", dataTable(cols, rows, {
+      sort: 2, search: "Search features…",
+    }), el("button", {
+      class: "btn btn-sm", type: "button",
+      onclick: () => downloadCSV("bizdoc-feature-usage.csv", ["Feature", "Event", "Uses", "Share %"],
+        rows.map(r => [eventLabel(r[0]), r[0], r[1], Math.round((r[1] / total) * 100)])),
+    }, "Export CSV")));
+  }
+
+  // Features that exist in the app but have not been used in this window. This
+  // is the drop-off question, answered honestly for one device.
+  const used = new Set(rows.map(r => r[0]));
+  const unused = FEATURE_EVENTS.filter(e => !used.has(e));
+  root.appendChild(panel("Not used in this period", unused.length
+    ? el("div", {}, [
+        el("ul", { class: "plain-list" }, unused.map(e => el("li", {}, eventLabel(e)))),
+        el("p", { class: "panel-note" }, "These are tracked, but were not used between the selected dates. " +
+          "On one device that means little; across an audience it is where you would look for features " +
+          "people never find."),
+      ])
+    : emptyPanel("Every tracked feature was used in this period")));
+
+  return root;
+};
+
+/* ---- 6. Activity -------------------------------------------------------- */
+
+const pageActivity = (w) => {
+  const root = el("div");
+  const rows = w.events.slice().sort((a, b) => b.t - a.t);
+
+  const live = el("div", { class: "notice notice-small" });
+  live.appendChild(el("p", {}, "This is a log of what happened in this browser, newest first. " +
+    "It is not a live feed of other people using BizDoc — that would need a backend pushing " +
+    "events in real time."));
+  root.appendChild(live);
+
+  const cols = [
+    { name: "Time", get: (r) => r.t, sortValue: (r) => r.t, render: (r) => el("span", { title: dateTime(r.t) }, ago(r.t)) },
+    { name: "Action", get: (r) => eventLabel(r.e) },
+    { name: "Detail", sortable: false, get: (r) => r.p ? Object.entries(r.p).map(([k, v]) => `${k}: ${v}`).join(", ") : "" },
+    { name: "Status", get: (r) => (r.e.indexOf("failed") >= 0 ? "Failed" : "OK"),
+      render: (r) => el("span", { class: "pill " + (r.e.indexOf("failed") >= 0 ? "pill-bad" : "pill-ok") },
+        r.e.indexOf("failed") >= 0 ? "Failed" : "OK") },
+  ];
+
+  root.appendChild(panel("Activity log", dataTable(cols, rows, {
+    sort: 0, dir: "desc", search: "Search activity…", limit: 300,
+    emptyTitle: "No activity recorded in this period",
+    emptyHint: "Change the date range, or use the app and come back.",
+  }), rows.length ? el("button", {
+    class: "btn btn-sm", type: "button",
+    onclick: () => downloadCSV("bizdoc-activity.csv", ["Time", "Event", "Detail"],
+      rows.map(r => [new Date(r.t).toISOString(), r.e, r.p ? JSON.stringify(r.p) : ""])),
+  }, "Export CSV") : null));
+
+  return root;
+};
+
+/* ---- 7. Errors ---------------------------------------------------------- */
+
+const pageErrors = (w) => {
+  const root = el("div");
+  const errs = w.errors.slice().sort((a, b) => b.last - a.last);
+  const failedOps = w.events.filter(e => e.e.indexOf("failed") >= 0);
+
+  const grid = el("div", { class: "tiles" });
+  grid.appendChild(statTile("Distinct errors", ok(errs.length), { sub: "caught on this device" }));
+  grid.appendChild(statTile("Total occurrences", ok(errs.reduce((s, e) => s + e.n, 0))));
+  grid.appendChild(statTile("Failed operations", ok(failedOps.length), { sub: "exports, backups, in this period" }));
+  grid.appendChild(statTile("Last error",
+    errs.length ? ok(ago(errs[0].last)) : nope("None recorded", "Nothing has thrown an error on this device.")));
+  root.appendChild(panel("Application health", grid));
+
+  const cols = [
+    { name: "Error", get: (r) => r.m },
+    { name: "Source", get: (r) => r.src || "—" },
+    { name: "Times", numeric: true, get: (r) => r.n },
+    { name: "First seen", get: (r) => r.first, sortValue: (r) => r.first, render: (r) => el("span", { title: dateTime(r.first) }, ago(r.first)) },
+    { name: "Last seen", get: (r) => r.last, sortValue: (r) => r.last, render: (r) => el("span", { title: dateTime(r.last) }, ago(r.last)) },
+  ];
+  root.appendChild(panel("JavaScript errors", dataTable(cols, errs, {
+    sort: 4, dir: "desc", search: "Search errors…",
+    emptyTitle: "No errors caught",
+    emptyHint: "Uncaught errors and rejected promises are recorded automatically. None have happened on this device.",
+  }), errs.length ? el("button", {
+    class: "btn btn-sm", type: "button",
+    onclick: () => downloadCSV("bizdoc-errors.csv", ["Message", "Source", "Occurrences", "First seen", "Last seen"],
+      errs.map(r => [r.m, r.src, r.n, new Date(r.first).toISOString(), new Date(r.last).toISOString()])),
+  }, "Export CSV") : null));
+
+  const fcols = [
+    { name: "Time", get: (r) => r.t, sortValue: (r) => r.t, render: (r) => el("span", { title: dateTime(r.t) }, ago(r.t)) },
+    { name: "Operation", get: (r) => eventLabel(r.e) },
+    { name: "Detail", sortable: false, get: (r) => r.p ? Object.entries(r.p).map(([k, v]) => `${k}: ${v}`).join(", ") : "" },
+  ];
+  root.appendChild(panel("Failed operations", dataTable(fcols, failedOps.slice().sort((a, b) => b.t - a.t), {
+    sort: 0, dir: "desc",
+    emptyTitle: "No failed operations in this period",
+    emptyHint: "A PDF export or backup that fails is recorded here, even when it does not throw a JavaScript error.",
+  })));
+
+  root.appendChild(panel("Not tracked here", el("div", {}, [
+    el("ul", { class: "plain-list" }, [
+      el("li", {}, "Failed network requests — BizDoc makes almost none, and the ones it does (Google Drive) are recorded as failed operations above."),
+      el("li", {}, "Authentication failures — there is no authentication to fail."),
+      el("li", {}, "Broken routes — an unknown #/route falls back to the dashboard rather than erroring."),
+      el("li", {}, "Errors on other people's devices — those would need a backend to receive them."),
+    ]),
+  ])));
+
+  return root;
+};
+
+/* ---- 8. Settings -------------------------------------------------------- */
+
+const pageSettings = (w, ctx) => {
+  const root = el("div");
+  const meta = localSource.meta();
+
+  // Tracking on/off, and what is kept.
+  const toggleWrap = el("div", { class: "setting-row" });
+  const cb = el("input", {
+    type: "checkbox", id: "track-toggle", checked: meta.enabled ? "checked" : null,
+    onchange: (e) => { writeStore({ enabled: e.target.checked }); ctx.rerender(); },
+  });
+  toggleWrap.appendChild(cb);
+  const lab = el("label", { for: "track-toggle" });
+  lab.appendChild(el("strong", {}, "Record activity on this device"));
+  lab.appendChild(el("span", {}, meta.enabled
+    ? "On. Events stay in this browser and are never sent anywhere."
+    : "Off. Nothing new is being recorded. Existing data is kept until you clear it."));
+  toggleWrap.appendChild(lab);
+
+  const retainWrap = el("div", { class: "setting-row" });
+  const sel = el("select", {
+    id: "retain", "aria-label": "Data retention",
+    onchange: (e) => { writeStore({ retentionDays: Number(e.target.value) }); ctx.rerender(); },
+  });
+  [[30, "30 days"], [90, "90 days"], [180, "6 months"], [365, "1 year"]].forEach(([v, l]) => {
+    const o = el("option", { value: v }, l);
+    if (Number(meta.retentionDays) === v) o.selected = true;
+    sel.appendChild(o);
+  });
+  const retLab = el("label", { for: "retain" });
+  retLab.appendChild(el("strong", {}, "Keep events for"));
+  retLab.appendChild(el("span", {}, "Anything older is deleted next time the app opens."));
+  retainWrap.appendChild(sel);
+  retainWrap.appendChild(retLab);
+
+  root.appendChild(panel("Tracking", el("div", {}, [toggleWrap, retainWrap])));
+
+  const dl = el("dl", { class: "kv" });
+  [["First recorded", meta.firstSeen ? dateTime(meta.firstSeen) : "—"],
+   ["App opened", num(meta.sessions) + " times"],
+   ["Events stored", num(meta.events)],
+   ["Distinct errors stored", num(meta.errors)],
+   ["Stored under", "localStorage · pipomaker_analytics_v1"]]
+    .forEach(([k, v]) => { dl.appendChild(el("dt", {}, k)); dl.appendChild(el("dd", {}, v)); });
+
+  const danger = el("div", { class: "danger-row" });
+  danger.appendChild(el("button", {
+    class: "btn btn-danger btn-sm", type: "button",
+    onclick: () => {
+      if (!confirm("Delete all recorded analytics from this browser? Your BizDoc documents are not affected.")) return;
+      try { localStorage.removeItem("pipomaker_analytics_v1"); } catch (e) {}
+      ctx.rerender();
+    },
+  }, "Delete all analytics data"));
+  danger.appendChild(el("span", {}, "Removes the event log and error log. Documents, customers and products are untouched."));
+
+  root.appendChild(panel("Stored data", el("div", {}, [dl, danger])));
+
+  // What is never recorded — the privacy contract, stated in the product.
+  root.appendChild(panel("What is never recorded", el("div", {}, [
+    el("ul", { class: "plain-list" }, [
+      el("li", {}, "Document contents, line items or amounts"),
+      el("li", {}, "Customer names, addresses, phone numbers or tax numbers"),
+      el("li", {}, "Product names, descriptions or rates"),
+      el("li", {}, "Business details, logos, signatures or bank accounts"),
+      el("li", {}, "Anything typed into a search box — only that a search happened"),
+      el("li", {}, "Passwords, tokens or payment details — BizDoc has none of these"),
+    ]),
+    el("p", { class: "panel-note" }, "Events carry an action name, a timestamp, and small non-identifying " +
+      "properties such as a document type (“PI”) or a count."),
+  ])));
+
+  // The architecture answer, in the product rather than only in a chat reply.
+  const arch = el("div");
+  arch.appendChild(el("p", {}, "GitHub Pages can host the BizDoc frontend, but it cannot run a private " +
+    "admin backend or store analytics centrally. It serves files; it does not run code or hold a database. " +
+    "That is why the audience numbers on this dashboard are blank."));
+  arch.appendChild(el("pre", { class: "arch" },
+    "  Today\n" +
+    "  ------------------------------------------\n" +
+    "  Browser  →  localStorage  →  /admin\n" +
+    "  (one device, real but local)\n" +
+    "\n" +
+    "  With a backend\n" +
+    "  ------------------------------------------\n" +
+    "  Browser  →  POST /api/events\n" +
+    "                    ↓\n" +
+    "             Database (Supabase / Firebase)\n" +
+    "                    ↓\n" +
+    "     /admin behind a real login  →  everyone's data"));
+  arch.appendChild(el("p", {}, "The app already emits every event such a backend would need. " +
+    "Connecting one means adding a send step and filling in the remote source — the pages above " +
+    "would not have to change."));
+  const cont = el("table", { class: "contract" });
+  const thead = el("thead");
+  thead.appendChild(el("tr", {}, [el("th", { scope: "col" }, "Endpoint"), el("th", { scope: "col" }, "Would provide")]));
+  cont.appendChild(thead);
+  const tb = el("tbody");
+  remoteSource.contract.forEach(c => tb.appendChild(el("tr", {}, [
+    el("td", {}, el("code", {}, c.name)), el("td", {}, c.gives),
+  ])));
+  cont.appendChild(tb);
+  arch.appendChild(cont);
+  root.appendChild(panel("Why some numbers are missing", arch));
+
+  root.appendChild(panel("Admin access", el("div", {}, [
+    el("p", {}, "This page is not protected by a password, and adding one to the frontend would not " +
+      "protect anything. The code and any password in it are downloaded by every visitor, and the data " +
+      "shown here is already in this browser — anyone at this device can read it with developer tools. " +
+      "A login here would be decoration."),
+    el("p", {}, "What it does have: the page is marked noindex so search engines skip it, and nothing " +
+      "in the app links to it. Real protection starts when there is a backend to hold the data and check " +
+      "a session — at which point the login belongs on the server, not in this file."),
+  ])));
+
+  return root;
+};
+
+/* ---- registry ----------------------------------------------------------- */
+
+const PAGES = [
+  { id: "overview", nav: "Dashboard", title: "Dashboard", render: pageOverview },
+  { id: "traffic", nav: "Traffic", title: "Traffic", render: pageTraffic },
+  { id: "users", nav: "Users", title: "Users", render: pageUsers, noRange: true },
+  { id: "documents", nav: "Documents", title: "Documents", render: pageDocuments },
+  { id: "features", nav: "Features", title: "Feature usage", render: pageFeatures },
+  { id: "activity", nav: "Activity", title: "Activity", render: pageActivity },
+  { id: "errors", nav: "Errors", title: "Errors & health", render: pageErrors },
+  { id: "settings", nav: "Settings", title: "Settings", render: pageSettings, noRange: true },
+];
+
+// ==================== ADMIN: SHELL & BOOT ====================
+// Sidebar, date filter, hash routing, and the one render path everything goes
+// through. Deliberately plain: this is a tool for reading numbers, so the
+// interface should get out of the way.
+
+const state = {
+  page: "overview",
+  range: "7d",
+  customFrom: null,   // yyyy-mm-dd strings while the custom picker is open
+  customTo: null,
+};
+
+const currentWindow = () => {
+  if (state.range === "custom" && state.customFrom && state.customTo) {
+    const from = startOfDay(new Date(state.customFrom + "T00:00:00"));
+    const to = endOfDay(new Date(state.customTo + "T00:00:00"));
+    if (isFinite(from) && isFinite(to) && to >= from) return { from, to };
+  }
+  const r = RANGES[state.range] || RANGES["7d"];
+  return { from: r.from(), to: r.to() };
+};
+
+/* ---- routing ------------------------------------------------------------ */
+
+const pageFromHash = () => {
+  const h = (location.hash || "").replace(/^#\/?/, "").toLowerCase();
+  return PAGES.some(p => p.id === h) ? h : "overview";
+};
+
+const go = (id) => {
+  state.page = id;
+  if (location.hash !== "#/" + id) location.hash = "#/" + id;
+  render();
+};
+
+window.addEventListener("hashchange", () => {
+  const p = pageFromHash();
+  if (p === state.page) return;
+  state.page = p;
+  render();
+});
+
+/* ---- date filter -------------------------------------------------------- */
+
+const renderRangePicker = () => {
+  const wrap = el("div", { class: "rangebar" });
+  const row = el("div", { class: "range-buttons", role: "group", "aria-label": "Date range" });
+  Object.entries(RANGES).forEach(([key, r]) => {
+    row.appendChild(el("button", {
+      type: "button",
+      class: "range-btn" + (state.range === key ? " active" : ""),
+      "aria-pressed": state.range === key ? "true" : "false",
+      onclick: () => {
+        state.range = key;
+        if (key === "custom" && !state.customFrom) {
+          const w = currentWindow();
+          state.customFrom = new Date(w.from).toISOString().slice(0, 10);
+          state.customTo = new Date(w.to).toISOString().slice(0, 10);
+        }
+        render();
+      },
+    }, r.label));
+  });
+  wrap.appendChild(row);
+
+  if (state.range === "custom") {
+    const c = el("div", { class: "custom-range" });
+    const mk = (which, value) => el("input", {
+      type: "date", value: value || "", "aria-label": which === "from" ? "From date" : "To date",
+      max: new Date().toISOString().slice(0, 10),
+      onchange: (e) => { state[which === "from" ? "customFrom" : "customTo"] = e.target.value; render(); },
+    });
+    c.appendChild(el("label", {}, "From"));
+    c.appendChild(mk("from", state.customFrom));
+    c.appendChild(el("label", {}, "To"));
+    c.appendChild(mk("to", state.customTo));
+    wrap.appendChild(c);
+
+    if (state.customFrom && state.customTo && new Date(state.customTo) < new Date(state.customFrom)) {
+      wrap.appendChild(el("p", { class: "range-error" }, "The end date is before the start date — showing the last 7 days instead."));
+    }
+  }
+  return wrap;
+};
+
+/* ---- shell -------------------------------------------------------------- */
+
+const renderSidebar = () => {
+  const aside = el("aside", { class: "sidebar" });
+  const brand = el("a", { class: "admin-brand", href: "../", title: "Back to BizDoc" });
+  brand.appendChild(el("span", { class: "admin-mark" }, "PI"));
+  brand.appendChild(el("span", {}, [el("strong", {}, "BizDoc"), el("em", {}, "Admin")]));
+  aside.appendChild(brand);
+
+  const nav = el("nav", { class: "admin-nav", "aria-label": "Admin sections" });
+  PAGES.forEach((p) => {
+    nav.appendChild(el("a", {
+      href: "#/" + p.id,
+      class: state.page === p.id ? "active" : "",
+      "aria-current": state.page === p.id ? "page" : null,
+      onclick: (e) => { e.preventDefault(); go(p.id); },
+    }, p.nav));
+  });
+  aside.appendChild(nav);
+
+  aside.appendChild(el("a", { class: "back-link", href: "../" }, "← Back to the app"));
+  return aside;
+};
+
+const render = () => {
+  const page = PAGES.find(p => p.id === state.page) || PAGES[0];
+  const root = $("#admin");
+  root.innerHTML = "";
+
+  const shell = el("div", { class: "admin-shell" });
+  shell.appendChild(renderSidebar());
+
+  const main = el("main", { class: "admin-main", id: "main" });
+  const head = el("header", { class: "admin-head" });
+  head.appendChild(el("h1", {}, page.title));
+  if (!page.noRange) head.appendChild(renderRangePicker());
+  main.appendChild(head);
+
+  const body = el("div", { class: "admin-body" });
+  main.appendChild(body);
+  shell.appendChild(main);
+  root.appendChild(shell);
+
+  // Rendering reads localStorage and builds charts; on a big event log that is
+  // long enough to be worth showing a state for rather than a frozen page.
+  body.appendChild(loadingPanel());
+  // setTimeout, not requestAnimationFrame: rAF only fires when the page is
+  // actually painting, so in a background tab the dashboard would sit on
+  // "Reading stored data…" forever. A macrotask always runs.
+  setTimeout(() => {
+    let content;
+    try {
+      const store = readStore();
+      if (!store) {
+        content = el("div");
+        content.appendChild(errorPanel(
+          "No analytics have been recorded in this browser yet. Open BizDoc, use it briefly, " +
+          "then come back — or check that this page is on the same site as the app, since a browser " +
+          "keeps storage separate per site."));
+      } else if (store.enabled === false && page.id !== "settings") {
+        content = el("div");
+        const box = el("div", { class: "notice notice-strong" });
+        box.appendChild(el("strong", {}, "Recording is turned off"));
+        box.appendChild(el("p", {}, "Nothing new is being recorded on this device. Anything already " +
+          "stored is still shown below."));
+        box.appendChild(el("a", { class: "notice-link", href: "#/settings" }, "Turn it back on in Settings →"));
+        content.appendChild(box);
+        const w = currentWindow();
+        content.appendChild(page.render(localSource.window(w.from, w.to), { rerender: render }));
+      } else {
+        const w = currentWindow();
+        content = page.render(localSource.window(w.from, w.to), { rerender: render });
+      }
+    } catch (err) {
+      content = errorPanel((err && err.message) || String(err));
+      if (window.console) console.error("Admin render failed:", err);
+    }
+    body.innerHTML = "";
+    body.appendChild(content);
+  }, 0);
+};
+
+state.page = pageFromHash();
+render();
+</script>
+
+</body>
+</html>

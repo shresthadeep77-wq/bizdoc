@@ -172,6 +172,35 @@ const buildApp = ({ inlineLibs = false } = {}) => {
   return out.trimEnd() + "\n";
 };
 
+/* -- the admin panel ------------------------------------------------------ */
+// Its own page at /admin/, not part of the app bundle and not linked from it.
+// It sits on the same origin as the app, which is what lets it read the app's
+// stored data: a browser scopes localStorage per site, not per folder.
+const ADMIN_ORDER = ["admin-data.js", "admin-ui.js", "admin-pages.js", "admin-boot.js"];
+
+const buildAdmin = () => {
+  const dir = path.join(SRC, "admin");
+  const onDisk = fs.readdirSync(dir).filter((f) => f.endsWith(".js")).sort();
+  const missing = onDisk.filter((f) => ADMIN_ORDER.indexOf(f) < 0);
+  if (missing.length) throw new Error("build.js ADMIN_ORDER is missing: " + missing.join(", "));
+
+  const parts = {
+    "admin.css": () => fs.readFileSync(path.join(dir, "admin.css"), "utf8").trimEnd(),
+    "admin/*": () => ADMIN_ORDER
+      .map((f) => fs.readFileSync(path.join(dir, f), "utf8").trimEnd())
+      .join("\n\n"),
+  };
+  const shell = fs.readFileSync(path.join(dir, "index.html"), "utf8");
+  const out = shell.replace(/<!--include:(.+?)-->/g, (_, key) => {
+    const fn = parts[key];
+    if (!fn) throw new Error("Unknown include in src/admin/index.html: " + key);
+    return fn();
+  });
+  const left = out.match(/<!--include:.+?-->/);
+  if (left) throw new Error("Unresolved include in admin: " + left[0]);
+  return out.trimEnd() + "\n";
+};
+
 /* -- the written guides --------------------------------------------------- */
 
 const layout = () => readSite("layout.html");
@@ -286,6 +315,10 @@ const robots = () => `# ${site.siteName}
 User-agent: *
 Allow: /
 
+# The admin panel is a private usage dashboard, not a page to land on. This
+# keeps it out of search results. It is not access control — see /admin/#/settings.
+Disallow: ${base}admin/
+
 Sitemap: ${absolute("sitemap.xml")}
 `;
 
@@ -346,6 +379,7 @@ const outputs = () => {
     "llms.txt": llms(),
     "lib/html2canvas.js": stripSourceMaps(read(path.join("vendor", "html2canvas.js"))) + "\n",
     "lib/jspdf.js": stripSourceMaps(read(path.join("vendor", "jspdf.js"))) + "\n",
+    "admin/index.html": buildAdmin(),
   };
   contentPages().forEach((p) => { files[p.file] = buildPage(p); });
   return files;
@@ -397,3 +431,4 @@ console.log(`built ${Object.keys(files).length} files (${(total / 1024).toFixed(
 console.log(`  ${"index.html".padEnd(22)}${kb("index.html")}   loaded every visit`);
 console.log(`  ${"lib/".padEnd(22)}${((Buffer.byteLength(files["lib/jspdf.js"]) + Buffer.byteLength(files["lib/html2canvas.js"])) / 1024).toFixed(0)} KB   only when exporting`);
 contentPages().forEach((p) => console.log(`  ${p.file.padEnd(22)}${kb(p.file)}`));
+console.log(`  ${"admin/index.html".padEnd(22)}${kb("admin/index.html")}   private, noindex`);

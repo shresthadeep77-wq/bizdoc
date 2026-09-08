@@ -94,8 +94,8 @@ const renderDocListItem = (d) => {
   actions.appendChild(iconBtn("Delete", "🗑️", () => {
     confirmModal(`Delete ${label}? You will have a few seconds to undo.`,
       () => deleteWithUndo(label,
-        () => { db.documents = db.documents.filter(x => x.id !== d.id); },
-        () => { db.documents.push(d); }),
+        () => { track("document.deleted", { type: d.type }); db.documents = db.documents.filter(x => x.id !== d.id); },
+        () => { track("document.delete_undone", { type: d.type }); db.documents.push(d); }),
       { title: `Delete ${DOC_TYPES[d.type].label}?`, confirmLabel: "Delete" });
   }, true));
   item.appendChild(actions);

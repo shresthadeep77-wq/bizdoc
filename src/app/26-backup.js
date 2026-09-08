@@ -1,5 +1,6 @@
 // ==================== BACKUP ====================
 const exportBackup = async () => {
+  track("backup.exported");
   const filename = `pipomaker_backup_${today()}.json`;
   const blob = new Blob([JSON.stringify(db, null, 2)], { type: "application/json" });
   const savedBk = await writeToFolder(blob, filename, "backups");
@@ -55,6 +56,7 @@ const deviceEntryNames = (e) =>
 // Swap the app over to a copy found on this device. Confirms first if there is
 // already data loaded that would be replaced.
 const restoreDeviceEntry = (entry) => {
+  track("backup.device_restore");
   const apply = () => {
     replaceDB(JSON.parse(JSON.stringify(entry.data)));
     if (modalStack.length) closeModal();
@@ -103,6 +105,7 @@ const openDeviceRestoreModal = () => {
 };
 
 const importBackup = () => {
+  track("backup.imported");
   const inp = document.createElement("input");
   inp.type = "file"; inp.accept = "application/json";
   inp.onchange = (e) => {

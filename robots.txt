@@ -5,4 +5,8 @@
 User-agent: *
 Allow: /
 
+# The admin panel is a private usage dashboard, not a page to land on. This
+# keeps it out of search results. It is not access control — see /admin/#/settings.
+Disallow: /bizdoc/admin/
+
 Sitemap: https://shresthadeep77-wq.github.io/bizdoc/sitemap.xml

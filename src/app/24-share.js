@@ -111,7 +111,9 @@ const downloadPNG = async (previewEl, d, btn) => {
     link.remove();
     setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
     toast(`Image saved to your Downloads folder as ${docFileName(d, "png")}`, "ok", 6000);
+    track("document.exported", { type: d.type, format: "png" });
   } catch (e) {
+    track("export.failed", { type: d.type, format: "png" });
     console.error("PNG export failed:", e);
     toast("Couldn't save the image — " + (e.message || "please try again"), "err", 5000);
   } finally {
@@ -158,7 +160,9 @@ const downloadPDF = async (previewEl, d, btn) => {
       pdf.save(docFileName(d, "pdf"));
       toast(`PDF downloaded (${pages.length} ${pages.length === 1 ? "page" : "pages"})`);
     }
+    track("document.exported", { type: d.type, format: "pdf", pages: pages.length });
   } catch (e) {
+    track("export.failed", { type: d.type, format: "pdf" });
     console.error(e);
     toast("Couldn't generate PDF — opening print dialog instead", "err");
     printDoc(previewEl);
@@ -210,6 +214,7 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ files: [file], text: msg, title: `${d.type} #${d.number}` });
       if (d.status === "Draft") { d.status = "Sent"; saveDB(); }
+      track("document.shared", { type: d.type, via: "share-sheet" });
       toast("Shared");
       return;
     }
@@ -245,6 +250,7 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
       "ok", 8000);
   } catch (e) {
     if (e && e.name === "AbortError") return; // user dismissed the share sheet
+    track("export.failed", { type: d.type, format: "whatsapp" });
     console.error(e);
     toast("Couldn't prepare the image", "err");
   } finally {

@@ -3049,6 +3049,170 @@ var qrcode = function() {
 window.__qrcode = qrcode;
 </script>
 <script>
+// ==================== ANALYTICS (THIS DEVICE ONLY) ====================
+// Records what happens in the app so /admin can show real numbers instead of
+// invented ones. Everything here stays in this browser's localStorage. Nothing
+// is uploaded, because there is nothing to upload it to: BizDoc has no server.
+//
+// What that means, stated plainly so nobody reads more into the dashboard than
+// is there: this measures ONE browser on ONE device. It cannot tell you how
+// many people use BizDoc, because a static page has no way to report back.
+// Those numbers need a backend — see the remoteSource stub in
+// src/admin/admin-data.js, which documents exactly what one would have to provide.
+//
+// What is recorded: an event name, a timestamp, and a few small non-identifying
+// properties (a document TYPE like "PI", a count, a duration).
+// What is never recorded: document contents, customer or product names,
+// amounts, business details, file names, or anything typed into a field.
+//
+// Loaded first so the error handlers are installed before anything else runs.
+
+const ANALYTICS_KEY = "pipomaker_analytics_v1";
+const ANALYTICS_MAX_EVENTS = 3000;   // ring buffer — oldest fall off the end
+const ANALYTICS_MAX_ERRORS = 200;
+const ANALYTICS_VERSION = 1;
+
+const emptyAnalytics = () => ({
+  v: ANALYTICS_VERSION,
+  enabled: true,
+  firstSeen: null,     // when this browser first opened the app
+  sessions: 0,         // how many times it has been opened
+  retentionDays: 90,   // events older than this are dropped on load
+  events: [],          // { t, e, p }
+  errors: [],          // { t, m, src, n, first, last }
+  sessionLog: [],      // { t, ref, w, h } — one per app open
+});
+
+// Read-modify-write against localStorage each time. The volumes here are tiny
+// (a few hundred KB at the cap) and it keeps the store correct if the app is
+// open in two tabs, which a single in-memory copy would not.
+const readAnalytics = () => {
+  try {
+    const raw = localStorage.getItem(ANALYTICS_KEY);
+    if (!raw) return emptyAnalytics();
+    const a = JSON.parse(raw);
+    if (!a || typeof a !== "object") return emptyAnalytics();
+    return Object.assign(emptyAnalytics(), a, {
+      events: Array.isArray(a.events) ? a.events : [],
+      errors: Array.isArray(a.errors) ? a.errors : [],
+      sessionLog: Array.isArray(a.sessionLog) ? a.sessionLog : [],
+    });
+  } catch (e) {
+    return emptyAnalytics();
+  }
+};
+
+const writeAnalytics = (a) => {
+  try {
+    localStorage.setItem(ANALYTICS_KEY, JSON.stringify(a));
+    return true;
+  } catch (e) {
+    // Storage full, or blocked in a private window. Analytics must never be the
+    // reason the app stops working, so this fails silently and the app carries
+    // on — the dashboard will simply show fewer events.
+    return false;
+  }
+};
+
+const analyticsEnabled = () => {
+  try { return readAnalytics().enabled !== false; } catch (e) { return false; }
+};
+
+// Drop anything past the retention window and past the size caps.
+const pruneAnalytics = (a) => {
+  const days = Number(a.retentionDays) > 0 ? Number(a.retentionDays) : 90;
+  const cutoff = Date.now() - days * 86400000;
+  a.events = a.events.filter(x => x && x.t >= cutoff).slice(-ANALYTICS_MAX_EVENTS);
+  a.sessionLog = a.sessionLog.filter(x => x && x.t >= cutoff).slice(-ANALYTICS_MAX_EVENTS);
+  a.errors = a.errors.filter(x => x && x.last >= cutoff).slice(-ANALYTICS_MAX_ERRORS);
+  return a;
+};
+
+// Property values are deliberately restricted: short strings, finite numbers
+// and booleans only. Anything else is dropped rather than stringified, so a
+// whole customer object can never end up in the log by accident.
+const safeProps = (props) => {
+  if (!props || typeof props !== "object") return undefined;
+  const out = {};
+  Object.keys(props).slice(0, 8).forEach((k) => {
+    const v = props[k];
+    if (typeof v === "number" && isFinite(v)) out[k] = v;
+    else if (typeof v === "boolean") out[k] = v;
+    else if (typeof v === "string") out[k] = v.slice(0, 40);
+  });
+  return Object.keys(out).length ? out : undefined;
+};
+
+// The one function the rest of the app calls.
+//   track("document.created", { type: "PI", lines: 4 })
+const track = (name, props) => {
+  try {
+    if (typeof name !== "string" || !name) return;
+    const a = readAnalytics();
+    if (a.enabled === false) return;
+    a.events.push({ t: Date.now(), e: name.slice(0, 60), p: safeProps(props) });
+    if (a.events.length > ANALYTICS_MAX_EVENTS) a.events = a.events.slice(-ANALYTICS_MAX_EVENTS);
+    writeAnalytics(a);
+  } catch (e) { /* never let measurement break the thing being measured */ }
+};
+
+// Errors are grouped by message rather than logged one per occurrence, so a
+// loop that throws a thousand times is one row with a count, not a thousand
+// rows that push everything else out of the buffer.
+const trackError = (message, source) => {
+  try {
+    const a = readAnalytics();
+    if (a.enabled === false) return;
+    const m = String(message || "Unknown error").slice(0, 200);
+    const src = String(source || "").split("/").pop().slice(0, 60);
+    const now = Date.now();
+    const hit = a.errors.find(x => x.m === m && x.src === src);
+    if (hit) { hit.n += 1; hit.last = now; }
+    else a.errors.push({ m, src, n: 1, first: now, last: now });
+    if (a.errors.length > ANALYTICS_MAX_ERRORS) {
+      // Keep the most frequent, then the most recent — dropping a one-off is
+      // less costly than dropping the error that is happening constantly.
+      a.errors.sort((x, y) => (y.n - x.n) || (y.last - x.last));
+      a.errors = a.errors.slice(0, ANALYTICS_MAX_ERRORS);
+    }
+    writeAnalytics(a);
+  } catch (e) { /* ignore */ }
+};
+
+// ---- automatic capture -----------------------------------------------------
+
+window.addEventListener("error", (e) => {
+  if (!e) return;
+  trackError(e.message || (e.error && e.error.message), e.filename);
+});
+
+window.addEventListener("unhandledrejection", (e) => {
+  const r = e && e.reason;
+  trackError((r && r.message) || String(r || "Unhandled promise rejection"), "promise");
+});
+
+// One entry per app open. The referrer is kept only as a hostname (where the
+// visit came from), never the full URL, which can carry search terms.
+(() => {
+  try {
+    const a = pruneAnalytics(readAnalytics());
+    if (a.enabled === false) { writeAnalytics(a); return; }
+    const now = Date.now();
+    if (!a.firstSeen) a.firstSeen = now;
+    a.sessions = (a.sessions || 0) + 1;
+    let ref = "";
+    try { ref = document.referrer ? new URL(document.referrer).hostname : ""; } catch (err) { ref = ""; }
+    a.sessionLog.push({
+      t: now,
+      ref: ref.slice(0, 60),
+      w: screen && screen.width ? screen.width : 0,
+      h: screen && screen.height ? screen.height : 0,
+      standalone: !!(window.matchMedia && matchMedia("(display-mode: standalone)").matches),
+    });
+    writeAnalytics(a);
+  } catch (e) { /* ignore */ }
+})();
+
 // ==================== PDF LIBRARIES, LOADED ON DEMAND ====================
 // html2canvas and jsPDF together are about 550 KB — more than the entire rest
 // of the app. They are only ever touched when someone exports a PDF or a PNG,
@@ -4058,7 +4222,7 @@ const renderTabs = () => {
       type: "button",
       "aria-current": currentTab === k ? "page" : undefined,
       onclick: () => {
-        if (k === "settings") { openSettingsModal(); return; }
+        if (k === "settings") { track("settings.opened"); openSettingsModal(); return; }
         navigateTo(k);
       }
     });
@@ -4578,8 +4742,13 @@ const filterProductList = (q, catPathKey) => {
 };
 
 // So "pvc elbow" matches "Elbow PVC 110mm", and "110 elbow" works too.
+let _searchTrackTimer = null;
 const filterList = (kind, q) => {
   const terms = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  // Debounced so a ten-letter search is one event, not ten. The text typed is
+  // deliberately not part of the event.
+  clearTimeout(_searchTrackTimer);
+  if (terms.length) _searchTrackTimer = setTimeout(() => track("search.performed", { list: kind }), 900);
   const root = document.getElementById(`${kind}-list`);
   if (!root) return;
   const items = root.querySelectorAll(".list-item");
@@ -4893,6 +5062,7 @@ const CUSTOMER_COLS = ["clientNo", "companyName", "contactName", "phone", "vatNo
   "addr1", "addr2", "country", "regNo", "shipAddr1", "shipAddr2", "eximCode", "discountRules"];
 
 const exportProductsCSV = () => {
+  track("csv.exported", { kind: "products" });
   const rows = bizProducts().map(p => ({ ...p, taxable: p.taxable ? "yes" : "no" }));
   if (!rows.length) { toast("No products to export", "err"); return; }
   const code = (activeBiz()?.shortCode || autoShortCode(activeBiz()?.name)).replace(/\s+/g, "");
@@ -4901,6 +5071,7 @@ const exportProductsCSV = () => {
 };
 
 const exportCustomersCSV = () => {
+  track("csv.exported", { kind: "customers" });
   const rows = bizCustomers().map(c => ({
     ...c,
     clientNo: "C" + String(c.id).padStart(4, "0"),
@@ -4914,6 +5085,7 @@ const exportCustomersCSV = () => {
 };
 
 const exportDocumentsCSV = () => {
+  track("csv.exported", { kind: "documents" });
   const rows = bizDocs().map(d => {
     const c = db.customers.find(x => x.id === d.customerId);
     return {
@@ -5050,6 +5222,7 @@ const showImportPreview = (kind, header, body) => {
 
 // Downloadable blank templates so the expected columns are obvious.
 const downloadTemplate = (kind) => {
+  track("csv.template_downloaded", { kind });
   if (kind === "products") {
     downloadTextFile(toCSV([{
       partNumber: "ELB110", description: "PVC 110mm Elbow", unit: "pcs", rate: 250, weight: 0.4,
@@ -5620,8 +5793,8 @@ const renderDocListItem = (d) => {
   actions.appendChild(iconBtn("Delete", "🗑️", () => {
     confirmModal(`Delete ${label}? You will have a few seconds to undo.`,
       () => deleteWithUndo(label,
-        () => { db.documents = db.documents.filter(x => x.id !== d.id); },
-        () => { db.documents.push(d); }),
+        () => { track("document.deleted", { type: d.type }); db.documents = db.documents.filter(x => x.id !== d.id); },
+        () => { track("document.delete_undone", { type: d.type }); db.documents.push(d); }),
       { title: `Delete ${DOC_TYPES[d.type].label}?`, confirmLabel: "Delete" });
   }, true));
   item.appendChild(actions);
@@ -6585,6 +6758,7 @@ const openCustomerModal = (existing, onCreated, onSaved) => {
     if (existing) { Object.assign(existing, data); }
     else { data.id = uid("cust"); db.customers.push(data); isNew = true; }
     saveDB(); closeModal();
+    track(isNew ? "customer.created" : "customer.edited");
     if (onSaved) onSaved(existing || data);
     if (isNew && onCreated) onCreated(data);
     else toast(isNew ? "Customer added" : "Customer saved");
@@ -6817,6 +6991,7 @@ const openProductModal = (existing) => {
     if (existing) { Object.assign(existing, data); }
     else { data.id = uid("prod"); db.products.push(data); }
     saveDB(); closeModal();
+    track(isNew ? "product.created" : "product.edited");
     toast(isNew ? "Product added" : "Product saved");
     if (existing && oldRate !== newRate) offerRateUpdate(existing, oldRate, newRate);
   }}, existing ? "Save" : "Add product"));
@@ -7702,9 +7877,17 @@ const openDocBuilder = () => {
     delete docBuilder._onTotals;
     const idx = docBuilder._editing ? db.documents.findIndex(d => d.id === docBuilder.id) : -1;
     let saved;
+    // `date` is the document's own date and the user can set it to anything, so
+    // it cannot answer "how many were created today". These two can. Documents
+    // saved before this was added simply do not have them — /admin counts those
+    // separately rather than inventing a date for them.
+    const stamp = new Date().toISOString();
     if (idx >= 0) {
+      docBuilder.updatedAt = stamp;
       saved = db.documents[idx] = { ...docBuilder };
     } else {
+      docBuilder.createdAt = docBuilder.createdAt || stamp;
+      docBuilder.updatedAt = stamp;
       // Either a brand-new document, or one that was deleted elsewhere while it
       // was open here — save it rather than throwing the work away.
       docBuilder.id = docBuilder.id || uid("doc");
@@ -7716,6 +7899,8 @@ const openDocBuilder = () => {
       }
     }
     saveDB();
+    track(docBuilder._editing ? "document.edited" : "document.created",
+      { type: saved.type, lines: (saved.lineItems || []).length });
     closeModal();
     openDocPreview(saved);
     toast(`${DOC_TYPES[saved.type].shortLabel} #${saved.number} saved`);
@@ -7791,7 +7976,9 @@ const openDocBuilder = () => {
 // was producing blank pages). This window has nothing else in it to hide.
 const printDoc = (pv) => {
   const w = window.open("", "_blank");
-  if (!w) { toast("Popup blocked — allow popups for this page, then tap Print again", "err"); return; }
+  if (!w) { track("export.failed", { format: "print", reason: "popup-blocked" });
+    toast("Popup blocked — allow popups for this page, then tap Print again", "err"); return; }
+  track("document.printed");
   const mainStyle = document.querySelector("style");
   w.document.open();
   w.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Print</title></head><body></body></html>");
@@ -8461,7 +8648,9 @@ const downloadPNG = async (previewEl, d, btn) => {
     link.remove();
     setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
     toast(`Image saved to your Downloads folder as ${docFileName(d, "png")}`, "ok", 6000);
+    track("document.exported", { type: d.type, format: "png" });
   } catch (e) {
+    track("export.failed", { type: d.type, format: "png" });
     console.error("PNG export failed:", e);
     toast("Couldn't save the image — " + (e.message || "please try again"), "err", 5000);
   } finally {
@@ -8508,7 +8697,9 @@ const downloadPDF = async (previewEl, d, btn) => {
       pdf.save(docFileName(d, "pdf"));
       toast(`PDF downloaded (${pages.length} ${pages.length === 1 ? "page" : "pages"})`);
     }
+    track("document.exported", { type: d.type, format: "pdf", pages: pages.length });
   } catch (e) {
+    track("export.failed", { type: d.type, format: "pdf" });
     console.error(e);
     toast("Couldn't generate PDF — opening print dialog instead", "err");
     printDoc(previewEl);
@@ -8560,6 +8751,7 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ files: [file], text: msg, title: `${d.type} #${d.number}` });
       if (d.status === "Draft") { d.status = "Sent"; saveDB(); }
+      track("document.shared", { type: d.type, via: "share-sheet" });
       toast("Shared");
       return;
     }
@@ -8595,6 +8787,7 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
       "ok", 8000);
   } catch (e) {
     if (e && e.name === "AbortError") return; // user dismissed the share sheet
+    track("export.failed", { type: d.type, format: "whatsapp" });
     console.error(e);
     toast("Couldn't prepare the image", "err");
   } finally {
@@ -8672,8 +8865,10 @@ const gdriveBackup = async (btn) => {
       body,
     });
     if (!res.ok) throw new Error("Upload failed (" + res.status + ")");
+    track("drive.backup");
     toast("Backed up to Google Drive", "ok", 5000);
   } catch (e) {
+    track("drive.failed", { op: "backup" });
     toast(e.message || "Drive backup failed", "err", 5000);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = orig; }
@@ -8698,6 +8893,7 @@ const gdriveRestore = async (btn) => {
       { title: "Replace all data?", confirmLabel: "Replace data" }
     );
   } catch (e) {
+    track("drive.failed", { op: "restore" });
     toast(e.message || "Drive restore failed", "err", 5000);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = orig; }
@@ -8706,6 +8902,7 @@ const gdriveRestore = async (btn) => {
 
 // ==================== BACKUP ====================
 const exportBackup = async () => {
+  track("backup.exported");
   const filename = `pipomaker_backup_${today()}.json`;
   const blob = new Blob([JSON.stringify(db, null, 2)], { type: "application/json" });
   const savedBk = await writeToFolder(blob, filename, "backups");
@@ -8761,6 +8958,7 @@ const deviceEntryNames = (e) =>
 // Swap the app over to a copy found on this device. Confirms first if there is
 // already data loaded that would be replaced.
 const restoreDeviceEntry = (entry) => {
+  track("backup.device_restore");
   const apply = () => {
     replaceDB(JSON.parse(JSON.stringify(entry.data)));
     if (modalStack.length) closeModal();
@@ -8809,6 +9007,7 @@ const openDeviceRestoreModal = () => {
 };
 
 const importBackup = () => {
+  track("backup.imported");
   const inp = document.createElement("input");
   inp.type = "file"; inp.accept = "application/json";
   inp.onchange = (e) => {
@@ -8907,8 +9106,12 @@ const tabFromHash = () => {
 // Swap in the metadata for a route. Called on every render, so it stays correct
 // no matter which way the tab changed — a click, the back button, or a link
 // someone was sent.
+let _lastTrackedTab = null;
 const applyRouteMeta = (tab) => {
   const r = ROUTES[tab] || ROUTES.dashboard;
+  // renderApp() runs on every change, not just navigation, so only a genuine
+  // section change counts as a page view.
+  if (tab !== _lastTrackedTab) { _lastTrackedTab = tab; track("page.viewed", { section: tab }); }
   document.title = r.title || BASE_TITLE;
   const meta = document.querySelector('meta[name="description"]');
   if (meta) meta.content = r.description || BASE_DESCRIPTION;

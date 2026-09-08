@@ -29,6 +29,7 @@ src/
   pwa.js          registers the service worker / manifest (http(s) only)
   vendor/         bundled libraries: qrcode, html2canvas, jspdf
   app/            the app itself, numbered in load order
+  admin/          the /admin dashboard (see "The admin panel")
   site/           the written guide pages (see "The site around the app")
     pages.json    every route, its title, description and copy — one source
     layout.html   shared page shell for the guides and the 404
@@ -45,6 +46,7 @@ Built into the repo root, and served from there by GitHub Pages:
 index.html                    the app
 lib/jspdf.js, html2canvas.js  fetched only when someone exports
 documents/ customers/ products/ offline/ privacy/    the guides
+admin/                        the private usage dashboard (noindex)
 404.html sitemap.xml robots.txt llms.txt
 assets/  favicon.ico  icon.svg  manifest.webmanifest
 ```
@@ -95,6 +97,28 @@ and inventing one would be structured-data spam. Instead the app emits a real
 Settings — fields they have left blank are left out rather than guessed at. See
 `src/app/28-routing-seo.js`.
 
+## The admin panel
+
+`/admin/` is a private usage dashboard. Nothing in the app links to it, and it is
+marked `noindex` and disallowed in `robots.txt`. Open it by typing the address.
+
+It reads a usage log the app keeps in `localStorage` (see
+`src/app/00-analytics.js`): an action name, a time, and a few small non-identifying
+properties. It never records document contents, customer or product details, or
+anything typed into a field.
+
+**It measures one browser — this one.** A static site has no server, so a
+visitor's browser never reports back. Visitor counts, active users and traffic
+sources therefore cannot be measured at all, and the dashboard says so on every
+one of those tiles rather than showing a zero. `src/admin/admin-data.js` holds a
+`remoteSource` stub documenting exactly what a backend would have to provide to
+fill them in.
+
+There is no password on it, deliberately. Any password in frontend code is
+downloaded by every visitor, and the data shown is already in this browser —
+a login would be decoration, not protection. Real access control starts with a
+backend; see the Settings page inside the panel.
+
 ### Why the PDF libraries are separate
 
 jsPDF and html2canvas are about 550 KB together — larger than the whole rest of
@@ -122,6 +146,8 @@ file for that case.
 | loading/repairing saved data | `src/app/01-storage.js` |
 | PDF / PNG / WhatsApp export | `src/app/24-share.js` |
 | routing, page titles, structured data | `src/app/28-routing-seo.js` |
+| what gets recorded for /admin | `src/app/00-analytics.js` |
+| the admin dashboard | `src/admin/` |
 | the guide pages' wording | `src/site/body-*.html` |
 | titles, descriptions, the sitemap | `src/site/pages.json` |
 
