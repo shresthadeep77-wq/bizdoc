@@ -117,7 +117,7 @@ const renderBusinessForm = (existing, onSave) => {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader(); r.onload = () => { data.logo = r.result; logoPrev.src = r.result; logoPrev.style.display = "block"; }; r.readAsDataURL(f);
   }});
-  const logoPrev = el("img", { style: { maxHeight: "60px", marginTop: "6px", display: data.logo ? "block" : "none" }, src: data.logo || "" });
+  const logoPrev = el("img", { alt: "Preview of the business logo that prints on your documents", style: { maxHeight: "60px", marginTop: "6px", display: data.logo ? "block" : "none" }, src: data.logo || "" });
   logoField.appendChild(logoInp);
   logoField.appendChild(logoPrev);
   wrap.appendChild(logoField);
@@ -129,7 +129,7 @@ const renderBusinessForm = (existing, onSave) => {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader(); r.onload = () => { data.signature = r.result; sigPrev.src = r.result; sigPrev.style.display = "block"; }; r.readAsDataURL(f);
   }});
-  const sigPrev = el("img", { style: { maxHeight: "50px", marginTop: "6px", display: data.signature ? "block" : "none" }, src: data.signature || "" });
+  const sigPrev = el("img", { alt: "Preview of the authorised signature that prints on your documents", style: { maxHeight: "50px", marginTop: "6px", display: data.signature ? "block" : "none" }, src: data.signature || "" });
   sigField.appendChild(sigInp);
   sigField.appendChild(sigPrev);
   wrap.appendChild(sigField);
@@ -142,7 +142,7 @@ const renderBusinessForm = (existing, onSave) => {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader(); r.onload = () => { data.stamp = r.result; stampPrev.src = r.result; stampPrev.style.display = "block"; stampClear.style.display = "inline-flex"; }; r.readAsDataURL(f);
   }});
-  const stampPrev = el("img", { style: { maxHeight: "70px", marginTop: "6px", display: data.stamp ? "block" : "none" }, src: data.stamp || "" });
+  const stampPrev = el("img", { alt: "Preview of the official stamp or seal that prints on your documents", style: { maxHeight: "70px", marginTop: "6px", display: data.stamp ? "block" : "none" }, src: data.stamp || "" });
   const stampClear = el("button", { class: "btn btn-secondary", type: "button", style: { marginTop: "6px", display: data.stamp ? "inline-flex" : "none" }, onclick: () => { data.stamp = ""; stampPrev.src = ""; stampPrev.style.display = "none"; stampClear.style.display = "none"; stampInp.value = ""; } }, "Remove stamp");
   stampField.appendChild(stampInp);
   stampField.appendChild(stampPrev);

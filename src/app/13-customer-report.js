@@ -167,6 +167,8 @@ const downloadReportPDF = async (elm, filename, btn) => {
   const original = btn ? btn.innerHTML : null;
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Generating…'; }
   try {
+    // First export of the session fetches the PDF libraries (see 00-pdf-libs.js).
+    if (!(await ensurePdfLibs())) return;
     const { jsPDF } = window.jspdf;
     const canvas = await html2canvas(elm, { scale: 2, backgroundColor: "#fff" });
     const img = canvas.toDataURL("image/jpeg", 0.92);

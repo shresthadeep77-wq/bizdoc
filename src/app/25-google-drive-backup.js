@@ -4,8 +4,29 @@ const GDRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const GDRIVE_FILENAME = "pipomaker_backup.json";
 let _gdriveToken = null;
 
+// Google's sign-in script used to sit in the page <head>, which meant every
+// visit hit accounts.google.com whether or not Drive was ever used — a wasted
+// third-party request online, and a console error every time the app opened
+// offline. It is fetched here instead, the first time someone asks for Drive.
+let _gsiPromise = null;
+const loadGoogleSignIn = () => {
+  if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
+  if (!_gsiPromise) {
+    _gsiPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://accounts.google.com/gsi/client";
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Google sign-in couldn't be reached — check your connection"));
+      document.head.appendChild(s);
+    });
+    _gsiPromise.catch(() => { _gsiPromise = null; }); // let a later attempt retry
+  }
+  return _gsiPromise;
+};
+
 // Get an access token (opens Google's consent popup the first time).
-const gdriveAuth = () => new Promise((resolve, reject) => {
+const gdriveAuth = () => loadGoogleSignIn().then(() => new Promise((resolve, reject) => {
   if (!window.google || !google.accounts || !google.accounts.oauth2) {
     reject(new Error("Google sign-in not loaded — check your connection")); return;
   }
@@ -15,7 +36,7 @@ const gdriveAuth = () => new Promise((resolve, reject) => {
     error_callback: () => reject(new Error("Authorization cancelled")),
   });
   client.requestAccessToken({ prompt: _gdriveToken ? "" : "consent" });
-});
+}));
 
 // Find our existing backup file id (drive.file only sees files we created).
 const gdriveFindFile = async (token) => {

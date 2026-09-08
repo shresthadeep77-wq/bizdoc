@@ -1,0 +1,60 @@
+<div class="cta">
+  <a class="btn btn-primary" href="{{root}}#/products">Open the products tab</a>
+  <a class="btn btn-secondary" href="{{root}}documents/">See it feed a document</a>
+</div>
+
+<h2>What a product record holds</h2>
+<div class="table-wrap">
+<table>
+  <caption class="sr-only">Fields stored against each product</caption>
+  <thead><tr><th scope="col">Field</th><th scope="col">Used for</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Part number</th><td>Your own code — searched first, so typing it finds the item.</td></tr>
+    <tr><th scope="row">Description</th><td>The line of text that prints on the document.</td></tr>
+    <tr><th scope="row">Unit</th><td>pcs, kg, set, box, m, ft, litre, bundle, or your own.</td></tr>
+    <tr><th scope="row">Rate</th><td>The default price, still editable per line.</td></tr>
+    <tr><th scope="row">Weight</th><td>Totalled per document for freight and packing lists.</td></tr>
+    <tr><th scope="row">HSN code</th><td>Tax classification, printed where required.</td></tr>
+    <tr><th scope="row">Taxable</th><td>Whether the line goes into the tax base at all.</td></tr>
+    <tr><th scope="row">Category path</th><td>Where it sits in the tree, and what discount rules reach it.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Categories to any depth</h2>
+<p>Categories are a real tree, not a single flat dropdown. A product can sit at
+<em>Fittings › Brass › 15&nbsp;mm</em>, and the picker walks down branch by branch. You can
+stop at whatever level you mean and confirm there, which is what makes a customer's
+discount rule able to cover a whole branch or one narrow shelf of it.</p>
+
+<h2>Changing many prices at once</h2>
+<p>Select any number of products — with a filter, a search, or the select-all box —
+and update them together. <strong>Update rates</strong> applies a percentage rise or fall, or
+sets a flat rate, across the whole selection at once. It is the difference between a
+supplier's 4% increase taking a minute and taking an afternoon.</p>
+<p>The same multi-select drives bulk category moves and bulk deletes, and the count
+of what you have selected stays visible so you always know the blast radius before
+you confirm.</p>
+
+<h2>Two ways to look at the catalogue</h2>
+<ul>
+  <li><strong>List</strong> — dense rows for scanning part numbers and rates.</li>
+  <li><strong>Grouped by category</strong> — the tree, collapsed, for finding something when
+      you only half-remember what it was called.</li>
+</ul>
+<p>Long catalogues render in chunks as you scroll, so several thousand products stay
+responsive on a phone rather than freezing the page while everything draws.</p>
+
+<h2>CSV import and export</h2>
+<p>The whole catalogue moves in and out as CSV. Import shows a preview of the parsed
+rows and the column mapping before writing anything, so a mismatched header is caught
+at that point instead of after it has merged into your live data. A blank template
+with the exact expected columns is one click away, and the parser handles quoted
+fields with embedded commas and line breaks properly.</p>
+
+<h2>Where to go next</h2>
+<ul>
+  <li><a href="{{root}}customers/">Customers</a> — discount rules that point at these categories.</li>
+  <li><a href="{{root}}documents/">Documents</a> — turning catalogue rows into line items.</li>
+  <li><a href="{{root}}privacy/">Privacy</a> — where the catalogue is actually stored.</li>
+</ul>

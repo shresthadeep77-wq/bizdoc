@@ -15,7 +15,7 @@ const renderPreview = (d, biz, cust) => {
     // Head
     const head = el("div", { class: "pv-head" });
     const left = el("div", { class: "pv-logo-area", style: { position: "relative" } });
-    if (biz.logo) left.appendChild(el("img", { src: biz.logo, class: "pv-logo", style: { maxHeight: (60 * (biz.logoScale || 1)) + "px" } }));
+    if (biz.logo) left.appendChild(el("img", { src: biz.logo, class: "pv-logo", alt: (biz.name || "Business") + " logo", style: { maxHeight: (60 * (biz.logoScale || 1)) + "px" } }));
     left.appendChild(el("div", { class: "pv-bizname" }, biz.name));
     head.appendChild(left);
     head.appendChild(el("div", { class: "pv-title" }, cfg.title));
@@ -234,7 +234,10 @@ const renderPreview = (d, biz, cust) => {
         bankRow.appendChild(details);
         if (showQR) {
           const qrText = bankQRText(b);
-          const qrImg = qrText ? makeQRImg(qrText, 96, "L") : null;
+          const qrLabel = "Scan-to-pay QR code for "
+            + [b.bankName, b.accountName, b.accountNumber ? "account " + b.accountNumber : ""]
+              .filter(Boolean).join(", ");
+          const qrImg = qrText ? makeQRImg(qrText, 96, "L", qrLabel) : null;
           if (qrImg) {
             const qrBox = el("div", { style: { textAlign: "center", flexShrink: "0" } });
             qrBox.appendChild(qrImg);
@@ -278,10 +281,10 @@ const renderPreview = (d, biz, cust) => {
     const foot = el("div", { class: "pv-footer", style: { position: "relative" } });
     foot.appendChild(el("div", { style: { marginTop: 8 } }, "I certify the above to be true and correct to the best of my knowledge."));
     const sig = el("div", { class: "pv-sig" });
-    if (biz.signature) sig.appendChild(el("img", { src: biz.signature, class: "pv-sig-img", style: { maxHeight: (40 * (biz.signScale || 1)) + "px" } }));
+    if (biz.signature) sig.appendChild(el("img", { src: biz.signature, class: "pv-sig-img", alt: "Signature of " + (biz.signatory || "the authorised signatory"), style: { maxHeight: (40 * (biz.signScale || 1)) + "px" } }));
     sig.appendChild(el("div", { class: "pv-sigline" }));
     foot.appendChild(sig);
-    if (biz.stamp) foot.appendChild(el("img", { src: biz.stamp, class: "pv-stamp-img", style: { maxHeight: (90 * (biz.stampScale || 1)) + "px", maxWidth: (130 * (biz.stampScale || 1)) + "px" } }));
+    if (biz.stamp) foot.appendChild(el("img", { src: biz.stamp, class: "pv-stamp-img", alt: "Official stamp of " + (biz.name || "the business"), style: { maxHeight: (90 * (biz.stampScale || 1)) + "px", maxWidth: (130 * (biz.stampScale || 1)) + "px" } }));
     const fr = el("div", { style: { marginTop: 4, display: "flex", justifyContent: "space-between" } });
     const fl = el("div");
     fl.appendChild(el("div", {}, biz.signatory || ""));

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1200px; height:630px; }
+  body { font-family:"Trebuchet MS","Segoe UI",sans-serif; background:#e9edf3;
+         display:flex; flex-direction:column; justify-content:center; padding:0 84px; position:relative; overflow:hidden; }
+  .glow { position:absolute; border-radius:50%; }
+  .g1 { width:620px; height:620px; right:-190px; top:-210px; background:radial-gradient(circle,rgba(31,78,121,.16),transparent 68%); }
+  .g2 { width:520px; height:520px; left:-200px; bottom:-230px; background:radial-gradient(circle,rgba(31,78,121,.11),transparent 68%); }
+  .brand { display:flex; align-items:center; gap:20px; margin-bottom:34px; position:relative; }
+  .mark { width:82px; height:82px; border-radius:22px; background:#1F4E79; color:#fff;
+          display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:700; letter-spacing:.5px;
+          box-shadow:10px 10px 20px #c7d0db, -8px -8px 18px #ffffff; }
+  .brand span { font-size:27px; font-weight:700; color:#1F4E79; letter-spacing:.02em; }
+  h1 { font-size:60px; line-height:1.16; color:#111827; font-weight:700; letter-spacing:-.02em; position:relative; max-width:1040px; }
+  h1 em { font-style:normal; color:#1F4E79; }
+  p { font-size:27px; color:#4b5563; margin-top:26px; position:relative; max-width:880px; line-height:1.45; }
+  .pills { display:flex; gap:13px; margin-top:40px; position:relative; flex-wrap:wrap; }
+  .pill { font-size:20px; font-weight:600; color:#1F4E79; background:#e9edf3; padding:13px 24px; border-radius:999px;
+          box-shadow:5px 5px 11px #c7d0db, -5px -5px 11px #ffffff; }
+  .rule { position:absolute; left:0; right:0; bottom:0; height:12px; background:#1F4E79; }
+</style></head><body>
+  <div class="glow g1"></div><div class="glow g2"></div>
+  <div class="brand"><div class="mark">PI</div><span>PI &amp; PO Maker</span></div>
+  <h1>Proforma invoices, purchase orders<br>and quotations — <em>offline</em>.</h1>
+  <p>No account. No server. Every record stays in your own browser.</p>
+  <div class="pills"><div class="pill">Proforma Invoice</div><div class="pill">Purchase Order</div><div class="pill">Quotation</div><div class="pill">Tax Invoice</div><div class="pill">Delivery Note</div></div>
+  <div class="rule"></div>
+</body></html>

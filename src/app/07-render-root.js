@@ -7,6 +7,11 @@ const renderApp = () => {
   document.body.classList.toggle("modal-open", modalStack.length > 0);
 
   if (db.businesses.length === 0) {
+    // Onboarding, before there is anything to show. The metadata still needs
+    // resetting — someone who deletes their last business should not be left
+    // with a browser tab and a LocalBusiness block from the screen before.
+    applyRouteMeta("dashboard");
+    applyBusinessSchema();
     root.appendChild(renderOnboard());
     modalStack.forEach(bg => root.appendChild(bg));
     return;
@@ -16,14 +21,31 @@ const renderApp = () => {
     saveDB();
   }
 
+  // Keep the address bar, the browser tab and the structured data in step with
+  // whatever is about to be drawn — every route change funnels through here.
+  applyRouteMeta(currentTab);
+  applyBusinessSchema();
+
+  const route = ROUTES[currentTab] || ROUTES.dashboard;
   const app = el("div", { class: "app" });
   app.appendChild(renderTopbar());
   app.appendChild(renderTabs());
   const content = el("main", { class: "content", id: "main" });
+
+  // Exactly one <h1> per view, naming the section you are in. The topbar carries
+  // the product name as branding, not as a heading, so this is the only one.
+  const header = el("div", { class: "page-head" });
+  const crumbs = renderBreadcrumb(currentTab);
+  if (crumbs) header.appendChild(crumbs);
+  header.appendChild(el("h1", {}, route.h1));
+  if (route.lede) header.appendChild(el("p", { class: "page-lede" }, route.lede));
+  content.appendChild(header);
+
   if (currentTab === "customers") content.appendChild(renderCustomers());
   else if (currentTab === "products") content.appendChild(renderProducts());
   else if (currentTab === "documents") content.appendChild(renderDocuments());
   else content.appendChild(renderDashboard());
+  content.appendChild(renderAppFooter(currentTab));
   app.appendChild(content);
   root.appendChild(app);
 

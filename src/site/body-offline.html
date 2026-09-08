@@ -1,0 +1,67 @@
+<div class="cta">
+  <a class="btn btn-primary" href="{{root}}">Open the app and install it</a>
+  <a class="btn btn-secondary" href="{{root}}privacy/">Where your data lives</a>
+</div>
+
+<h2>Installing it</h2>
+<ul>
+  <li><strong>Android / Chrome / Edge</strong> — open the app, then use the browser menu's
+      <em>Install app</em> or <em>Add to Home screen</em>.</li>
+  <li><strong>iPhone / iPad, Safari</strong> — the Share button, then <em>Add to Home Screen</em>.</li>
+  <li><strong>Desktop</strong> — the install icon at the right-hand end of the address bar.</li>
+</ul>
+<p>It opens in its own window afterwards, with no address bar and its own icon, and
+starts from whatever page it was installed on.</p>
+
+<h2>How the offline part works</h2>
+<p>A service worker caches the app the first time you load it. After that the page
+comes out of the cache, so it opens with the connection off entirely — on a plane, at
+a site with no signal, or on a phone that has run out of data.</p>
+<p>The strategy is network-first for the page itself: when you are online it fetches
+the current version, so a new release is picked up on the next visit, and it falls
+back to the cached copy the moment the network is not there. Everything else is served
+from the cache first for speed.</p>
+
+<h2>Running it from a file</h2>
+<p>The app is also a single self-contained HTML file. Download it, put it on a USB
+stick or in a shared folder, and open it by double-clicking — no web server, no
+install, no internet. Browsers refuse to register a service worker or read a manifest
+from a <code>file://</code> path, so there is no install prompt in that mode, but the app
+itself works.</p>
+<p>PDF export needs two libraries that are loaded on demand to keep the first visit
+small. Keep the <code>lib/</code> folder next to the HTML file and they load from there. If
+you want a genuinely single file with nothing beside it, build one with
+<code>node&nbsp;build.js&nbsp;--single</code>, which inlines everything.</p>
+
+<h2>Moving data between devices</h2>
+<p>The app is per browser and per device by design — there is no account syncing
+anything in the background. To move your work:</p>
+<ul>
+  <li><strong>Backup file</strong> — export a JSON file holding every business, customer,
+      product and document, then import it on the other device.</li>
+  <li><strong>Google Drive</strong> — back up to and restore from a single file in your own
+      Drive. The app only ever sees files it created there, never the rest of your
+      Drive.</li>
+  <li><strong>CSV</strong> — customers, products and documents export separately for a
+      spreadsheet or another system.</li>
+  <li><strong>Save folder</strong> — on browsers that support it, pick a folder once and
+      exported PDFs go straight into it instead of the downloads pile.</li>
+</ul>
+
+<div class="note">
+  <p><strong>If the app ever opens empty,</strong> nothing is necessarily lost. <em>Restore from
+  this device</em> in Settings sweeps the browser's storage for any copy of the database
+  left behind by an older build or a half-finished import, and offers it back with a
+  summary of what is in it.</p>
+</div>
+
+<h2>Updating</h2>
+<p>There is nothing to update by hand. Load the app while online and the newest
+version replaces the cached one; your data is untouched by that, because it is stored
+separately from the app itself.</p>
+
+<h2>Where to go next</h2>
+<ul>
+  <li><a href="{{root}}privacy/">Privacy</a> — what is stored and what is never sent.</li>
+  <li><a href="{{root}}documents/">Documents</a> — what you can raise once it is installed.</li>
+</ul>

@@ -11,13 +11,13 @@
   try {
     if (!location.protocol.startsWith("http")) return;
 
-    const add = (rel, href) => {
-      const l = document.createElement("link");
-      l.rel = rel; l.href = href;
-      document.head.appendChild(l);
-    };
-    add("manifest", "manifest.webmanifest");
-    add("apple-touch-icon", "icon.svg");
+    // Only the manifest is added here. The icons are declared statically in the
+    // page <head>, including a real PNG apple-touch-icon — iOS ignores an SVG
+    // one, so pointing this at icon.svg only ever added a second, useless link.
+    const link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = "manifest.webmanifest";
+    document.head.appendChild(link);
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

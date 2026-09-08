@@ -1,0 +1,75 @@
+<div class="cta">
+  <a class="btn btn-primary" href="{{root}}#/documents">Open the documents tab</a>
+  <a class="btn btn-secondary" href="{{root}}products/">See the product catalogue</a>
+</div>
+
+<h2>The five document types</h2>
+<p>Every type is built from the same product list, the same customer record and the
+same business header, so switching between them costs nothing. Each keeps its own
+running number series and its own default validity period.</p>
+
+<div class="table-wrap">
+<table>
+  <caption class="sr-only">Document types, their numbering and their validity defaults</caption>
+  <thead>
+    <tr><th scope="col">Type</th><th scope="col">Default number format</th><th scope="col">Dated field</th><th scope="col">Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><th scope="row">Proforma invoice</th><td><code>{YYYY}{####}</code></td><td>Expiration date, 5 days</td><td>The quote a buyer pays against before goods ship.</td></tr>
+    <tr><th scope="row">Purchase order</th><td><code>PO-{YYYY}-{####}</code></td><td>Delivery by, 30 days</td><td>Addressed to a supplier rather than a customer.</td></tr>
+    <tr><th scope="row">Quotation</th><td><code>QT-{YYYY}-{####}</code></td><td>Valid until, 15 days</td><td>Converts straight into a proforma or a tax invoice.</td></tr>
+    <tr><th scope="row">Tax invoice</th><td><code>INV-{YYYY}-{####}</code></td><td>—</td><td>Converts into a delivery note.</td></tr>
+    <tr><th scope="row">Delivery note</th><td><code>DN-{YYYY}-{####}</code></td><td>—</td><td>Prints quantities with the prices hidden.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Numbering that stays in order</h2>
+<p>Number formats are yours to set per business and per type. <code>{YYYY}</code> becomes the
+year and <code>{####}</code> becomes a zero-padded counter that advances only when a document
+is actually saved — so an abandoned draft never burns a number and leaves a gap in
+your books.</p>
+
+<h2>One document becomes the next</h2>
+<p>A quotation that gets accepted does not need retyping. Convert it and the line
+items, discounts, customer and terms carry across into a proforma invoice or a tax
+invoice; a tax invoice converts on to a delivery note the same way. The new document
+takes the next number in its own series and keeps a reference back to where it came
+from.</p>
+
+<h2>Discounts, tax and totals</h2>
+<ul>
+  <li>A percentage or fixed discount per line, per document, or inherited from the
+      customer's saved rules.</li>
+  <li>Per-product taxable flags, so zero-rated items sit alongside taxable ones in
+      the same document and the tax base still comes out right.</li>
+  <li>Freight, packing and other charges added as their own lines.</li>
+  <li>Totals in words, written out automatically for the amount payable.</li>
+  <li>A bank payment QR code generated from your account details, drawn into the
+      PDF so it can be scanned straight off a printed page.</li>
+</ul>
+
+<h2>What comes out</h2>
+<ul>
+  <li><strong>PDF</strong> — a real paginated A4 document, with the header repeated and
+      the totals block kept whole rather than split across a page break.</li>
+  <li><strong>PNG</strong> — one image per page, for pasting into a chat.</li>
+  <li><strong>Print</strong> — the browser's own dialogue, using the same layout.</li>
+  <li><strong>WhatsApp</strong> — a share link with the document summary prefilled.</li>
+</ul>
+
+<div class="note">
+  <p><strong>The preview is the document.</strong> What you see in the on-screen A4 preview
+  is the same layout that is captured for the PDF and the PNG and sent to the printer,
+  at the same page size. There is no second template that drifts out of step.</p>
+</div>
+
+<h2>Where to go next</h2>
+<ul>
+  <li><a href="{{root}}customers/">Customers</a> — the addresses and discount rules
+      documents are filled in from.</li>
+  <li><a href="{{root}}products/">Products</a> — the catalogue every line item is
+      picked from.</li>
+  <li><a href="{{root}}offline/">Offline &amp; install</a> — raising documents with no
+      connection.</li>
+</ul>

@@ -1,0 +1,8 @@
+# PI & PO Maker
+# Everything here is public and static. There is no user data behind any of it —
+# documents live in each visitor's own browser, never on this server.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://shresthadeep77-wq.github.io/bizdoc/sitemap.xml

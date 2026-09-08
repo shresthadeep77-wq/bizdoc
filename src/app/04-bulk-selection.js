@@ -161,7 +161,9 @@ const bankNameFromCode = (code) => (NEPAL_BANK_CODES.find(([c]) => c === code) |
 // Build a QR-code <img> (data URL) for the given text. Uses the bundled
 // qrcode-generator, so it works fully offline and renders into the PDF canvas.
 // ecLevel matches the source generator ("L" for the bank payment format).
-const makeQRImg = (text, px = 96, ecLevel = "L") => {
+// `alt` describes what scanning the code actually does — a screen reader user
+// gets no information at all from the image itself.
+const makeQRImg = (text, px = 96, ecLevel = "L", alt = "QR code") => {
   try {
     const qr = window.__qrcode(0, ecLevel);
     qr.addData(text);
@@ -169,7 +171,7 @@ const makeQRImg = (text, px = 96, ecLevel = "L") => {
     const count = qr.getModuleCount();
     const cell = Math.max(2, Math.floor(px / (count + 2)));
     const url = qr.createDataURL(cell, cell); // second arg = margin cells
-    return el("img", { src: url, style: { width: px + "px", height: px + "px", display: "block" }, alt: "Banking QR" });
+    return el("img", { src: url, alt, style: { width: px + "px", height: px + "px", display: "block" } });
   } catch (e) { return null; }
 };
 // Payload encoded into a bank's payment QR. Exact JSON shape the wallet scanner

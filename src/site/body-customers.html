@@ -1,0 +1,56 @@
+<div class="cta">
+  <a class="btn btn-primary" href="{{root}}#/customers">Open the customers tab</a>
+  <a class="btn btn-secondary" href="{{root}}documents/">See what gets raised against them</a>
+</div>
+
+<h2>What a customer record holds</h2>
+<ul>
+  <li>Client number, company name and contact name.</li>
+  <li>Phone, email and billing address.</li>
+  <li>VAT or PAN number, printed on every tax document raised for that account.</li>
+  <li>Any number of discount rules, applied automatically to matching line items.</li>
+</ul>
+<p>Pick the company once when you start a document and all of it drops into the
+header — no copying an address out of an old file and no stale tax number going out
+on a printed invoice.</p>
+
+<h2>Discount rules that follow the catalogue</h2>
+<p>A rule is a category path and a percentage. Point one at a whole branch —
+say <em>Fittings</em> — and every product under it gets that discount for this customer.
+Point another at <em>Fittings › Brass</em> and the deeper, more specific rule wins for
+brass fittings while the broader one still covers the rest.</p>
+<p>That means a negotiated price list is entered once, as a handful of rules, instead
+of being remembered line by line on every document. You can still override the
+discount on an individual line when a one-off deal calls for it.</p>
+
+<h2>The customer report</h2>
+<p>Every account prints a dated statement covering the documents raised against it:</p>
+<ul>
+  <li>Identity block with client number, tax number and full contact details.</li>
+  <li>Total billed and total discount given, with the average document value.</li>
+  <li>A count of documents by status, so drafts and cancellations are visible
+      instead of quietly inflating the totals.</li>
+  <li>The product mix by value, ranked, showing what this customer actually buys.</li>
+  <li>Every document listed with its number, date, type and amount.</li>
+</ul>
+<p>Cancelled documents are excluded from the money figures but still counted in the
+status breakdown. The report exports as a PDF from the same preview you see.</p>
+
+<h2>Getting a customer list in and out</h2>
+<p>Customers import and export as CSV, with a preview step before anything is written
+so a bad column mapping is caught rather than merged in. A blank template with the
+exact expected columns is downloadable from the same menu, which is usually the
+fastest way to move a list across from a spreadsheet.</p>
+
+<div class="note">
+  <p><strong>All of this is local.</strong> Customer names, addresses and tax numbers live in
+  your browser on this device and are not sent anywhere. See
+  <a href="{{root}}privacy/">how the data is stored</a>.</p>
+</div>
+
+<h2>Where to go next</h2>
+<ul>
+  <li><a href="{{root}}products/">Products</a> — the catalogue the discount rules point at.</li>
+  <li><a href="{{root}}documents/">Documents</a> — the five types raised against a customer.</li>
+  <li><a href="{{root}}offline/">Offline &amp; install</a> — moving your list to another device.</li>
+</ul>

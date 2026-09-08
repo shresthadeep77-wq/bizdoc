@@ -1,0 +1,68 @@
+{
+  "origin": "https://shresthadeep77-wq.github.io",
+  "base": "/bizdoc/",
+  "siteName": "PI & PO Maker",
+  "pages": [
+    {
+      "slug": "",
+      "file": "index.html",
+      "nav": "Home",
+      "title": "PI & PO Maker — Free Offline Proforma Invoice, Purchase Order & Quotation Generator",
+      "description": "Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes in your browser. Exports PDF, PNG, print and WhatsApp. No account, no server, works offline.",
+      "app": true
+    },
+    {
+      "slug": "documents/",
+      "file": "documents/index.html",
+      "nav": "Documents",
+      "tab": "documents",
+      "title": "Proforma Invoice, Purchase Order & Quotation Maker — PI & PO Maker",
+      "description": "Five document types from one product list: proforma invoice, purchase order, quotation, tax invoice and delivery note. Auto-numbered, convertible, exported as A4 PDF, PNG, print or WhatsApp.",
+      "h1": "Proforma invoices, purchase orders and quotations",
+      "lede": "One product list, five document types, and a paginated A4 layout that looks the same on screen, in the PDF and on paper.",
+      "body": "body-documents.html"
+    },
+    {
+      "slug": "customers/",
+      "file": "customers/index.html",
+      "nav": "Customers",
+      "tab": "customers",
+      "title": "Customer Database & Account Statements — PI & PO Maker",
+      "description": "Keep customers, contacts, VAT numbers and per-customer discount rules in one list, then print a dated statement of every document raised against any account.",
+      "h1": "A customer list that fills in the paperwork",
+      "lede": "Enter a company once. Every document you raise afterwards picks up its address, tax number and agreed discounts on its own.",
+      "body": "body-customers.html"
+    },
+    {
+      "slug": "products/",
+      "file": "products/index.html",
+      "nav": "Products",
+      "tab": "products",
+      "title": "Product Catalogue & Price List Manager — PI & PO Maker",
+      "description": "Hold part numbers, descriptions, units, rates, weights and HSN codes in a searchable catalogue with categories, bulk rate updates and CSV import and export.",
+      "h1": "Your price list, kept in one place",
+      "lede": "Part numbers, rates, units, weights and HSN codes in a catalogue you can search, group into categories and re-price in bulk.",
+      "body": "body-products.html"
+    },
+    {
+      "slug": "offline/",
+      "file": "offline/index.html",
+      "nav": "Offline & install",
+      "title": "Install It & Use It Offline — PI & PO Maker",
+      "description": "Install PI & PO Maker to your home screen or desktop and raise documents with no internet at all. How the offline cache works and how to move your data between devices.",
+      "h1": "Install it, then forget about the internet",
+      "lede": "The whole app is cached on first visit. After that it opens and works with the connection off — on a phone, a laptop, or a USB stick.",
+      "body": "body-offline.html"
+    },
+    {
+      "slug": "privacy/",
+      "file": "privacy/index.html",
+      "nav": "Privacy",
+      "title": "Privacy — Your Data Never Leaves Your Browser — PI & PO Maker",
+      "description": "There is no account, no server and no analytics. Everything you type is stored in your own browser's localStorage and is only sent anywhere if you explicitly back it up to Google Drive.",
+      "h1": "Your data never leaves your browser",
+      "lede": "No account, no server, no analytics, no cookies. What you type stays on the device you typed it on.",
+      "body": "body-privacy.html"
+    }
+  ]
+}

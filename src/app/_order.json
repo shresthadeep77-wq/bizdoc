@@ -1,4 +1,5 @@
 [
+  "00-pdf-libs.js",
   "01-storage.js",
   "02-save-folder-file-system-access-api.js",
   "03-helpers.js",
@@ -26,5 +27,6 @@
   "25-google-drive-backup.js",
   "26-backup.js",
   "27-utils.js",
-  "28-boot.js"
+  "28-routing-seo.js",
+  "29-boot.js"
 ]

@@ -11,7 +11,7 @@ const renderDashboard = () => {
   const stat = (label, val, tab) => {
     const c = el("button", { class: "stat-tile", type: "button",
       "aria-label": `${val} ${label} — open the ${label} tab`,
-      onclick: () => { currentTab = tab; bulkSel.kind = null; bulkSel.ids.clear(); render(); } });
+      onclick: () => navigateTo(tab) });
     c.appendChild(el("div", { class: "stat-num" }, String(val)));
     c.appendChild(el("div", { class: "stat-label" }, label));
     return c;

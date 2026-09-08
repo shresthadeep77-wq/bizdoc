@@ -1,0 +1,63 @@
+<p>This page describes exactly what the app does with what you type. It is short
+because the app does very little.</p>
+
+<h2>There is no server</h2>
+<p>PI &amp; PO Maker is a static page. Once it has loaded, there is no backend it talks
+to, no API it posts to and nowhere for your documents to be sent. Businesses,
+customers, products and documents are written to <code>localStorage</code> in your own
+browser, under a single key, on the device you are using.</p>
+
+<h2>No account, no analytics, no cookies</h2>
+<ul>
+  <li>There is no sign-up and no login.</li>
+  <li>No analytics, telemetry, session recording or error reporting is loaded.</li>
+  <li>The app sets no cookies and no tracking identifiers.</li>
+  <li>There are no third-party advertising or social scripts on the page.</li>
+</ul>
+
+<h2>The two things that do leave your device</h2>
+<p>Both are off until you start them, and neither runs in the background.</p>
+<h3>Google Drive backup</h3>
+<p>If — and only if — you press <em>Back up to Google Drive</em>, the app loads Google's
+sign-in script, asks for your permission, and writes one JSON file into your own
+Drive. It requests the <code>drive.file</code> scope, which is the narrowest one available:
+it can see and change only the file it created itself, and has no access to anything
+else in your Drive. Restoring reads that same file back. Google's own handling of it
+is covered by their privacy policy, not this one.</p>
+<h3>WhatsApp sharing</h3>
+<p>The WhatsApp share button opens WhatsApp with a message prefilled. Nothing is sent
+until you choose a recipient and press send yourself.</p>
+
+<h2>What that means in practice</h2>
+<div class="table-wrap">
+<table>
+  <caption class="sr-only">Where each kind of data is stored</caption>
+  <thead><tr><th scope="col">Data</th><th scope="col">Where it lives</th><th scope="col">Sent anywhere?</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Business details, logo, stamp, signature</th><td>Your browser</td><td>No</td></tr>
+    <tr><th scope="row">Customers, tax numbers, addresses</th><td>Your browser</td><td>No</td></tr>
+    <tr><th scope="row">Products and rates</th><td>Your browser</td><td>No</td></tr>
+    <tr><th scope="row">Documents and totals</th><td>Your browser</td><td>No</td></tr>
+    <tr><th scope="row">Bank account details for the payment QR</th><td>Your browser</td><td>No — the QR is drawn locally</td></tr>
+    <tr><th scope="row">Backup file</th><td>Wherever you save it</td><td>Only to your own Drive, only when you ask</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>The other side of that bargain</h2>
+<p>Because nothing is on a server, nobody can recover your data for you. If you clear
+your browsing data, uninstall the browser, or lose the device, the records go with it.
+Storage is also per browser and per device — Chrome on your laptop and Safari on your
+phone are two separate sets of data.</p>
+<p>So take backups. <a href="{{root}}offline/">Export a backup file</a> somewhere safe on
+a schedule that matches how much work you would hate to retype.</p>
+
+<h2>Deleting everything</h2>
+<p>Clearing site data for this page in your browser's settings removes every trace of
+it. There is no copy anywhere else to ask us to delete, and no account to close.</p>
+
+<h2>Where to go next</h2>
+<ul>
+  <li><a href="{{root}}offline/">Offline &amp; install</a> — backups and moving between devices.</li>
+  <li><a href="https://github.com/shresthadeep77-wq/bizdoc">Read the source</a> — all of it, including every line above.</li>
+</ul>

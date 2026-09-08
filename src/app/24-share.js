@@ -92,6 +92,7 @@ const capturePreviewAsCanvas = async (previewEl) => {
 const downloadPNG = async (previewEl, d, btn) => {
   const busy = btnBusy(btn, "Saving…");
   try {
+    if (!(await ensurePdfLibs())) return;
     const canvas = await capturePreviewAsCanvas(previewEl);
     const filename = docBaseName(d, "png");
     const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
@@ -127,6 +128,7 @@ const downloadPDF = async (previewEl, d, btn) => {
   const original = btn ? btn.innerHTML : null;
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Generating…'; }
   try {
+    if (!(await ensurePdfLibs())) return;
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const pageW = pdf.internal.pageSize.getWidth();  // 210
@@ -194,6 +196,7 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
   const original = btn ? btn.innerHTML : null;
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Preparing…'; }
   try {
+    if (!(await ensurePdfLibs())) return;
     const canvas = await capturePreviewAsCanvas(previewEl);
     const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
     const filename = docBaseName(d, "png");

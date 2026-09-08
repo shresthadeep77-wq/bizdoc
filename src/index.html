@@ -3,20 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PI &amp; PO Maker">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1F4E79">
-<title>PI &amp; PO Maker — Proforma Invoices, Purchase Orders &amp; Quotations</title>
-<meta name="description" content="Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes offline. Everything is stored in your own browser — no account, no server.">
+<title>PI &amp; PO Maker — Free Offline Proforma Invoice, Purchase Order &amp; Quotation Generator</title>
+<meta name="description" content="Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes in your browser. Exports PDF, PNG, print and WhatsApp. No account, no server, works offline.">
 <link rel="canonical" href="https://shresthadeep77-wq.github.io/bizdoc/">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<!-- Inline SVG icon first: no extra request, and no 404 when the app is opened
+     from a file:// path with nothing beside it. favicon.ico is what a browser
+     asks for by default and what link previews fall back to. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231F4E79'/%3E%3Ctext x='50%25' y='55%25' font-family='Segoe UI,Arial' font-size='30' font-weight='700' fill='%23fff' text-anchor='middle' dominant-baseline='middle'%3EPI%3C/text%3E%3C/svg%3E" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta property="og:type" content="website">
-<meta property="og:title" content="PI &amp; PO Maker">
-<meta property="og:description" content="Create proforma invoices, purchase orders and quotations offline. Your data stays in your browser.">
+<meta property="og:site_name" content="PI &amp; PO Maker">
+<meta property="og:title" content="PI &amp; PO Maker — proforma invoices, purchase orders and quotations, offline">
+<meta property="og:description" content="Create proforma invoices, purchase orders and quotations in your browser. No account, no server — your data stays on your device.">
 <meta property="og:url" content="https://shresthadeep77-wq.github.io/bizdoc/">
-<meta name="twitter:card" content="summary">
-<!-- Inline favicon: no extra request, and no 404 when the app runs from file:// -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231F4E79'/%3E%3Ctext x='50%25' y='55%25' font-family='Segoe UI,Arial' font-size='30' font-weight='700' fill='%23fff' text-anchor='middle' dominant-baseline='middle'%3EPI%3C/text%3E%3C/svg%3E">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<meta property="og:image" content="https://shresthadeep77-wq.github.io/bizdoc/assets/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="PI &amp; PO Maker — proforma invoices, purchase orders and quotations, offline.">
+<meta property="og:locale" content="en">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PI &amp; PO Maker — proforma invoices, purchase orders and quotations, offline">
+<meta name="twitter:description" content="Create proforma invoices, purchase orders and quotations in your browser. No account, no server — your data stays on your device.">
+<meta name="twitter:image" content="https://shresthadeep77-wq.github.io/bizdoc/assets/social-card.png">
+<meta name="twitter:image:alt" content="PI &amp; PO Maker — proforma invoices, purchase orders and quotations, offline.">
+<script type="application/ld+json">
+<!--include:schema-->
+</script>
 <style>
 <!--include:styles.css-->
 </style>
@@ -25,14 +44,24 @@
 <a class="skip-link" href="#main">Skip to main content</a>
 <div id="app"></div>
 
+<noscript>
+  <div class="noscript-note">
+    <h1>PI &amp; PO Maker needs JavaScript</h1>
+    <p>The whole app runs in your browser — there is no server doing the work — so it
+    cannot start with JavaScript turned off. Turn it on for this page and reload.</p>
+    <p>These pages explain what it does and read fine without it:</p>
+    <ul>
+      <li><a href="documents/">Proforma invoices, purchase orders and quotations</a></li>
+      <li><a href="customers/">Customer list and account statements</a></li>
+      <li><a href="products/">Product catalogue and price list</a></li>
+      <li><a href="offline/">Installing it and using it offline</a></li>
+      <li><a href="privacy/">Privacy — where your data is stored</a></li>
+    </ul>
+  </div>
+</noscript>
+
 <script>
 <!--include:vendor/qrcode.js-->
-</script>
-<script>
-<!--include:vendor/html2canvas.js-->
-</script>
-<script>
-<!--include:vendor/jspdf.js-->
 </script>
 <script>
 <!--include:app/*-->

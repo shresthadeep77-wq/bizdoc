@@ -1,7 +1,9 @@
 // ==================== TOPBAR & TABS ====================
 const renderTopbar = () => {
   const bar = el("header", { class: "topbar" });
-  bar.appendChild(el("h1", {}, "PI & PO Maker"));
+  // Branding, not a heading: the <h1> belongs to the section being shown, and a
+  // page should not open with a heading that says the same thing on every view.
+  bar.appendChild(el("div", { class: "brand-title" }, "PI & PO Maker"));
   const sw = el("select", { class: "biz-switcher", "aria-label": "Active business", onchange: (e) => {
     if (e.target.value === "__new__") { openBusinessModal(); return; }
     db.activeBusinessId = parseInt(e.target.value);
@@ -34,7 +36,7 @@ const renderTabs = () => {
       "aria-current": currentTab === k ? "page" : undefined,
       onclick: () => {
         if (k === "settings") { openSettingsModal(); return; }
-        currentTab = k; bulkSel.kind = null; bulkSel.ids.clear(); render();
+        navigateTo(k);
       }
     });
     const iconSpan = el("span", { class: "tab-icon" });

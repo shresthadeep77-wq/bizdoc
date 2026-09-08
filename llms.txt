@@ -1,0 +1,48 @@
+# PI & PO Maker
+
+> A free, offline-first web app for creating business documents — proforma
+> invoices, purchase orders, quotations, tax invoices and delivery notes — with
+> PDF, PNG, print and WhatsApp output. It runs entirely in the browser: no
+> account, no server, no database. Everything a user enters is stored in their
+> own browser's localStorage, on their own device.
+
+Built and used mainly for small trading and manufacturing businesses. Currency
+and tax defaults lean towards Nepal (NPR, PAN, 13% VAT) but nothing is hardcoded
+to one country.
+
+## Pages
+
+- [Documents](https://shresthadeep77-wq.github.io/bizdoc/documents/): Five document types from one product list: proforma invoice, purchase order, quotation, tax invoice and delivery note. Auto-numbered, convertible, exported as A4 PDF, PNG, print or WhatsApp.
+- [Customers](https://shresthadeep77-wq.github.io/bizdoc/customers/): Keep customers, contacts, VAT numbers and per-customer discount rules in one list, then print a dated statement of every document raised against any account.
+- [Products](https://shresthadeep77-wq.github.io/bizdoc/products/): Hold part numbers, descriptions, units, rates, weights and HSN codes in a searchable catalogue with categories, bulk rate updates and CSV import and export.
+- [Offline & install](https://shresthadeep77-wq.github.io/bizdoc/offline/): Install PI & PO Maker to your home screen or desktop and raise documents with no internet at all. How the offline cache works and how to move your data between devices.
+- [Privacy](https://shresthadeep77-wq.github.io/bizdoc/privacy/): There is no account, no server and no analytics. Everything you type is stored in your own browser's localStorage and is only sent anywhere if you explicitly back it up to Google Drive.
+- [The app itself](https://shresthadeep77-wq.github.io/bizdoc/): the tool, which is what the site is for.
+
+## What it does
+
+- Five document types (proforma invoice, purchase order, quotation, tax invoice,
+  delivery note), each with its own number series, format and validity default.
+- Quotations convert into proforma or tax invoices; tax invoices convert into
+  delivery notes, carrying line items and discounts across.
+- A customer list holding contacts, addresses and tax numbers, plus discount
+  rules that attach to whole branches of the product category tree.
+- A product catalogue with part numbers, units, rates, weights and HSN codes,
+  a nested category tree, multi-select and bulk rate updates.
+- A4 paginated preview that is the same layout used for the PDF, the PNG and
+  the printer.
+- CSV import and export for customers, products and documents, with a preview
+  before anything is written.
+- Backup and restore as a JSON file, or to a single file in the user's own
+  Google Drive (drive.file scope — it can only see the file it created).
+
+## Privacy
+
+There is no backend. No analytics, no cookies, no tracking, no account. The two
+things that can leave the device are a Google Drive backup and a WhatsApp share,
+both only when the user starts them. See https://shresthadeep77-wq.github.io/bizdoc/privacy/.
+
+## Source
+
+Zero dependencies, no framework, no build tooling beyond one Node script.
+Source: https://github.com/shresthadeep77-wq/bizdoc

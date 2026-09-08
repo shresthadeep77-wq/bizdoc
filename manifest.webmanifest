@@ -1,14 +1,26 @@
 {
-  "name": "PI & PO Maker",
+  "id": "/bizdoc/",
+  "name": "PI & PO Maker — Proforma Invoices, Purchase Orders & Quotations",
   "short_name": "PI/PO",
-  "description": "Create proforma invoices, purchase orders and quotations offline.",
+  "description": "Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes offline. No account, no server — everything stays in your browser.",
+  "lang": "en",
+  "dir": "ltr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#e9edf3",
   "theme_color": "#1F4E79",
+  "categories": ["business", "productivity", "finance"],
   "icons": [
-    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    { "src": "./assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Documents", "url": "./#/documents" },
+    { "name": "Customers", "url": "./#/customers" },
+    { "name": "Products", "url": "./#/products" }
   ]
 }

@@ -1,0 +1,3 @@
+# Built on demand by `node build.js --single`, for copying somewhere with no
+# web server. Not part of the deployed site, so it is not committed.
+bizdoc-offline.html
