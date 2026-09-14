@@ -62,9 +62,31 @@ const appOrder = () => {
   return order;
 };
 
-const appCode = () => appOrder()
-  .map((f) => read(path.join("app", f)).trimEnd())
-  .join("\n\n");
+const appCode = () => {
+  const files = appOrder();
+  const parts = files.map((f) => read(path.join("app", f)).trimEnd());
+
+  // Refuse to build code that cannot parse. The whole app is one <script>, so a
+  // single stray character anywhere in src/app/ means the browser discards the
+  // lot and the page comes up blank — with nothing in the build output to say
+  // why. Checking each file on its own names the file that is actually wrong.
+  const vm = require("vm");
+  files.forEach((f, i) => {
+    try {
+      new vm.Script(parts[i], { filename: `src/app/${f}` });
+    } catch (e) {
+      throw new Error(`src/app/${f} has a syntax error and would break the whole app: ${e.message}`);
+    }
+  });
+
+  const joined = parts.join("\n\n");
+  try {
+    new vm.Script(joined, { filename: "app bundle" });
+  } catch (e) {
+    throw new Error(`the app files do not combine into valid JavaScript: ${e.message}`);
+  }
+  return joined;
+};
 
 /* -- structured data ------------------------------------------------------ */
 
@@ -389,9 +411,13 @@ const args = process.argv.slice(2);
 
 if (args.includes("--single")) {
   const out = args[args.indexOf("--single") + 1] || "bizdoc-offline.html";
+  // path.resolve, not path.join: an absolute destination ("D:/usb/bizdoc.html")
+  // has to mean that place, not that path glued onto the end of the repo's.
+  const dest = path.resolve(ROOT, out);
   const html = buildApp({ inlineLibs: true });
-  fs.writeFileSync(path.join(ROOT, out), html);
-  console.log(`built ${out} (${(Buffer.byteLength(html) / 1024).toFixed(0)} KB, fully self-contained)`);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, html);
+  console.log(`built ${dest} (${(Buffer.byteLength(html) / 1024).toFixed(0)} KB, fully self-contained)`);
   process.exit(0);
 }
 

@@ -138,8 +138,19 @@ const attachPreviewScaler = (wrapEl, scalerEl, pageEl) => {
   bar.appendChild(mk("Fit", () => { userZoom = null; }));
   wrapEl.parentNode.insertBefore(bar, wrapEl);
 
-  // Re-fit on viewport changes.
-  ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
+  // Re-fit on viewport changes. The observer must not call apply() directly:
+  // apply() sets the scaler's height, which resizes the very element being
+  // observed, and the browser reports that as "ResizeObserver loop completed
+  // with undelivered notifications" in the console. Waiting for the next frame
+  // breaks the loop, and coalescing means a drag-resize measures once a frame
+  // instead of once per pixel.
+  let applyQueued = false;
+  const scheduleApply = () => {
+    if (applyQueued) return;
+    applyQueued = true;
+    requestAnimationFrame(() => { applyQueued = false; apply(); });
+  };
+  ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(scheduleApply) : null;
   if (ro) ro.observe(wrapEl);
   window.addEventListener("resize", apply);
   setTimeout(apply, 0);

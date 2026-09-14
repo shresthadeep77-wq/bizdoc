@@ -1,4 +1,5 @@
 [
+  "00-money.js",
   "00-analytics.js",
   "00-pdf-libs.js",
   "01-storage.js",

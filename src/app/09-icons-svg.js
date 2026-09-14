@@ -25,7 +25,11 @@ const svgIcon = (name, cls = "ico") => {
 };
 // Helper: build a button with icon + label, applies action-bar friendly markup
 const iconLabelBtn = (opts) => {
-  const b = el("button", { class: opts.class || "btn", onclick: opts.onclick, title: opts.title || opts.label });
+  // type="button" so one of these inside a form can never submit it by accident.
+  // The label is always in the markup even when CSS hides it on a narrow
+  // screen, so the button still announces itself to a screen reader.
+  const b = el("button", { class: opts.class || "btn", type: "button", onclick: opts.onclick,
+    title: opts.title || opts.label, "aria-label": opts.label });
   if (opts.icon) b.appendChild(svgIcon(opts.icon));
   b.appendChild(el("span", { class: "lbl" }, opts.label));
   return b;

@@ -27,7 +27,7 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="PI &amp; PO Maker — proforma invoices, purchase orders and quotations, offline.">
-<meta property="og:locale" content="en">
+<meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="PI &amp; PO Maker — proforma invoices, purchase orders and quotations, offline">
 <meta name="twitter:description" content="Create proforma invoices, purchase orders and quotations in your browser. No account, no server — your data stays on your device.">
@@ -283,6 +283,23 @@ button.stat-tile:hover { box-shadow: var(--shadow-sm); }
 .totals { background: var(--primary-tint); padding: 12px; border-radius: var(--radius-sm); }
 .totals-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
 .totals-row.grand { font-weight: 700; font-size: 15px; border-top: 2px solid var(--primary); padding-top: 8px; margin-top: 8px; color: var(--primary); }
+.totals-row { align-items: center; gap: 10px; }
+/* Tax-rate row: the two presets sit beside the box rather than above it. */
+.tax-rate-controls { display: flex; align-items: center; gap: 6px; }
+.chip-btn { border: 0; background: var(--surface); color: var(--muted); box-shadow: var(--shadow-sm);
+  border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; line-height: 1.4; }
+.chip-btn:hover { color: var(--primary); }
+.chip-btn:active { box-shadow: var(--shadow-inset); }
+
+/* Shown above a saved document whose stored totals no longer match its items.
+   In-app only — @media print already hides .no-print, and this sits outside
+   the .pv-page that gets exported. */
+.doc-totals-warning { display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12;
+  border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 12px;
+  font-size: 12.5px; line-height: 1.5; }
+.doc-totals-warning > div { flex: 1 1 260px; min-width: 0; }
+.chip-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* Preview — A4 (210mm x 297mm) @ 96dpi = 794x1123px */
 .preview-wrap { background: #55606e; padding: 20px 12px; overflow-x: auto; }
@@ -328,7 +345,18 @@ button.stat-tile:hover { box-shadow: var(--shadow-sm); }
 .pv-items td { padding: 5px 6px; border: 1px solid #d0d0d0; line-height: 1.35; }
 .pv-items .num { text-align: right; font-variant-numeric: tabular-nums; }
 .pv-items .pv-cat-chip { display: inline-block; background: #e8eef5; color: #1F4E79; font-size: 8.5px; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-right: 5px; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.2; vertical-align: 1px; }
-.pv-items .pv-desc-text { }
+/* A part number or product name with no spaces in it (a long SKU, a URL) must
+   wrap inside its cell rather than pushing the price columns off the page. */
+.pv-items .pv-desc-text { overflow-wrap: anywhere; }
+.pv-items td, .pv-items th { overflow-wrap: anywhere; }
+/* The discount column: the percentage, and the list price it came off. */
+.pv-items .pv-disc-pct { font-weight: 700; white-space: nowrap; }
+.pv-items .pv-disc-was { font-size: 8.5px; color: #6b7280; white-space: nowrap; }
+/* Marks a line that carries no VAT, for when the plain "TAX" column has been
+   replaced by the discount or VAT column. */
+.pv-items .pv-novat-chip { display: inline-block; margin-left: 6px; padding: 0 4px;
+  border: 1px solid #cbd5e1; border-radius: 3px; font-size: 8px; font-weight: 700;
+  letter-spacing: .03em; color: #64748b; vertical-align: 1px; white-space: nowrap; }
 /* "Continued" marker on the last row of a non-final page */
 .pv-items-cont-note { padding: 4px 8px; text-align: right; font-size: 9.5px; font-style: italic; color: #6b7280; border: 1px solid #1F4E79; border-top: none; background: #f9fafb; }
 /* Totals block — full width, below items */
@@ -689,7 +717,7 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
      fits the modal/viewport. Printing must undo that: otherwise the browser
      prints the shrunk box at full (unscaled) font size and every line of
      text overlaps the next — the same issue the html2canvas capture path
-     already guards against via withScalerReset(). */
+     avoids by cloning each page onto an untransformed stage. */
   .pv-scaler { transform: none !important; height: auto !important; }
   .pv-book { gap: 0; }
   .pv-page { box-shadow: none; page-break-after: always; break-after: page; }
@@ -708,12 +736,19 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 .crumbs ol { list-style: none; display: flex; flex-wrap: wrap; gap: 7px; font-size: 12px; color: var(--muted); }
 .crumbs li { display: flex; align-items: center; gap: 7px; }
 .crumbs li + li::before { content: "\203A"; color: #9aa3b0; }
-.crumbs a { color: var(--muted); text-decoration: none; }
+/* Same reason as the footer links: 12px text is a 14px-tall tap target. */
+.crumbs a { color: var(--muted); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 24px; padding: 0 4px; margin-inline: -4px; }
 .crumbs a:hover { color: var(--primary); text-decoration: underline; }
 .crumbs [aria-current="page"] { color: var(--text); font-weight: 600; }
 .app-foot { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--divider); }
-.app-foot-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; }
-.app-foot-links a { color: var(--muted); text-decoration: none; }
+.app-foot-links { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 12px; }
+/* The text is 12px, which is a 14px-tall target — too small to hit reliably
+   with a thumb. The padding brings each link up to the 24px minimum without
+   changing how the row looks; the negative inline margin keeps the first link
+   flush with the text above it. */
+.app-foot-links a { color: var(--muted); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 24px; padding: 0 4px; margin-inline: -4px; }
 .app-foot-links a:hover { color: var(--primary); text-decoration: underline; }
 
 /* Shown only when scripting is off — the app itself cannot start without it. */
@@ -3049,6 +3084,225 @@ var qrcode = function() {
 window.__qrcode = qrcode;
 </script>
 <script>
+// ==================== MONEY & VAT ====================
+// Every amount that reaches a document goes through here.
+//
+// Money is decimal; JavaScript numbers are binary. 0.1 + 0.2 is
+// 0.30000000000000004, and the obvious Math.round(n * 100) / 100 turns 1.005
+// into 1.00 because the stored value is really 1.00499999999999989. On an
+// invoice that shows up as a printed column that does not add up to its own
+// total, which is exactly the kind of thing a customer notices.
+
+// A number, or 0 — never NaN, Infinity or "12abc" leaking into a total.
+const safeNum = (v) => {
+  const n = typeof v === "number" ? v : parseFloat(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+// Round to 2 decimals the way a person does it: half away from zero, decided on
+// the decimal digits rather than the binary ones. Going through the string form
+// ("1.005" -> "1.005e2" -> 100.5) is what makes 1.005 round up to 1.01.
+const round2 = (v) => {
+  const n = safeNum(v);
+  if (Math.abs(n) >= 1e15) return Math.round(n); // past here a double has no decimals left anyway
+  const scaled = Number(`${n}e2`);
+  return Number(`${Math.round(Math.abs(scaled)) * Math.sign(scaled)}e-2`);
+};
+
+// Add a list of amounts, rounding as we go so the sum matches what was printed.
+const sum2 = (nums) => nums.reduce((s, n) => round2(s + safeNum(n)), 0);
+
+// Split a number into whole-number digits and how far the point was moved:
+// 33.33 -> [3333, 2]. Anything already in exponent form ("1e+21") comes back
+// unchanged, and the caller falls back to ordinary multiplication.
+const decimalParts = (n) => {
+  const s = String(n);
+  const dot = s.indexOf(".");
+  if (dot < 0) return [Number(s), 0];
+  return [Number(s.slice(0, dot) + s.slice(dot + 1)), s.length - dot - 1];
+};
+
+// Multiply two decimal amounts without the binary drift. Plain 2.5 * 33.33 is
+// 83.32499999999999, which then rounds *down* to 83.32 and loses a paisa on
+// every such line; multiplying 25 x 3333 as whole numbers gives exactly 83.325.
+const mulExact = (a, b) => {
+  const x = safeNum(a), y = safeNum(b);
+  const [mx, ex] = decimalParts(x);
+  const [my, ey] = decimalParts(y);
+  const product = mx * my;
+  if (!Number.isSafeInteger(mx) || !Number.isSafeInteger(my) || !Number.isSafeInteger(product)) {
+    return x * y; // beyond what a double can hold exactly — nothing to gain
+  }
+  return ex + ey === 0 ? product : Number(`${product}e-${ex + ey}`);
+};
+
+// ---- One line's money ----------------------------------------------------
+//
+// Two separate ideas meet here, and keeping them apart is what makes the
+// numbers trustworthy:
+//
+//   `rateIncludesVat` is a property of the *product* — "the 113 on my price
+//   list already has the VAT in it". It decides what is actually owed.
+//
+//   `separateVat` is a property of the *document* — "print the VAT in its own
+//   column". It decides only how the same money is laid out. Switching it must
+//   never change the grand total, and tools/test-money.js checks exactly that.
+//
+// With separateVat OFF, every price prints exactly as it was typed: a rate with
+// no VAT in it, and a non-taxable product, are untouched, and a VAT-inclusive
+// rate still prints as the full 113 the customer pays.
+//
+// With separateVat ON, a VAT-inclusive rate is split: 100 in the price column
+// and 13 in the VAT column.
+//
+// Returns, for one line:
+//   gross        what the customer pays for this line, always
+//   unitPrinted  what the UNIT PRICE column shows
+//   linePrinted  what the TOTAL AMOUNT column shows (qty x unitPrinted)
+//   vatToAdd     VAT that still has to be added on top of linePrinted
+//   vatInside    VAT already contained in linePrinted
+//   net          the taxable value of the line, whichever way it is printed
+const lineAmounts = (li, taxRatePct, separateVat) => {
+  const qty = safeNum(li && li.qty);
+  const rate = safeNum(li && li.rate);
+  const r = safeNum(taxRatePct) / 100;
+  const gross = round2(mulExact(qty, rate));
+  const charged = !!(li && li.taxable) && r > 0;
+  const inclusive = charged && !!li.rateIncludesVat;
+  const net = inclusive ? round2(gross / (1 + r)) : gross;
+
+  if (inclusive && separateVat) {
+    // Split the VAT out of the price and show it in its own column.
+    return {
+      gross, net, inclusive,
+      unitPrinted: round2(rate / (1 + r)),
+      linePrinted: net,
+      vatToAdd: round2(gross - net),
+      vatInside: 0,
+    };
+  }
+  if (inclusive) {
+    // Print the price exactly as typed; the VAT is already inside it.
+    return {
+      gross, net, inclusive,
+      unitPrinted: round2(rate),
+      linePrinted: gross,
+      vatToAdd: 0,
+      vatInside: round2(gross - net),
+    };
+  }
+  // A VAT-exclusive rate, or a product that carries no VAT: the price prints
+  // unchanged either way, and any VAT is added underneath.
+  return {
+    gross, net, inclusive,
+    unitPrinted: round2(rate),
+    linePrinted: gross,
+    vatToAdd: charged ? round2(mulExact(gross, r)) : 0,
+    vatInside: 0,
+  };
+};
+
+// What the discount column shows for a line: the percentage taken off and the
+// list price it came off. Returns null when this line was not discounted.
+const lineDiscount = (li, taxRatePct, separateVat) => {
+  if (!li) return null;
+  const list = li.listRate;
+  if (list === undefined || list === null || list === "" || !Number.isFinite(Number(list))) return null;
+  const pct = safeNum(li.discountPct);
+  const listRate = safeNum(list);
+  if (pct <= 0 || listRate <= safeNum(li.rate)) return null;
+  // Show the list price on the same basis as the price column beside it, or the
+  // two figures cannot be compared.
+  const r = safeNum(taxRatePct) / 100;
+  const splitting = separateVat && !!li.taxable && !!li.rateIncludesVat && r > 0;
+  return { pct, listUnit: splitting ? round2(listRate / (1 + r)) : round2(listRate) };
+};
+
+// ---- A whole document's totals -------------------------------------------
+//
+// Writes into `doc.totals` (keeping taxRate, the extra charges and their
+// labels) and returns it. Pure arithmetic — no DOM, no globals — so the same
+// function serves the builder, the printed page and tools/test-money.js.
+//
+// `doc.separateVat` changes how the figures are *presented*, never what is
+// owed: subtotal is whatever the printed price column adds up to, and the VAT
+// still to be added moves in step with it, so `total` comes out the same
+// either way. tools/test-money.js asserts that on every shape of document.
+//
+// The VAT to add is worked out once on the summed base rather than per line and
+// added up, because that is how a tax return works and it avoids a stack of
+// per-line rounding errors drifting the total.
+const EXTRA_CHARGE_KEYS = ["delivery", "freight", "insurance", "legal", "inspection", "other1", "other2"];
+
+const computeTotals = (doc) => {
+  const t = (doc.totals && typeof doc.totals === "object") ? doc.totals : (doc.totals = {});
+  const ratePct = safeNum(t.taxRate);
+  const separateVat = !!doc.separateVat;
+  const items = Array.isArray(doc.lineItems) ? doc.lineItems : [];
+
+  let subtotal = 0;      // what the printed price column adds up to
+  let taxableBase = 0;   // the value VAT applies to — always net of VAT
+  let baseToTax = 0;     // the part of the subtotal that VAT is still owed on
+  let taxIncluded = 0;   // VAT already sitting inside the printed prices
+  let discountGiven = 0;
+
+  items.forEach((li) => {
+    const a = lineAmounts(li, ratePct, separateVat);
+    subtotal = round2(subtotal + a.linePrinted);
+    taxIncluded = round2(taxIncluded + a.vatInside);
+    if (li && li.taxable) {
+      taxableBase = round2(taxableBase + a.net);
+      // VAT is owed on this line unless the printed price already contains it.
+      if (a.vatInside === 0) baseToTax = round2(baseToTax + a.linePrinted);
+    }
+    // What this customer saved against the list price. Never negative: a rate
+    // typed in above list price is a surcharge, not a negative discount.
+    const list = li && li.listRate;
+    if (list !== undefined && list !== null && list !== "" && Number.isFinite(Number(list))) {
+      discountGiven = round2(discountGiven + round2(mulExact(safeNum(li.qty), Math.max(0, round2(safeNum(list) - safeNum(li.rate))))));
+    }
+  });
+
+  const tax = round2(mulExact(baseToTax, ratePct) / 100);
+  const charges = sum2(EXTRA_CHARGE_KEYS.map((k) => safeNum(t[k])));
+
+  t.subtotal = subtotal;
+  t.taxable = taxableBase;
+  t.tax = tax;
+  t.taxIncluded = taxIncluded;
+  t.discountGiven = discountGiven;
+  t.total = round2(round2(subtotal + tax) + charges);
+  return t;
+};
+
+// Do a saved document's stored totals still match its own line items?
+//
+// Documents saved by an earlier build can disagree: VAT used to be added on top
+// of prices that already contained it, so the stored total was too high. Those
+// documents are left exactly as they were saved — they may already have been
+// sent to a customer — but the app can at least notice and say so.
+//
+// Returns null when everything agrees, otherwise { stored, correct, difference }.
+const totalsMismatch = (doc) => {
+  if (!doc || !Array.isArray(doc.lineItems) || !doc.lineItems.length) return null;
+  const stored = safeNum(doc.totals && doc.totals.total);
+  // Work on a throwaway copy: nothing here may change what is saved.
+  const probe = { lineItems: doc.lineItems, separateVat: doc.separateVat, totals: { ...(doc.totals || {}) } };
+  const correct = computeTotals(probe).total;
+  const difference = round2(stored - correct);
+  return Math.abs(difference) < 0.01 ? null : { stored, correct, difference };
+};
+
+// Total weight of a document's lines, in kg.
+const documentGrossWeight = (doc) =>
+  round2((Array.isArray(doc.lineItems) ? doc.lineItems : [])
+    .reduce((s, li) => s + mulExact(safeNum(li && li.qty), safeNum(li && li.weight)), 0));
+
+// Exported for tools/test-money.js; harmless in the browser.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { safeNum, round2, sum2, mulExact, lineAmounts, lineDiscount, computeTotals, totalsMismatch, documentGrossWeight };
+}
+
 // ==================== ANALYTICS (THIS DEVICE ONLY) ====================
 // Records what happens in the app so /admin can show real numbers instead of
 // invented ones. Everything here stays in this browser's localStorage. Nothing
@@ -3181,14 +3435,35 @@ const trackError = (message, source) => {
 
 // ---- automatic capture -----------------------------------------------------
 
+// A failure inside a button handler never reaches render()'s recovery screen:
+// the click simply appears to do nothing, which reads as "the button is
+// broken". Say something, once, in plain words — the detail is in the console
+// and in /admin, not in the user's face. Throttled so a loop cannot bury the
+// screen in toasts.
+let lastErrorToast = 0;
+const reportUnexpectedError = (message) => {
+  const m = String(message || "");
+  // Not real failures: the user dismissing a share sheet, and a layout
+  // notification some browsers emit that nothing is actually waiting on.
+  if (/AbortError|ResizeObserver loop/i.test(m)) return;
+  const now = Date.now();
+  if (now - lastErrorToast < 8000) return;
+  lastErrorToast = now;
+  try { toast("Something went wrong. Please try that again.", "err", 5000); } catch (e) { /* too early to toast */ }
+};
+
 window.addEventListener("error", (e) => {
   if (!e) return;
-  trackError(e.message || (e.error && e.error.message), e.filename);
+  const message = e.message || (e.error && e.error.message);
+  trackError(message, e.filename);
+  reportUnexpectedError(message);
 });
 
 window.addEventListener("unhandledrejection", (e) => {
   const r = e && e.reason;
-  trackError((r && r.message) || String(r || "Unhandled promise rejection"), "promise");
+  const message = (r && r.message) || String(r || "Unhandled promise rejection");
+  trackError(message, "promise");
+  reportUnexpectedError(message);
 });
 
 // One entry per app open. The referrer is kept only as a hostname (where the
@@ -3336,7 +3611,7 @@ const normalizeDB = (raw) => {
     if (!Array.isArray(d.lineItems)) d.lineItems = [];
     if (!d.status) d.status = "Draft";
     const t = d.totals || (d.totals = {});
-    ["subtotal", "taxable", "tax", "delivery", "freight", "insurance", "legal", "inspection", "other1", "other2", "total", "discountGiven"].forEach(k => {
+    ["subtotal", "taxable", "tax", "taxIncluded", "delivery", "freight", "insurance", "legal", "inspection", "other1", "other2", "total", "discountGiven"].forEach(k => {
       if (typeof t[k] !== "number" || isNaN(t[k])) t[k] = 0;
     });
     if (typeof t.taxRate !== "number" || isNaN(t.taxRate)) t.taxRate = 0;
@@ -3363,12 +3638,31 @@ const loadDB = () => {
   catch (e) { return defaultDB(); }
 };
 
+// Warn once per session when the browser's storage is nearly full, rather than
+// letting the first sign of trouble be a save that fails and loses the work.
+// About 5 MB is the usual localStorage ceiling; a UTF-16 character costs 2 bytes.
+const STORAGE_WARN_AT_BYTES = 4.5 * 1024 * 1024;
+let storageWarned = false;
+
 const saveDB = () => {
+  let json;
   try {
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    json = JSON.stringify(db);
+  } catch (e) {
+    console.error("Could not prepare data for saving:", e);
+    toast("Couldn't save your changes. Please try again.", "err");
+    return;
+  }
+  try {
+    localStorage.setItem(DB_KEY, json);
   } catch (e) {
     console.error("Save failed:", e);
-    toast("Save failed — storage may be full (try a smaller logo/signature image)", "err");
+    toast("Couldn't save — this browser's storage is full. Export a backup now, then remove a large logo or signature image to free space.", "err", 10000);
+    return;
+  }
+  if (!storageWarned && json.length * 2 > STORAGE_WARN_AT_BYTES) {
+    storageWarned = true;
+    toast("This browser's storage is nearly full. Export a backup from Settings → Data & backup.", "err", 9000);
   }
 };
 
@@ -3381,7 +3675,17 @@ let db = loadDB();
 // Units for the active business (falls back to a sensible default outside biz context)
 const bizUnits = () => (activeBiz()?.units && activeBiz().units.length) ? activeBiz().units : DEFAULT_UNITS;
 
-const uid = (kind) => { if (!db.nextIds) db.nextIds = {}; if (db.nextIds[kind] === undefined) db.nextIds[kind] = 1; const id = db.nextIds[kind]++; saveDB(); return id; };
+// Next id for a kind of record. It deliberately does NOT write to storage:
+// importing a thousand products would otherwise serialise the entire database
+// a thousand times over, and the counter does not need saving on its own —
+// normalizeDB() raises every counter above the highest id it actually finds
+// when the app next loads, so an id can never be handed out twice. Callers
+// save once, after the records are in.
+const uid = (kind) => {
+  if (!db.nextIds) db.nextIds = {};
+  if (db.nextIds[kind] === undefined) db.nextIds[kind] = 1;
+  return db.nextIds[kind]++;
+};
 
 // ==================== SAVE FOLDER (File System Access API) ====================
 // Directory handles can't go in localStorage (not JSON-serializable), so they live in IndexedDB.
@@ -3661,7 +3965,18 @@ const toast = (msg, kind = "ok", ms = 1800) => {
   }, ms);
 };
 
-const fmt = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Money, as a person reads it: Indian grouping (1,23,456.78), always 2 decimals.
+// safeNum first, so a stray "" or NaN prints 0.00 rather than the word "NaN"
+// in the middle of an invoice.
+const fmt = (n) => round2(safeNum(n)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Quantities are counts, not money: show 2 as "2" and 1.5 as "1.5", and never
+// leak a floating-point tail like 1.5000000000000002 onto a document.
+const fmtQty = (n) => {
+  const v = safeNum(n);
+  return Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000);
+};
+// A percentage without trailing zeros: 13, 0, 7.5 — not "13.000".
+const fmtPct = (n) => String(Math.round(safeNum(n) * 1000) / 1000);
 
 // Convert a number to words using the Indian numbering system (Lakh / Crore).
 // Used for the "In words" line on documents.
@@ -3957,8 +4272,21 @@ const openCategoryPicker = (onPick, opts = {}) => {
   openModal(multi ? "Choose categories" : "Choose category", wrap);
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
-const addDays = (dateStr, n) => { const d = new Date(dateStr); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+// Dates are YYYY-MM-DD strings throughout, and they are *local* dates.
+// toISOString() would give the UTC day instead: Nepal is UTC+5:45, so anything
+// made between midnight and 05:45 in Kathmandu came out dated the day before.
+const isoDate = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const today = () => isoDate(new Date());
+// Add days to a YYYY-MM-DD string. The parts are read out by hand rather than
+// handed to new Date("2026-09-14"), which the browser reads as UTC midnight and
+// can shift a day either way depending on where the user is.
+const addDays = (dateStr, n) => {
+  const [y, m, day] = String(dateStr || "").split("-").map(Number);
+  const base = (y && m && day) ? new Date(y, m - 1, day) : new Date();
+  base.setDate(base.getDate() + (Number(n) || 0));
+  return isoDate(base);
+};
 const activeBiz = () => db.businesses.find(b => b.id === db.activeBusinessId);
 const bizCustomers = () => db.customers.filter(c => c.businessId === db.activeBusinessId);
 const bizProducts = () => db.products.filter(p => p.businessId === db.activeBusinessId);
@@ -3992,7 +4320,8 @@ const TERM_PRESETS = [
 ];
 
 const formatDocNumber = (fmtStr, seq, date) => {
-  const d = new Date(date || today());
+  const [fy, fm, fd] = String(date || today()).split("-").map(Number);
+  const d = (fy && fm && fd) ? new Date(fy, fm - 1, fd) : new Date();
   return fmtStr
     .replace('{YYYY}', d.getFullYear())
     .replace('{YY}', String(d.getFullYear()).slice(-2))
@@ -4179,7 +4508,11 @@ const svgIcon = (name, cls = "ico") => {
 };
 // Helper: build a button with icon + label, applies action-bar friendly markup
 const iconLabelBtn = (opts) => {
-  const b = el("button", { class: opts.class || "btn", onclick: opts.onclick, title: opts.title || opts.label });
+  // type="button" so one of these inside a form can never submit it by accident.
+  // The label is always in the markup even when CSS hides it on a narrow
+  // screen, so the button still announces itself to a screen reader.
+  const b = el("button", { class: opts.class || "btn", type: "button", onclick: opts.onclick,
+    title: opts.title || opts.label, "aria-label": opts.label });
   if (opts.icon) b.appendChild(svgIcon(opts.icon));
   b.appendChild(el("span", { class: "lbl" }, opts.label));
   return b;
@@ -4448,8 +4781,19 @@ const attachPreviewScaler = (wrapEl, scalerEl, pageEl) => {
   bar.appendChild(mk("Fit", () => { userZoom = null; }));
   wrapEl.parentNode.insertBefore(bar, wrapEl);
 
-  // Re-fit on viewport changes.
-  ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
+  // Re-fit on viewport changes. The observer must not call apply() directly:
+  // apply() sets the scaler's height, which resizes the very element being
+  // observed, and the browser reports that as "ResizeObserver loop completed
+  // with undelivered notifications" in the console. Waiting for the next frame
+  // breaks the loop, and coalescing means a drag-resize measures once a frame
+  // instead of once per pixel.
+  let applyQueued = false;
+  const scheduleApply = () => {
+    if (applyQueued) return;
+    applyQueued = true;
+    requestAnimationFrame(() => { applyQueued = false; apply(); });
+  };
+  ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(scheduleApply) : null;
   if (ro) ro.observe(wrapEl);
   window.addEventListener("resize", apply);
   setTimeout(apply, 0);
@@ -5024,7 +5368,12 @@ document.addEventListener("keydown", (e) => {
 
 // ==================== CSV EXPORT / IMPORT ====================
 const csvEscape = (v) => {
-  const s = v === null || v === undefined ? "" : String(v);
+  let s = v === null || v === undefined ? "" : String(v);
+  // Excel and Sheets treat a cell starting with = + - or @ as a formula, so a
+  // product description someone typed as "=1+1" (or something worse) would be
+  // run when the file is opened instead of read as text. A leading apostrophe
+  // is the standard way to say "this is text"; the spreadsheet doesn't show it.
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
 const toCSV = (rows, cols) =>
@@ -5049,11 +5398,25 @@ const parseCSV = (text) => {
 };
 
 const downloadTextFile = (text, filename, mime = "text/csv;charset=utf-8") => {
-  const blob = new Blob([text], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  try {
+    // The byte-order mark is what tells Excel on Windows the file is UTF-8.
+    // Without it, Nepali text in an exported CSV opens as mojibake.
+    const blob = new Blob(["﻿" + text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a); // Firefox ignores a click on a detached link
+    a.click();
+    a.remove();
+    // Revoking on the next tick cancels the download on some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    return true;
+  } catch (e) {
+    console.error("File download failed:", e);
+    toast("Couldn't save that file. Please try again.", "err");
+    return false;
+  }
 };
 
 const PRODUCT_COLS = ["partNumber", "description", "unit", "rate", "weight", "hsn", "taxable",
@@ -5062,16 +5425,15 @@ const CUSTOMER_COLS = ["clientNo", "companyName", "contactName", "phone", "vatNo
   "addr1", "addr2", "country", "regNo", "shipAddr1", "shipAddr2", "eximCode", "discountRules"];
 
 const exportProductsCSV = () => {
-  track("csv.exported", { kind: "products" });
   const rows = bizProducts().map(p => ({ ...p, taxable: p.taxable ? "yes" : "no" }));
   if (!rows.length) { toast("No products to export", "err"); return; }
   const code = (activeBiz()?.shortCode || autoShortCode(activeBiz()?.name)).replace(/\s+/g, "");
-  downloadTextFile(toCSV(rows, PRODUCT_COLS), `products_${code}_${today()}.csv`);
+  if (!downloadTextFile(toCSV(rows, PRODUCT_COLS), `products_${code}_${today()}.csv`)) return;
+  track("csv.exported", { kind: "products" });
   toast(`Exported ${rows.length} products`);
 };
 
 const exportCustomersCSV = () => {
-  track("csv.exported", { kind: "customers" });
   const rows = bizCustomers().map(c => ({
     ...c,
     clientNo: "C" + String(c.id).padStart(4, "0"),
@@ -5080,12 +5442,12 @@ const exportCustomersCSV = () => {
   }));
   if (!rows.length) { toast("No customers to export", "err"); return; }
   const code = (activeBiz()?.shortCode || autoShortCode(activeBiz()?.name)).replace(/\s+/g, "");
-  downloadTextFile(toCSV(rows, CUSTOMER_COLS), `customers_${code}_${today()}.csv`);
+  if (!downloadTextFile(toCSV(rows, CUSTOMER_COLS), `customers_${code}_${today()}.csv`)) return;
+  track("csv.exported", { kind: "customers" });
   toast(`Exported ${rows.length} customers`);
 };
 
 const exportDocumentsCSV = () => {
-  track("csv.exported", { kind: "documents" });
   const rows = bizDocs().map(d => {
     const c = db.customers.find(x => x.id === d.customerId);
     return {
@@ -5100,8 +5462,9 @@ const exportDocumentsCSV = () => {
   });
   if (!rows.length) { toast("No documents to export", "err"); return; }
   const code = (activeBiz()?.shortCode || autoShortCode(activeBiz()?.name)).replace(/\s+/g, "");
-  downloadTextFile(toCSV(rows, ["type", "number", "date", "status", "party", "currency",
-    "subtotal", "tax", "total", "discountGiven", "lineCount"]), `documents_${code}_${today()}.csv`);
+  if (!downloadTextFile(toCSV(rows, ["type", "number", "date", "status", "party", "currency",
+    "subtotal", "tax", "total", "discountGiven", "lineCount"]), `documents_${code}_${today()}.csv`)) return;
+  track("csv.exported", { kind: "documents" });
   toast(`Exported ${rows.length} documents`);
 };
 
@@ -5182,11 +5545,11 @@ const showImportPreview = (kind, header, body) => {
         const existing = mode.replace ? bizProducts().find(p => (p.description || "").toLowerCase() === desc.toLowerCase()) : null;
         const rec = {
           partNumber: g(r, "partNumber"), description: desc, unit: g(r, "unit") || "pcs",
-          rate: parseFloat(g(r, "rate")) || 0, weight: parseFloat(g(r, "weight")) || 0,
+          rate: Math.max(0, safeNum(g(r, "rate"))), weight: Math.max(0, safeNum(g(r, "weight"))),
           hsn: g(r, "hsn"), taxable: !/^(no|false|0)$/i.test(g(r, "taxable") || "yes"),
           category: g(r, "category"), subCategory1: g(r, "subCategory1"),
           subCategory2: g(r, "subCategory2"), subCategory3: g(r, "subCategory3"),
-          packQty: parseFloat(g(r, "packQty")) || 0, packUnit: g(r, "packUnit") || "box",
+          packQty: Math.max(0, safeNum(g(r, "packQty"))), packUnit: g(r, "packUnit") || "box",
           notes: g(r, "notes"), businessId: db.activeBusinessId
         };
         if (existing) { Object.assign(existing, rec); updated++; }
@@ -5199,7 +5562,7 @@ const showImportPreview = (kind, header, body) => {
         const discountRules = rulesRaw ? rulesRaw.split("|").map(s => {
           const [pathPart, pctPart] = s.split(":");
           const path = (pathPart || "").trim().split(">").map(x => x.trim()).filter(Boolean);
-          const pct = parseFloat(pctPart) || 0;
+          const pct = Math.min(100, Math.max(0, safeNum(pctPart))); // a discount outside 0-100% is a typo
           return path.length ? { path, pct } : null;
         }).filter(Boolean) : [];
         const rec = {
@@ -6483,6 +6846,8 @@ const renderSettingsData = (biz) => {
     openModal("CSV templates", w);
   }}, "\u{1F4C4} Templates"));
   dc.appendChild(csvGrid);
+  dc.appendChild(el("div", { style: { fontSize: "12px", fontWeight: 600, color: "var(--muted)", margin: "14px 0 6px" } }, "Storage"));
+  dc.appendChild(renderStorageMeter());
   dc.appendChild(el("div", { style: { fontSize: "12px", fontWeight: 600, color: "var(--muted)", margin: "10px 0 6px" } }, "Full backup"));
   dc.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "8px" }, onclick: exportBackup }, "\u{1F4E5} Export backup (JSON)"));
   dc.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "8px" }, onclick: importBackup }, "\u{1F4E4} Import backup (JSON)"));
@@ -6572,7 +6937,21 @@ document.addEventListener("keydown", trapModalTab);
 // Close the top modal, asking first if the user typed something they'd lose.
 const attemptClose = () => {
   const top = modalStack[modalStack.length - 1];
-  if (top && top._guard && top._dirty) {
+  if (!top || !top._guard) { closeModal(); return; }
+  // A modal that has already saved the user's work somewhere describes closing
+  // in its own words. The document builder autosaves, so telling someone their
+  // changes are about to be discarded there would simply be untrue.
+  const own = typeof top._closePrompt === "function" ? top._closePrompt() : null;
+  if (own) {
+    confirmModal(own.message, () => { closeModal(); }, {
+      title: own.title || "Close this?",
+      confirmLabel: own.confirmLabel || "Close",
+      cancelLabel: own.cancelLabel || "Keep editing",
+      danger: own.danger === true,
+    });
+    return;
+  }
+  if (top._dirty) {
     confirmModal("Discard your changes?", () => { closeModal(); },
       { confirmLabel: "Discard", cancelLabel: "Keep editing" });
     return;
@@ -7053,6 +7432,9 @@ const startNewDoc = (type) => {
     bankId: biz.defaultBankId || null,
     showBanks: hasUsableBank(biz),
     showTerms: true,
+    // On by default once the customer's rate card actually discounts something,
+    // so the saving is visible without anyone having to find the switch.
+    showDiscountColumn: false,
     status: "Draft",
     currency: biz.currency,
     lineItems: [],
@@ -7064,6 +7446,87 @@ const startNewDoc = (type) => {
     businessId: db.activeBusinessId
   };
   openDocBuilder();
+};
+
+// The builder keeps a few working flags on the document while it is open.
+// They mean nothing once it is saved, and leaving them in storage makes a
+// backup file confusing to read.
+const storableDoc = (d) => {
+  const out = { ...d };
+  delete out._editing;
+  delete out._seq;
+  delete out._onTotals;
+  delete out._discountColSet;
+  delete out._autosaved;
+  if (out.shipping) { out.shipping = { ...out.shipping }; delete out.shipping._userSetWeight; }
+  return out;
+};
+
+// ==================== AUTOSAVE ====================
+// Everything typed into the builder is written into Documents as a Draft every
+// few seconds, so a closed tab, a flat battery or a stray back gesture cannot
+// lose a half-finished invoice.
+//
+// The draft is a real document from the first autosave onwards: it has an id,
+// it takes its number from the series, and it shows up in the Documents list
+// with status Draft. Pressing Save later updates that same record rather than
+// creating a second one — see persistDoc().
+//
+// Nothing is written until there is something worth keeping, so tapping "New
+// document" and changing your mind leaves no litter behind.
+const AUTOSAVE_EVERY_MS = 3000;
+let autosaveTimer = null;
+let autosaveLastJson = "";
+
+const draftWorthKeeping = () =>
+  !!docBuilder && (docBuilder.customerId != null || (docBuilder.lineItems || []).length > 0);
+
+// Writes the draft if anything has actually changed. Returns "created",
+// "updated" or "" (nothing to do), so the caller can say so on screen.
+const autosaveDraft = () => {
+  if (!draftWorthKeeping()) return "";
+  recomputeTotals();
+
+  const stamp = new Date().toISOString();
+  const known = docBuilder._editing || docBuilder._autosaved;
+  const at = known ? db.documents.findIndex(x => x.id === docBuilder.id) : -1;
+  const isNew = at < 0;
+
+  // Settle the identity and the number *before* taking the fingerprint below,
+  // or the very next pass sees "the id changed" and writes all over again.
+  if (isNew) {
+    docBuilder.id = docBuilder.id || uid("doc");
+    docBuilder.createdAt = docBuilder.createdAt || stamp;
+    if (!docBuilder._editing && !docBuilder._autosaved) {
+      const biz = activeBiz();
+      if (biz) biz[DOC_TYPES[docBuilder.type].seqKey] = docBuilder._seq + 1;
+    }
+  }
+
+  const record = storableDoc(docBuilder);
+  const fingerprint = JSON.stringify(record);
+  if (fingerprint === autosaveLastJson) return ""; // nothing has changed
+  autosaveLastJson = fingerprint;
+
+  const row = { ...record, id: docBuilder.id, createdAt: docBuilder.createdAt || stamp, updatedAt: stamp };
+  let outcome;
+  if (isNew) {
+    db.documents.push(row);
+    outcome = docBuilder._autosaved ? "updated" : "created";
+    docBuilder._autosaved = true;
+  } else {
+    row.createdAt = db.documents[at].createdAt || row.createdAt;
+    db.documents[at] = row;
+    outcome = "updated";
+  }
+  saveDB();
+  return outcome;
+};
+
+const stopAutosave = () => {
+  if (autosaveTimer) clearInterval(autosaveTimer);
+  autosaveTimer = null;
+  autosaveLastJson = "";
 };
 
 const editDoc = (d) => {
@@ -7115,7 +7578,7 @@ const repriceLineItems = (includeManual = false) => {
     const list = Number(li.listRate);
     if (!list && list !== 0) return; // ad-hoc line with no list price
     const { pct } = resolveDiscount({ category: li.catPath?.[0], subCategory1: li.catPath?.[1], subCategory2: li.catPath?.[2], subCategory3: li.catPath?.[3] }, rules);
-    const net = pct ? +(list * (1 - pct / 100)).toFixed(2) : list;
+    const net = pct ? round2(list * (1 - pct / 100)) : list;
     if (net !== li.rate || pct !== li.discountPct || li.manualRate) changed++;
     li.rate = net; li.discountPct = pct;
     if (includeManual) li.manualRate = false; // rule-priced again from here on
@@ -7132,37 +7595,24 @@ const applyLineDiscount = (li, pct, rateInp) => {
   if (!isFinite(list)) return;
   const p = clampPct(pct);
   li.discountPct = p;
-  li.rate = p ? +(list * (1 - p / 100)).toFixed(2) : list;
+  li.rate = p ? round2(list * (1 - p / 100)) : list;
   li.manualRate = false;
   if (rateInp) rateInp.value = li.rate;
 };
 
+// Recalculate the open document's totals in place. All the arithmetic lives in
+// computeTotals() (src/app/00-money.js) so the builder, the printed document
+// and the tests can never drift apart.
 const recomputeTotals = () => {
-  const t = docBuilder.totals;
-  const r = (t.taxRate || 0) / 100;
-  const sep = !!docBuilder.separateVat;
-  let base = 0, taxableBase = 0, tax = 0;
-  docBuilder.lineItems.forEach(li => {
-    const line = li.qty * li.rate;
-    if (sep && li.taxable && li.rateIncludesVat && r > 0) {
-      const b = line / (1 + r); base += b; taxableBase += b; tax += line - b;
-    } else if (sep && li.taxable) {
-      base += line; taxableBase += line; tax += line * r;
-    } else {
-      base += line; if (li.taxable) taxableBase += line;
-    }
-  });
-  if (!sep) tax = taxableBase * r;
-  t.subtotal = base;
-  t.discountGiven = docBuilder.lineItems.reduce((s, li) => {
-    const list = Number(li.listRate);
-    if (!list && list !== 0) return s;
-    return s + (li.qty * Math.max(0, list - li.rate));
-  }, 0);
-  t.taxable = taxableBase;
-  t.tax = tax;
-  t.total = t.subtotal + t.tax + Number(t.delivery || 0) + Number(t.freight || 0) + Number(t.insurance || 0) + Number(t.legal || 0) + Number(t.inspection || 0) + Number(t.other1 || 0) + Number(t.other2 || 0);
-  const gw = docBuilder.lineItems.reduce((s, li) => s + (li.qty * (li.weight || 0)), 0);
+  computeTotals(docBuilder);
+  // Offer the discount column the moment there is a discount to show, unless
+  // the user has already made their own choice about it.
+  if (!docBuilder._discountColSet && docBuilder.totals.discountGiven > 0) {
+    docBuilder.showDiscountColumn = true;
+  }
+  // Gross weight is a convenience, not money: fill it in from the line weights
+  // until the user types their own figure, then leave theirs alone.
+  const gw = documentGrossWeight(docBuilder);
   if (gw > 0 && !docBuilder.shipping._userSetWeight) docBuilder.shipping.grossWeight = gw.toFixed(2) + " kg";
 };
 
@@ -7297,15 +7747,15 @@ const openDocBuilder = () => {
       row.appendChild(el("div", { class: "li-num" }, String(idx + 1)));
       row.appendChild(el("input", { class: "li-desc", placeholder: "Description", "aria-label": "Description", value: li.description, oninput: (e) => { li.description = e.target.value; }}));
       row.appendChild(el("input", { class: "li-unit", placeholder: "Unit", "aria-label": "Unit", value: li.unit, oninput: (e) => { li.unit = e.target.value; }}));
-      row.appendChild(el("input", { class: "li-qty", type: "number", inputmode: "decimal", placeholder: "Qty", "aria-label": "Quantity", value: li.qty, oninput: (e) => { li.qty = parseFloat(e.target.value) || 0; recomputeTotals(); refreshTotals(); if (docBuilder.shipping._userSetWeight === false || !docBuilder.shipping._userSetWeight) updateGross(); }}));
-      const rateInp = el("input", { class: "li-rate", type: "number", inputmode: "decimal", placeholder: "Rate", "aria-label": "Rate", value: li.rate, oninput: (e) => {
-        li.rate = parseFloat(e.target.value) || 0;
+      row.appendChild(el("input", { class: "li-qty", type: "number", inputmode: "decimal", placeholder: "Qty", "aria-label": "Quantity", min: "0", step: "any", value: li.qty, oninput: (e) => { li.qty = Math.max(0, safeNum(e.target.value)); recomputeTotals(); refreshTotals(); if (docBuilder.shipping._userSetWeight === false || !docBuilder.shipping._userSetWeight) updateGross(); }}));
+      const rateInp = el("input", { class: "li-rate", type: "number", inputmode: "decimal", placeholder: "Rate", "aria-label": "Rate", min: "0", step: "any", value: li.rate, oninput: (e) => {
+        li.rate = Math.max(0, safeNum(e.target.value));
         li.manualRate = true; // don't overwrite a hand-typed rate on reprice
         recomputeTotals(); refreshTotals(); rerenderNote(idx);
       }});
       rateInputs[idx] = rateInp;
       row.appendChild(rateInp);
-      row.appendChild(el("button", { class: "remove-btn", title: "Remove line", onclick: () => { docBuilder.lineItems.splice(idx, 1); recomputeTotals(); rerenderLI(); updateTotals(); updateGross(); }}, "×"));
+      row.appendChild(el("button", { class: "remove-btn", type: "button", title: "Remove line", "aria-label": `Remove line ${idx + 1}`, onclick: () => { docBuilder.lineItems.splice(idx, 1); recomputeTotals(); rerenderLI(); updateTotals(); updateGross(); }}, "×"));
       liList.appendChild(row);
       // Builder-only discount note. Never printed — the document stays silent.
       const note = el("div", { class: "li-note", id: `li-note-${idx}` });
@@ -7349,7 +7799,7 @@ const openDocBuilder = () => {
   }
   const updateGross = () => {
     if (!docBuilder.shipping._userSetWeight) {
-      const gw = docBuilder.lineItems.reduce((s, li) => s + (li.qty * (li.weight || 0)), 0);
+      const gw = documentGrossWeight(docBuilder);
       if (gw > 0) { docBuilder.shipping.grossWeight = gw.toFixed(2) + " kg"; if (grossInp) grossInp.value = docBuilder.shipping.grossWeight; }
     }
   };
@@ -7405,7 +7855,7 @@ const openDocBuilder = () => {
     const rules = customerRules(docBuilder.customerId);
     const { pct } = resolveDiscount(p, rules);
     const listRate = Number(p.rate) || 0;
-    const netRate = pct ? +(listRate * (1 - pct / 100)).toFixed(2) : listRate;
+    const netRate = pct ? round2(listRate * (1 - pct / 100)) : listRate;
     docBuilder.lineItems.push({
       partNumber: p.partNumber || String(docBuilder.lineItems.length + 1),
       description: p.description, unit: p.unit, qty: parseFloat(qty) || 1,
@@ -7441,7 +7891,7 @@ const openDocBuilder = () => {
       const rules = customerRules(docBuilder.customerId);
       const { pct } = resolveDiscount(p, rules);
       const listRate = Number(p.rate) || 0;
-      const netRate = pct ? +(listRate * (1 - pct / 100)).toFixed(2) : listRate;
+      const netRate = pct ? round2(listRate * (1 - pct / 100)) : listRate;
       const row = el("div", { class: "prod-result-row" });
       const info = el("div", { style: { flex: "1", minWidth: "0" } });
       info.appendChild(el("div", { style: { fontWeight: 600, fontSize: "13px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, p.description));
@@ -7551,7 +8001,7 @@ const openDocBuilder = () => {
     }
     const { pct } = resolveDiscount(np, customerRules(docBuilder.customerId));
     if (!pct) { npDiscNote.appendChild(el("span", { class: "li-note-none" }, "No category discount for this customer.")); return; }
-    const net = +((Number(np.rate) || 0) * (1 - pct / 100)).toFixed(2);
+    const net = round2(safeNum(np.rate) * (1 - pct / 100));
     npDiscNote.appendChild(el("span", { class: "li-note-disc" },
       `${pct}% off this category → ${activeBiz().currency} ${fmt(net)}/${np.unit}`));
   };
@@ -7600,7 +8050,7 @@ const openDocBuilder = () => {
     docBuilder.lineItems.push({
       partNumber: String(docBuilder.lineItems.length + 1),
       description: np.description.trim(), unit: np.unit, qty: np.qty || 1,
-      rate: pct ? +(listRate * (1 - pct / 100)).toFixed(2) : listRate,
+      rate: pct ? round2(listRate * (1 - pct / 100)) : listRate,
       listRate, discountPct: pct, catPath: productPath(np),
       taxable: np.taxable, weight: np.weight || 0
     });
@@ -7681,7 +8131,31 @@ const openDocBuilder = () => {
   wrap.appendChild(liCard);
 
   wrap = steps.charges;
-  wrap.appendChild(checkboxField("Separate VAT from prices", "separateVat", docBuilder, () => { recomputeTotals(); updateTotals(); }));
+  // This is a presentation choice only. Whether a rate already contains VAT is
+  // a property of the product and is always honoured — see computeTotals().
+  // ---- What the document shows beside each line ----
+  // Both of these are layout choices. Neither changes a single figure the
+  // customer owes — the grand total is identical whichever way round they are.
+  const colCard = el("div", { class: "card" });
+  colCard.appendChild(el("div", { class: "card-title" }, "What to show on the document"));
+  const toggleHint = (text) => el("div", {
+    style: { fontSize: "11.5px", color: "var(--muted)", margin: "-2px 0 12px 28px", lineHeight: "1.45" },
+  }, text);
+
+  colCard.appendChild(checkboxField("Separate VAT from prices", "separateVat", docBuilder,
+    () => { recomputeTotals(); updateTotals(); }));
+  colCard.appendChild(toggleHint(
+    "Off: every price prints exactly as you typed it. On: for products whose rate already " +
+    "includes VAT, the price prints without the VAT and the VAT goes in its own column — " +
+    "prices that carry no VAT, and non-taxable products, are left alone either way. " +
+    "The grand total is the same whichever you choose."));
+
+  colCard.appendChild(checkboxField("Show the discount for each line", "showDiscountColumn", docBuilder,
+    () => { docBuilder._discountColSet = true; updateTotals(); }));
+  colCard.appendChild(toggleHint(
+    "Adds a DISCOUNT column showing the percentage off and the list price it came off, " +
+    "so the customer can see what they saved. Replaces the plain “TAX” column."));
+  wrap.appendChild(colCard);
   // Totals
   const totCard = el("div", { class: "card totals" });
   const totCt = el("div", { id: "tot-ct" });
@@ -7698,18 +8172,35 @@ const openDocBuilder = () => {
       r.appendChild(ve);
       return r;
     };
+    // An extra charge adds to the bill, so it can never be negative — a minus
+    // sign here would quietly reduce the total with nothing on the document
+    // explaining why.
     const rowInp = (l, k) => {
       const r = el("div", { class: "totals-row" });
       r.appendChild(el("div", {}, l));
-      const i = el("input", { type: "number", inputmode: "decimal", value: t[k] || 0, style: { width: "100px", textAlign: "right" }, oninput: (e) => { t[k] = parseFloat(e.target.value) || 0; recomputeTotals(); refreshTotals(); }});
+      const i = el("input", { type: "number", inputmode: "decimal", min: "0", step: "any",
+        "aria-label": `${l} charge`, value: t[k] || 0,
+        style: { width: "100px", textAlign: "right" },
+        oninput: (e) => { t[k] = Math.max(0, safeNum(e.target.value)); recomputeTotals(); refreshTotals(); }});
       r.appendChild(i);
       return r;
     };
     totCt.appendChild(rowT("Subtotal", t.subtotal, "subtotal"));
     totCt.appendChild(rowT("Taxable", t.taxable, "taxable"));
+    // Tax rate. Nepal VAT is 13%, and "no VAT" is the other everyday case, so
+    // both are one tap — typing is still there for anything else.
     const taxRow = el("div", { class: "totals-row" });
     taxRow.appendChild(el("div", {}, "Tax rate %"));
-    taxRow.appendChild(el("input", { type: "number", inputmode: "decimal", value: t.taxRate, style: { width: "100px", textAlign: "right" }, oninput: (e) => { t.taxRate = parseFloat(e.target.value) || 0; recomputeTotals(); refreshTotals(); }}));
+    const taxRight = el("div", { class: "tax-rate-controls" });
+    const taxInp = el("input", { type: "number", inputmode: "decimal", min: "0", max: "100", step: "any",
+      "aria-label": "Tax rate percent", value: t.taxRate,
+      style: { width: "80px", textAlign: "right" },
+      oninput: (e) => { t.taxRate = Math.min(100, Math.max(0, safeNum(e.target.value))); recomputeTotals(); refreshTotals(); }});
+    const setRate = (v) => { t.taxRate = v; taxInp.value = v; recomputeTotals(); refreshTotals(); };
+    taxRight.appendChild(el("button", { type: "button", class: "chip-btn", title: "No VAT", onclick: () => setRate(0) }, "0%"));
+    taxRight.appendChild(el("button", { type: "button", class: "chip-btn", title: "Nepal VAT", onclick: () => setRate(13) }, "13%"));
+    taxRight.appendChild(taxInp);
+    taxRow.appendChild(taxRight);
     totCt.appendChild(taxRow);
     totCt.appendChild(rowT("Tax", t.tax, "tax"));
     totCt.appendChild(rowInp("Delivery", "delivery"));
@@ -7719,7 +8210,6 @@ const openDocBuilder = () => {
       totCt.appendChild(rowInp("Legal/Consular", "legal"));
       totCt.appendChild(rowInp("Inspection/Cert.", "inspection"));
     }
-    totCt.appendChild(rowT("TOTAL", t.total, "total"));
     const gr = el("div", { class: "totals-row grand" });
     gr.appendChild(el("div", {}, "GRAND TOTAL"));
     const grv = el("div", {}, `${docBuilder.currency} ${fmt(t.total)}`);
@@ -7872,10 +8362,37 @@ const openDocBuilder = () => {
   const saveDoc = () => {
     if (!docBuilder.customerId) { goStep("party"); toast("Select a customer first", "err"); return; }
     if (docBuilder.lineItems.length === 0) { goStep("items"); toast("Add at least one line item", "err"); return; }
+    if (!String(docBuilder.number || "").trim()) { goStep("details"); toast("This document needs a number", "err"); return; }
+    stopAutosave();
+
+    // Two documents of the same type sharing a number is a real problem at
+    // audit time, and it happens easily — the next-number counter was reset in
+    // Settings, or a number was typed over by hand. Say so before saving
+    // rather than after.
+    const clash = db.documents.find(d =>
+      d.businessId === (docBuilder.businessId ?? db.activeBusinessId) &&
+      d.type === docBuilder.type &&
+      d.id !== docBuilder.id &&
+      String(d.number).trim().toLowerCase() === String(docBuilder.number).trim().toLowerCase());
+    if (clash) {
+      confirmModal(
+        `${DOC_TYPES[docBuilder.type].shortLabel} #${docBuilder.number} already exists for this business. ` +
+        `Two documents with the same number are hard to tell apart later. Save it anyway?`,
+        () => persistDoc(),
+        { title: "That number is already used", confirmLabel: "Save anyway", cancelLabel: "Go back and change it", danger: false });
+      return;
+    }
+    persistDoc();
+  };
+
+  const persistDoc = () => {
     recomputeTotals();
     // Drop transient builder-only keys before persisting.
     delete docBuilder._onTotals;
-    const idx = docBuilder._editing ? db.documents.findIndex(d => d.id === docBuilder.id) : -1;
+    // An autosaved draft is already a row in Documents, so saving updates that
+    // row — otherwise pressing Save would leave the draft behind as a duplicate.
+    const known = docBuilder._editing || docBuilder._autosaved;
+    const idx = known ? db.documents.findIndex(d => d.id === docBuilder.id) : -1;
     let saved;
     // `date` is the document's own date and the user can set it to anything, so
     // it cannot answer "how many were created today". These two can. Documents
@@ -7884,16 +8401,17 @@ const openDocBuilder = () => {
     const stamp = new Date().toISOString();
     if (idx >= 0) {
       docBuilder.updatedAt = stamp;
-      saved = db.documents[idx] = { ...docBuilder };
+      saved = db.documents[idx] = storableDoc(docBuilder);
     } else {
       docBuilder.createdAt = docBuilder.createdAt || stamp;
       docBuilder.updatedAt = stamp;
       // Either a brand-new document, or one that was deleted elsewhere while it
       // was open here — save it rather than throwing the work away.
       docBuilder.id = docBuilder.id || uid("doc");
-      saved = { ...docBuilder };
+      saved = storableDoc(docBuilder);
       db.documents.push(saved);
-      if (!docBuilder._editing) {
+      // Take the next number in the series — unless autosave already did.
+      if (!docBuilder._editing && !docBuilder._autosaved) {
         const biz = activeBiz();
         biz[DOC_TYPES[docBuilder.type].seqKey] = docBuilder._seq + 1;
       }
@@ -7926,6 +8444,7 @@ const openDocBuilder = () => {
       `${docBuilder.currency} ${fmt(t.total || 0)}`));
     const bits = [`${n} item${n === 1 ? "" : "s"}`];
     if (t.discountGiven > 0) bits.push(`${fmt(t.discountGiven)} off`);
+    if (docBuilder._autosaved) bits.push("Draft saved");
     totalLine.appendChild(el("div", { class: "step-total-sub" }, bits.join(" • ")));
   };
 
@@ -7967,6 +8486,44 @@ const openDocBuilder = () => {
   goStep("party");
 
   openModal(`${docBuilder._editing ? "Edit" : "New"} ${DOC_TYPES[docBuilder.type].label}`, shell, { wide: true });
+
+  // ---- Autosave ----
+  // The timer stops itself once the builder is off the screen, whichever way it
+  // was closed — saved, cancelled, or the phone's back button.
+  stopAutosave();
+  autosaveTimer = setInterval(() => {
+    if (!document.body.contains(shell)) { stopAutosave(); return; }
+    let outcome = "";
+    try {
+      outcome = autosaveDraft();
+    } catch (e) {
+      console.error("Autosave failed:", e);
+      stopAutosave(); // keep quiet rather than warning every three seconds
+      toast("Couldn't save a draft automatically — use Save when you're done.", "err", 6000);
+      return;
+    }
+    if (!outcome) return;
+    refreshFooter();
+    if (outcome === "created") {
+      toast(`Saved as a draft — ${DOC_TYPES[docBuilder.type].shortLabel} #${docBuilder.number} is in Documents now`, "ok", 5000);
+    }
+  }, AUTOSAVE_EVERY_MS);
+
+  // Closing is not losing anything once a draft exists, and the standard
+  // "Discard your changes?" would say otherwise.
+  const builderBg = modalStack[modalStack.length - 1];
+  if (builderBg) {
+    builderBg._closePrompt = () => {
+      if (!docBuilder || !docBuilder._autosaved) return null;
+      return {
+        title: "Leave this for now?",
+        message: `${DOC_TYPES[docBuilder.type].shortLabel} #${docBuilder.number} is saved as a draft in Documents. ` +
+          `You can open it again from there and carry on where you left off.`,
+        confirmLabel: "Leave it as a draft",
+        cancelLabel: "Keep editing",
+      };
+    };
+  }
 };
 
 // ==================== PREVIEW ====================
@@ -7979,12 +8536,14 @@ const printDoc = (pv) => {
   if (!w) { track("export.failed", { format: "print", reason: "popup-blocked" });
     toast("Popup blocked — allow popups for this page, then tap Print again", "err"); return; }
   track("document.printed");
-  const mainStyle = document.querySelector("style");
+  // Every <style> in the app, not just the first — the print window has none of
+  // its own, so anything left behind here prints as unstyled text.
+  const appCss = Array.from(document.querySelectorAll("style")).map(s => s.textContent).join("\n");
   w.document.open();
   w.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Print</title></head><body></body></html>");
   w.document.close();
   const style = w.document.createElement("style");
-  style.textContent = (mainStyle ? mainStyle.textContent : "") + `
+  style.textContent = appCss + `
     html, body { margin: 0; padding: 0; background: #fff; }
     .pv-scaler { transform: none !important; height: auto !important; }
     .pv-book { display: flex; flex-direction: column; gap: 0; align-items: center; }
@@ -8021,6 +8580,25 @@ const openDocPreview = (d) => {
     errBox.appendChild(fix);
     openModal(`${d.type} #${d.number}`, errBox, { wide: true });
     return;
+  }
+
+  // A document saved by an older build can carry totals that no longer match
+  // its own line items — VAT used to be added on top of prices that already
+  // included it. The saved figures are left alone (this document may already
+  // have been sent), but say so and offer the one-click fix. Shown in the app
+  // only; it is not part of the printed page.
+  const mismatch = totalsMismatch(d);
+  if (mismatch) {
+    const warn = el("div", { class: "doc-totals-warning" });
+    const txt = el("div");
+    txt.appendChild(el("div", { style: { fontWeight: 700, marginBottom: "2px" } }, "These totals need recalculating"));
+    txt.appendChild(el("div", {}, `This document was saved with ${d.currency} ${fmt(mismatch.stored)}, but its own items now add up to ` +
+      `${d.currency} ${fmt(mismatch.correct)} — a difference of ${d.currency} ${fmt(Math.abs(mismatch.difference))}. ` +
+      `Older versions added VAT a second time to prices that already included it. Nothing has been changed for you.`));
+    warn.appendChild(txt);
+    warn.appendChild(el("button", { class: "btn btn-primary", type: "button", style: { flexShrink: "0" },
+      onclick: () => { closeModal(); editDoc(d); toast("Check the figures, then press Save", "ok", 6000); } }, "Fix it"));
+    wrap.appendChild(warn);
   }
 
   // Chain link — if this doc was converted from another, show the source and
@@ -8199,6 +8777,18 @@ const renderPreview = (d, biz, cust) => {
   const displayRows = buildDisplayRows();
 
   const hidePrices = !!cfg.hidePrices;
+  const taxRatePct = (d.totals && d.totals.taxRate) || 0;
+  const separateVat = !!d.separateVat;
+  const showDiscount = !!d.showDiscountColumn;
+  // The middle column is whichever of these the document asks for. With neither
+  // switched on it is the plain "TAX" column marking which lines carry VAT,
+  // exactly as it has always been.
+  const middleCols = [];
+  if (showDiscount) middleCols.push("DISCOUNT");
+  if (separateVat) middleCols.push("VAT");
+  const hasPlainTaxColumn = !middleCols.length;
+  if (hasPlainTaxColumn) middleCols.push("TAX");
+
   const buildItemsTable = () => {
     const items = el("div", { class: "pv-items" });
     const table = el("table");
@@ -8206,7 +8796,7 @@ const renderPreview = (d, biz, cust) => {
     const trH = el("tr");
     const cols = hidePrices
       ? ["S.N.", "DESCRIPTION", "QTY", "UNIT"]
-      : ["S.N.", "DESCRIPTION", "QTY", "UNIT", "UNIT PRICE", "TAX", "TOTAL AMOUNT"];
+      : ["S.N.", "DESCRIPTION", "QTY", "UNIT", "UNIT PRICE"].concat(middleCols, ["TOTAL AMOUNT"]);
     cols.forEach(h => trH.appendChild(el("th", {}, h)));
     thead.appendChild(trH);
     table.appendChild(thead);
@@ -8224,20 +8814,41 @@ const renderPreview = (d, biz, cust) => {
     const cat = Array.isArray(li.catPath) && li.catPath.length ? li.catPath[0] : "";
     if (cat) descCell.appendChild(el("span", { class: "pv-cat-chip" }, cat));
     descCell.appendChild(el("span", { class: "pv-desc-text" }, li.description));
+    // The plain "TAX" column is what marks which lines carry VAT. When a
+    // discount or VAT column has taken its place, an exempt line has to say so
+    // some other way — on a tax invoice that is not optional.
+    if (!hidePrices && !hasPlainTaxColumn && !li.taxable && safeNum(taxRatePct) > 0) {
+      descCell.appendChild(el("span", { class: "pv-novat-chip" }, "no VAT"));
+    }
     r.appendChild(descCell);
-    r.appendChild(el("td", { class: "num" }, String(li.qty)));
+    r.appendChild(el("td", { class: "num" }, fmtQty(li.qty)));
     r.appendChild(el("td", {}, li.unit));
     if (!hidePrices) {
-      r.appendChild(el("td", { class: "num" }, fmt(li.rate)));
-      const sep = !!d.separateVat;
-      const tr = (d.totals && d.totals.taxRate || 0) / 100;
-      let taxCell = li.taxable ? "X" : "";
-      if (sep && li.taxable && tr > 0) {
-        const perUnit = li.rateIncludesVat ? (li.rate - li.rate / (1 + tr)) : (li.rate * tr);
-        taxCell = fmt(perUnit);
+      // Every figure in the row comes from the one place the totals come from,
+      // so the column always adds up to the Subtotal printed below it.
+      const a = lineAmounts(li, taxRatePct, separateVat);
+      r.appendChild(el("td", { class: "num" }, fmt(a.unitPrinted)));
+
+      if (showDiscount) {
+        const cell = el("td", { class: "num" });
+        const disc = lineDiscount(li, taxRatePct, separateVat);
+        if (disc) {
+          cell.appendChild(el("div", { class: "pv-disc-pct" }, `−${fmtPct(disc.pct)}%`));
+          cell.appendChild(el("div", { class: "pv-disc-was" }, `was ${fmt(disc.listUnit)}`));
+        } else {
+          cell.appendChild(el("span", {}, "–"));
+        }
+        r.appendChild(cell);
       }
-      r.appendChild(el("td", { class: sep ? "num" : "", style: sep ? {} : { textAlign: "center" } }, taxCell));
-      r.appendChild(el("td", { class: "num" }, fmt(li.qty * li.rate)));
+      if (separateVat) {
+        r.appendChild(el("td", { class: "num" },
+          li.taxable && safeNum(taxRatePct) > 0 ? fmt(a.vatToAdd || a.vatInside) : "–"));
+      }
+      if (hasPlainTaxColumn) {
+        r.appendChild(el("td", { style: { textAlign: "center" } }, li.taxable ? "X" : ""));
+      }
+
+      r.appendChild(el("td", { class: "num" }, fmt(a.linePrinted)));
     }
     return r;
   };
@@ -8254,10 +8865,14 @@ const renderPreview = (d, biz, cust) => {
     wrap.appendChild(note);
     const tbl = el("table");
     const trAdd = (l, v) => { const r = el("tr"); r.appendChild(el("td", {}, l)); r.appendChild(el("td", {}, v)); tbl.appendChild(r); };
-    trAdd("Subtotal", fmt(t.subtotal));
+    trAdd(separateVat ? "Subtotal (excl. VAT)" : "Subtotal", fmt(t.subtotal));
     trAdd("Taxable", fmt(t.taxable));
-    trAdd("Tax rate", (Number(t.taxRate) || 0).toFixed(3) + "%");
-    trAdd("Tax", t.tax > 0 ? fmt(t.tax) : "-");
+    trAdd("Tax rate", fmtPct(t.taxRate) + "%");
+    trAdd(separateVat ? "VAT" : "VAT to add", t.tax > 0 ? fmt(t.tax) : "-");
+    // When prices are printed as typed, part of the VAT is already inside them.
+    // Saying so is what makes the subtotal above and the total below add up for
+    // anyone checking the arithmetic by hand.
+    if (safeNum(t.taxIncluded) > 0) trAdd("VAT already in prices", fmt(t.taxIncluded));
     if (Number(t.delivery) > 0) trAdd("Delivery", fmt(t.delivery));
     if (!isQuote) {
       trAdd("Freight", t.freight > 0 ? fmt(t.freight) : "-");
@@ -8442,48 +9057,75 @@ const renderPreview = (d, biz, cust) => {
   const emptyItemsH = measureHeight([buildItemsTable()]);
   const finishH = measureHeight(finishSectionsBuilder());
 
-  // Row height: measure a real row using the first line item (or synthesize)
-  let rowH = 22;
-  {
-    const sampleTable = buildItemsTable();
-    const tbody = sampleTable.querySelector("tbody");
-    const sampleData = d.lineItems[0] || { partNumber: "1", unit: "pcs", description: "Sample line item description text goes here", qty: 1, rate: 100, taxable: true };
-    tbody.appendChild(buildItemRow(sampleData, 0));
-    const withOneH = measureHeight([sampleTable]);
-    rowH = Math.max(20, withOneH - emptyItemsH);
-  }
+  // -------- How tall is each row, really? --------
+  // Rows are not a uniform height: a long product description wraps onto two or
+  // three lines, a category chip adds another. Working the page out from one
+  // sample row's height overfilled the page, and because .pv-page is
+  // overflow:hidden the rows that did not fit were silently cut off the
+  // document — they simply were not on the invoice. So measure every row once,
+  // for real, and pack pages from those numbers.
+  const measureRowHeights = () => {
+    if (!displayRows.length) return [];
+    const table = buildItemsTable();
+    const tbody = table.querySelector("tbody");
+    const trs = displayRows.map((entry, i) => {
+      const tr = buildDisplayRow(entry, i + 1);
+      tbody.appendChild(tr);
+      return tr;
+    });
+    const holder = el("div", {
+      class: "pv-page",
+      style: { position: "absolute", left: "-99999px", top: "0", visibility: "hidden", height: "auto" }
+    });
+    holder.appendChild(table);
+    document.body.appendChild(holder);
+    const heights = trs.map(tr => Math.max(1, tr.getBoundingClientRect().height));
+    holder.remove();
+    return heights;
+  };
+  const rowHeights = measureRowHeights();
 
   const SAFETY = 40; // buffer against sub-pixel & border/margin drift + page footer breathing room
-  const p1MaxRows = Math.max(1, Math.floor((CONTENT_H - letterheadH - emptyItemsH - SAFETY) / rowH));
-  const contMaxRows = Math.max(1, Math.floor((CONTENT_H - contHdrH - emptyItemsH - SAFETY) / rowH));
-  const p1WithFinishMaxRows = Math.max(0, Math.floor((CONTENT_H - letterheadH - emptyItemsH - finishH - SAFETY) / rowH));
-  const contWithFinishMaxRows = Math.max(0, Math.floor((CONTENT_H - contHdrH - emptyItemsH - finishH - SAFETY) / rowH));
+  // Room left for item rows on a page, given whether it carries the letterhead
+  // (first page) or the short continuation header, and whether the totals,
+  // terms, bank and signature blocks have to fit under them (last page).
+  const rowBudget = (isFirstPage, withFinish) =>
+    CONTENT_H - (isFirstPage ? letterheadH : contHdrH) - emptyItemsH - (withFinish ? finishH : 0) - SAFETY;
+
+  // How many rows starting at `from` fit into `budget`.
+  const rowsThatFit = (from, budget) => {
+    let n = 0, used = 0;
+    while (from + n < rowHeights.length && used + rowHeights[from + n] <= budget) {
+      used += rowHeights[from + n];
+      n++;
+    }
+    return n;
+  };
 
   // -------- Distribute items across pages --------
   const nItems = displayRows.length;
   const distribution = []; // items per page
   const layouts = [];      // "p1_full" | "p1_with_finish" | "cont" | "cont_with_finish" | "finish_only"
 
-  if (nItems <= p1WithFinishMaxRows) {
-    // Whole doc fits on one page
-    distribution.push(nItems);
-    layouts.push("p1_with_finish");
-  } else {
-    distribution.push(p1MaxRows);
-    layouts.push("p1_full");
-    let remaining = nItems - p1MaxRows;
-    while (remaining > contWithFinishMaxRows) {
-      distribution.push(contMaxRows);
-      layouts.push("cont");
-      remaining -= contMaxRows;
+  let placed = 0;
+  let isFirstPage = true;
+  for (;;) {
+    // Could this be the last page — everything left, plus the closing blocks?
+    const fitWithFinish = rowsThatFit(placed, rowBudget(isFirstPage, true));
+    if (placed + fitWithFinish >= nItems) {
+      const rows = nItems - placed;
+      distribution.push(rows);
+      layouts.push(rows === 0 && !isFirstPage ? "finish_only" : (isFirstPage ? "p1_with_finish" : "cont_with_finish"));
+      break;
     }
-    if (remaining > 0) {
-      distribution.push(remaining);
-      layouts.push("cont_with_finish");
-    } else {
-      distribution.push(0);
-      layouts.push("finish_only");
-    }
+    // Not the last page: fill it with rows only, and carry on.
+    // A single row taller than a whole page still has to go somewhere, so never
+    // place zero — that would loop forever.
+    const rows = Math.max(1, rowsThatFit(placed, rowBudget(isFirstPage, false)));
+    distribution.push(rows);
+    layouts.push(isFirstPage ? "p1_full" : "cont");
+    placed += rows;
+    isFirstPage = false;
   }
 
   // -------- Build the book --------
@@ -8592,18 +9234,6 @@ const captureBookPages = async (previewEl) => {
   }
 };
 
-const withScalerReset = async (el, fn) => {
-  const scaler = el.closest ? el.closest(".pv-scaler") : null;
-  const prevTransform = scaler ? scaler.style.transform : null;
-  const prevHeight = scaler ? scaler.style.height : null;
-  if (scaler) { scaler.style.transform = "none"; scaler.style.height = ""; }
-  try {
-    return await fn();
-  } finally {
-    if (scaler) { scaler.style.transform = prevTransform || ""; scaler.style.height = prevHeight || ""; }
-  }
-};
-
 // Captures each .pv-page and stitches into one tall PNG for sharing on
 // WhatsApp/messaging. For single-page docs, output is identical to before.
 const capturePreviewAsCanvas = async (previewEl) => {
@@ -8635,6 +9265,7 @@ const downloadPNG = async (previewEl, d, btn) => {
     const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
     if (!blob) throw new Error("the image could not be created");
     const savedPng = await writeToFolder(blob, filename);
+    track("document.exported", { type: d.type, format: "png" });
     if (savedPng) {
       toast(`Saved to folder "${savedPng.name}" — ${filename}`, "ok", 6000);
       return;
@@ -8648,7 +9279,6 @@ const downloadPNG = async (previewEl, d, btn) => {
     link.remove();
     setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
     toast(`Image saved to your Downloads folder as ${docFileName(d, "png")}`, "ok", 6000);
-    track("document.exported", { type: d.type, format: "png" });
   } catch (e) {
     track("export.failed", { type: d.type, format: "png" });
     console.error("PNG export failed:", e);
@@ -8673,20 +9303,21 @@ const downloadPDF = async (previewEl, d, btn) => {
     const pageW = pdf.internal.pageSize.getWidth();  // 210
     const pageH = pdf.internal.pageSize.getHeight(); // 297
 
-    const pages = previewEl.classList.contains("pv-book")
-      ? Array.from(previewEl.querySelectorAll(".pv-page"))
-      : [previewEl];
-
-    await withScalerReset(previewEl, async () => {
-      for (let i = 0; i < pages.length; i++) {
-        const pageEl = pages[i];
-        const canvas = await html2canvas(pageEl, { scale: 2, backgroundColor: "#fff", useCORS: true });
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        // Each captured page is already A4 proportioned (794x1123). Fit edge-to-edge.
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, 0, pageW, pageH);
-      }
+    // Capture through captureBookPages, the same path the PNG export uses: it
+    // clones each page onto an untransformed stage. Screenshotting the live
+    // page instead leaves it inside the preview's transform:scale(), which
+    // html2canvas renders with shrunk boxes but full-size text — every line
+    // overlapping the next. It only showed up on small screens, where the
+    // scaler is actually doing something.
+    const canvases = await captureBookPages(previewEl);
+    if (!canvases.length) throw new Error("there was nothing to put on the page");
+    canvases.forEach((canvas, i) => {
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      // Each captured page is already A4 proportioned (794x1123). Fit edge-to-edge.
+      if (i > 0) pdf.addPage();
+      pdf.addImage(imgData, "JPEG", 0, 0, pageW, pageH);
     });
+    const pages = canvases;
 
     const filename = docBaseName(d, "pdf");
     const pdfBlob = pdf.output("blob");
@@ -8732,6 +9363,63 @@ const shareMessage = (d, cust, biz) => {
 // Share the document as a PNG image. Uses the Web Share API where available
 // (Android/iOS) so the picture and text go together into WhatsApp; otherwise
 // downloads the image and opens WhatsApp with the text for manual attach.
+// The desktop hand-off: the image is already saved, so all that is left is
+// opening the right chat. This is a real link the user presses, which is the
+// only reliable way — a window.open() after the image has been generated is no
+// longer attached to the click that started it, and browsers silently block it.
+const openWhatsAppHandoff = (d, cust, msg, fileName, folderName) => {
+  const link = `https://wa.me/${waNumber(cust.phone)}?text=${encodeURIComponent(msg)}`;
+  const wrap = el("div");
+
+  const where = folderName
+    ? `Saved to your "${folderName}" folder as ${fileName}.`
+    : `Saved to your Downloads folder as ${fileName}.`;
+  wrap.appendChild(el("div", { style: { fontSize: "13px", lineHeight: "1.55", marginBottom: "10px" } }, where));
+
+  const steps = el("ol", { style: { fontSize: "12.5px", lineHeight: "1.6", margin: "0 0 16px 18px", color: "var(--muted)" } });
+  steps.appendChild(el("li", {}, `Open ${cust.companyName}'s chat with the button below — the message is written for you.`));
+  steps.appendChild(el("li", {}, "Attach the image you just saved, and send."));
+  wrap.appendChild(steps);
+  wrap.appendChild(el("div", { style: { fontSize: "11.5px", color: "var(--muted)", marginBottom: "14px", lineHeight: "1.5" } },
+    "WhatsApp does not let a website attach the file for you on a computer. On a phone it does — tap WhatsApp there and the document goes along with the message."));
+
+  const bar = el("div", { class: "action-bar" });
+  bar.appendChild(el("button", { class: "btn btn-secondary", type: "button", onclick: closeModal }, "Not now"));
+  // An <a> the user clicks, not a scripted window.open, so nothing blocks it.
+  const go = el("a", {
+    class: "btn btn-green keep-label", href: link, target: "_blank", rel: "noopener noreferrer",
+    style: { textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "center" },
+    onclick: () => {
+      if (d.status === "Draft") { d.status = "Sent"; saveDB(); }
+      track("document.shared", { type: d.type, via: "wa.me" });
+      closeModal();
+    },
+  });
+  const icon = svgIcon("whatsapp");
+  if (icon) go.appendChild(icon);
+  go.appendChild(el("span", {}, "Open WhatsApp"));
+  bar.appendChild(go);
+  wrap.appendChild(bar);
+
+  openModal(`Send ${DOC_TYPES[d.type].shortLabel} #${d.number} on WhatsApp`, wrap, { guard: false });
+};
+
+// wa.me needs a full international number with no plus sign. Most Nepali
+// businesses save a customer as "9801234567" or "980-123 4567", which wa.me
+// reads as a US number and fails on — so a bare ten-digit mobile starting with
+// 9 gets Nepal's 977 in front of it. Anything already carrying a country code
+// (a leading +, 00, or 977) is left exactly as typed, so overseas customers
+// still work.
+const waNumber = (raw) => {
+  const typed = String(raw || "").trim();
+  let digits = typed.replace(/[^0-9]/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);          // 00977… -> 977…
+  else if (typed.startsWith("+")) return digits;                   // already international
+  if (digits.startsWith("977")) return digits;
+  if (/^9\d{9}$/.test(digits)) return "977" + digits;              // Nepali mobile
+  return digits;
+};
+
 const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
   if (!cust || !cust.phone) { toast("Customer phone number is missing", "err"); return; }
   const original = btn ? btn.innerHTML : null;
@@ -8756,9 +9444,12 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
       return;
     }
 
-    // No file-sharing support (typically desktop): save the image, then open
-    // this exact customer's WhatsApp chat with the message ready — the image
-    // needs a manual attach here, since wa.me links can't carry a file.
+    // No file-sharing support — this is the desktop case. wa.me links cannot
+    // carry a file, so the image is saved and the chat is opened for a manual
+    // attach. Opening it automatically does not work: by the time the image has
+    // been drawn and written, the browser no longer counts this as something
+    // the user clicked, and it blocks the popup with no message. So save the
+    // file, then hand over a real button for the user to press.
     const saved = blob && await writeToFolder(blob, filename);
     if (!saved && blob) {
       // A Blob URL (not canvas.toDataURL — that's unreliable for downloads on
@@ -8775,16 +9466,7 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
       // the download — revoking too early can cancel it on some browsers.
       setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
     }
-    // Give the download a moment to register before navigating away — opening
-    // WhatsApp immediately could interrupt a download that hadn't started yet.
-    await new Promise(res => setTimeout(res, 500));
-    const phone = cust.phone.replace(/[^0-9]/g, "");
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
-    if (d.status === "Draft") { d.status = "Sent"; saveDB(); }
-    toast(saved
-      ? `Image saved to "${saved.name}" as ${docFileName(d, "png")} — attach it in the chat that just opened`
-      : `Image saved to your Downloads folder as ${docFileName(d, "png")} — attach it in the chat that just opened`,
-      "ok", 8000);
+    openWhatsAppHandoff(d, cust, msg, docFileName(d, "png"), saved ? saved.name : "");
   } catch (e) {
     if (e && e.name === "AbortError") return; // user dismissed the share sheet
     track("export.failed", { type: d.type, format: "whatsapp" });
@@ -8902,19 +9584,49 @@ const gdriveRestore = async (btn) => {
 
 // ==================== BACKUP ====================
 const exportBackup = async () => {
-  track("backup.exported");
   const filename = `pipomaker_backup_${today()}.json`;
-  const blob = new Blob([JSON.stringify(db, null, 2)], { type: "application/json" });
-  const savedBk = await writeToFolder(blob, filename, "backups");
-  if (savedBk) {
-    toast(`Backup saved to "${savedBk.name}/backups"`, "ok", 6000);
-    return;
+  try {
+    const blob = new Blob([JSON.stringify(db, null, 2)], { type: "application/json" });
+    const savedBk = await writeToFolder(blob, filename, "backups");
+    if (savedBk) {
+      track("backup.exported");
+      toast(`Backup saved to "${savedBk.name}/backups"`, "ok", 6000);
+      return;
+    }
+    // The link has to be in the document for Firefox to act on the click, and
+    // the object URL has to outlive the click — revoking it on the next line
+    // cancels the download on some browsers before it has begun.
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    track("backup.exported");
+    toast("Backup downloaded");
+  } catch (e) {
+    console.error("Backup failed:", e);
+    toast("Couldn't save the backup. Please try again.", "err");
   }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  a.click(); URL.revokeObjectURL(url);
-  toast("Backup downloaded");
+};
+
+// Put the database that is about to be thrown away somewhere it can be found
+// again. It goes into this browser's storage under its own key, which is
+// exactly what Settings -> "Data saved on this device" lists — so a restore
+// that turns out to be the wrong file is one click away from being undone.
+// Only ever one such copy is kept, and failing to write it never blocks the
+// restore the user actually asked for.
+const RESCUE_KEY = "pipomaker_before_restore";
+const stashCurrentData = () => {
+  try {
+    if (!db || !Array.isArray(db.businesses) || !db.businesses.length) return false;
+    localStorage.setItem(RESCUE_KEY, JSON.stringify(db));
+    return true;
+  } catch (e) {
+    return false; // usually storage is full; the restore still goes ahead
+  }
 };
 
 // ---- Restore from what's already on this device ----
@@ -8935,7 +9647,7 @@ const scanDeviceData = () => {
     try { v = JSON.parse(raw); } catch (e) { return; }
     if (!v || !Array.isArray(v.businesses) || !v.businesses.length) return;
     found.push({
-      key: k, data: v, isCurrent: k === DB_KEY,
+      key: k, data: v, isCurrent: k === DB_KEY, isRescue: k === RESCUE_KEY,
       sizeKB: Math.max(1, Math.round(raw.length / 1024)),
       names: v.businesses.map(b => b && b.name).filter(Boolean),
       businesses: v.businesses.length,
@@ -8960,7 +9672,15 @@ const deviceEntryNames = (e) =>
 const restoreDeviceEntry = (entry) => {
   track("backup.device_restore");
   const apply = () => {
-    replaceDB(JSON.parse(JSON.stringify(entry.data)));
+    // Same safety net as a file restore: keep what is being replaced.
+    if (!entry.isRescue) stashCurrentData();
+    try {
+      replaceDB(JSON.parse(JSON.stringify(entry.data)));
+    } catch (e) {
+      console.error("Device restore failed:", e);
+      toast("Couldn't load that copy. Nothing was changed.", "err");
+      return;
+    }
     if (modalStack.length) closeModal();
     render();
     toast(`Loaded ${entry.businesses} business${entry.businesses === 1 ? "" : "es"} from this device`, "ok", 4000);
@@ -8991,6 +9711,7 @@ const openDeviceRestoreModal = () => {
       const txt = el("div", { style: { flex: "1", minWidth: "0" } });
       const nameRow = el("div", { style: { fontWeight: 600, fontSize: "13px" } }, deviceEntryNames(entry));
       if (entry.isCurrent) nameRow.appendChild(el("span", { style: { marginLeft: "6px", fontSize: "10px", fontWeight: 700, color: "var(--primary)" } }, "IN USE"));
+      if (entry.isRescue) nameRow.appendChild(el("span", { style: { marginLeft: "6px", fontSize: "10px", fontWeight: 700, color: "var(--muted)" } }, "BEFORE LAST RESTORE"));
       txt.appendChild(nameRow);
       txt.appendChild(el("div", { style: { fontSize: "11px", color: "var(--muted)", marginTop: "1px" } }, deviceEntrySummary(entry)));
       body.appendChild(txt);
@@ -9007,26 +9728,124 @@ const openDeviceRestoreModal = () => {
 };
 
 const importBackup = () => {
-  track("backup.imported");
   const inp = document.createElement("input");
-  inp.type = "file"; inp.accept = "application/json";
+  inp.type = "file"; inp.accept = "application/json,.json";
   inp.onchange = (e) => {
     const f = e.target.files[0]; if (!f) return;
     const r = new FileReader();
+    r.onerror = () => toast("That file couldn't be read. Please try again.", "err");
     r.onload = () => {
+      let imported;
       try {
-        const imported = JSON.parse(r.result);
-        if (!imported.businesses) throw new Error("Invalid backup");
-        confirmModal(
-          "This replaces every business, customer, product, and document currently in the app with what's in this backup file. Your current data will be lost.",
-          () => { replaceDB(imported); render(); toast("Backup restored"); },
-          { title: "Replace all data?", confirmLabel: "Replace data" }
-        );
-      } catch (e) { toast("Invalid backup file: " + e.message, "err"); }
+        imported = JSON.parse(r.result);
+      } catch (err) {
+        toast("That doesn't look like a BizDoc backup — it isn't readable as a backup file.", "err", 6000);
+        return;
+      }
+      if (!imported || typeof imported !== "object" || !Array.isArray(imported.businesses)) {
+        toast("That doesn't look like a BizDoc backup — no businesses in it.", "err", 6000);
+        return;
+      }
+      const counts = `${imported.businesses.length} business${imported.businesses.length === 1 ? "" : "es"}, ` +
+        `${(imported.customers || []).length} customers, ${(imported.products || []).length} products, ` +
+        `${(imported.documents || []).length} documents`;
+      confirmModal(
+        `This replaces everything currently in the app with what is in this file (${counts}). ` +
+        `Your current data is kept on this device first, so if this is the wrong file you can get it back ` +
+        `from Settings → Data & backup → "Data saved on this device".`,
+        () => {
+          const stashed = stashCurrentData();
+          try {
+            replaceDB(imported);
+          } catch (err) {
+            console.error("Restore failed:", err);
+            toast("Couldn't load that backup. Nothing was changed.", "err");
+            return;
+          }
+          track("backup.imported");
+          render();
+          toast(stashed ? "Backup restored — your previous data is still on this device" : "Backup restored", "ok", 6000);
+        },
+        { title: "Replace all data?", confirmLabel: "Replace data" }
+      );
     };
     r.readAsText(f);
   };
   inp.click();
+};
+
+// ---- How much room is left ----------------------------------------------
+// Browser storage is small — commonly around 5 MB — and a logo or signature
+// pasted in at full size eats it fast. Until now the first sign of trouble was
+// a save quietly failing. This measures what is actually stored so the app can
+// say something while there is still time to do something about it.
+const STORAGE_BUDGET_BYTES = 5 * 1024 * 1024; // the usual localStorage ceiling
+
+// Bytes this app is using in localStorage. Strings are stored as UTF-16, so a
+// character is two bytes — that is what counts against the browser's limit.
+const storageBytesUsed = () => {
+  let bytes = 0;
+  try {
+    for (const key of Object.keys(localStorage)) {
+      const val = localStorage.getItem(key) || "";
+      bytes += (key.length + val.length) * 2;
+    }
+  } catch (e) { return 0; }
+  return bytes;
+};
+
+const formatBytes = (n) => n >= 1024 * 1024
+  ? (n / (1024 * 1024)).toFixed(1) + " MB"
+  : Math.max(1, Math.round(n / 1024)) + " KB";
+
+// What is taking up the room, biggest first — so "your logo is 1.2 MB" is
+// answerable rather than a guess.
+const storageBreakdown = () => {
+  const used = storageBytesUsed();
+  const parts = [];
+  const biz = db.businesses || [];
+  const imageBytes = biz.reduce((sum, b) =>
+    sum + ((b.logo || "").length + (b.stamp || "").length + (b.signature || "").length) * 2, 0);
+  if (imageBytes > 0) parts.push({ label: "Logos, stamps and signatures", bytes: imageBytes });
+  parts.push({ label: `${(db.documents || []).length} documents`, bytes: JSON.stringify(db.documents || []).length * 2 });
+  parts.push({ label: `${(db.products || []).length} products`, bytes: JSON.stringify(db.products || []).length * 2 });
+  parts.push({ label: `${(db.customers || []).length} customers`, bytes: JSON.stringify(db.customers || []).length * 2 });
+  return { used, budget: STORAGE_BUDGET_BYTES, parts: parts.filter(p => p.bytes > 0).sort((a, b) => b.bytes - a.bytes) };
+};
+
+// The meter shown in Settings -> Data & backup.
+const renderStorageMeter = () => {
+  const info = storageBreakdown();
+  const pct = Math.min(100, Math.round((info.used / info.budget) * 100));
+  const tight = pct >= 80;
+
+  const box = el("div", { style: { marginBottom: "14px" } });
+  const head = el("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: "12px", marginBottom: "5px" } });
+  head.appendChild(el("span", { style: { color: "var(--muted)" } }, "Space used in this browser"));
+  head.appendChild(el("span", { style: { fontWeight: 700, color: tight ? "var(--danger)" : "var(--text)" } },
+    `${formatBytes(info.used)} of about ${formatBytes(info.budget)}`));
+  box.appendChild(head);
+
+  const bar = el("div", {
+    role: "progressbar", "aria-valuenow": String(pct), "aria-valuemin": "0", "aria-valuemax": "100",
+    "aria-label": "Space used in this browser",
+    style: { height: "8px", borderRadius: "999px", background: "rgba(17,24,39,.10)", overflow: "hidden" },
+  });
+  bar.appendChild(el("div", { style: {
+    width: pct + "%", height: "100%", borderRadius: "999px",
+    background: tight ? "var(--danger)" : "var(--primary)",
+  } }));
+  box.appendChild(bar);
+
+  if (info.parts.length) {
+    box.appendChild(el("div", { style: { fontSize: "11px", color: "var(--muted)", marginTop: "5px" } },
+      info.parts.slice(0, 3).map(p => `${p.label}: ${formatBytes(p.bytes)}`).join(" • ")));
+  }
+  if (tight) {
+    box.appendChild(el("div", { style: { fontSize: "11.5px", color: "var(--danger)", marginTop: "6px", lineHeight: "1.45" } },
+      "This browser is nearly full. Export a backup now, then free some room — a smaller logo or signature image usually recovers the most."));
+  }
+  return box;
 };
 
 // ==================== UTILS ====================

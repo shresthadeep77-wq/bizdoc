@@ -55,18 +55,6 @@ const captureBookPages = async (previewEl) => {
   }
 };
 
-const withScalerReset = async (el, fn) => {
-  const scaler = el.closest ? el.closest(".pv-scaler") : null;
-  const prevTransform = scaler ? scaler.style.transform : null;
-  const prevHeight = scaler ? scaler.style.height : null;
-  if (scaler) { scaler.style.transform = "none"; scaler.style.height = ""; }
-  try {
-    return await fn();
-  } finally {
-    if (scaler) { scaler.style.transform = prevTransform || ""; scaler.style.height = prevHeight || ""; }
-  }
-};
-
 // Captures each .pv-page and stitches into one tall PNG for sharing on
 // WhatsApp/messaging. For single-page docs, output is identical to before.
 const capturePreviewAsCanvas = async (previewEl) => {
@@ -98,6 +86,7 @@ const downloadPNG = async (previewEl, d, btn) => {
     const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
     if (!blob) throw new Error("the image could not be created");
     const savedPng = await writeToFolder(blob, filename);
+    track("document.exported", { type: d.type, format: "png" });
     if (savedPng) {
       toast(`Saved to folder "${savedPng.name}" — ${filename}`, "ok", 6000);
       return;
@@ -111,7 +100,6 @@ const downloadPNG = async (previewEl, d, btn) => {
     link.remove();
     setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
     toast(`Image saved to your Downloads folder as ${docFileName(d, "png")}`, "ok", 6000);
-    track("document.exported", { type: d.type, format: "png" });
   } catch (e) {
     track("export.failed", { type: d.type, format: "png" });
     console.error("PNG export failed:", e);
@@ -136,20 +124,21 @@ const downloadPDF = async (previewEl, d, btn) => {
     const pageW = pdf.internal.pageSize.getWidth();  // 210
     const pageH = pdf.internal.pageSize.getHeight(); // 297
 
-    const pages = previewEl.classList.contains("pv-book")
-      ? Array.from(previewEl.querySelectorAll(".pv-page"))
-      : [previewEl];
-
-    await withScalerReset(previewEl, async () => {
-      for (let i = 0; i < pages.length; i++) {
-        const pageEl = pages[i];
-        const canvas = await html2canvas(pageEl, { scale: 2, backgroundColor: "#fff", useCORS: true });
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        // Each captured page is already A4 proportioned (794x1123). Fit edge-to-edge.
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, 0, pageW, pageH);
-      }
+    // Capture through captureBookPages, the same path the PNG export uses: it
+    // clones each page onto an untransformed stage. Screenshotting the live
+    // page instead leaves it inside the preview's transform:scale(), which
+    // html2canvas renders with shrunk boxes but full-size text — every line
+    // overlapping the next. It only showed up on small screens, where the
+    // scaler is actually doing something.
+    const canvases = await captureBookPages(previewEl);
+    if (!canvases.length) throw new Error("there was nothing to put on the page");
+    canvases.forEach((canvas, i) => {
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      // Each captured page is already A4 proportioned (794x1123). Fit edge-to-edge.
+      if (i > 0) pdf.addPage();
+      pdf.addImage(imgData, "JPEG", 0, 0, pageW, pageH);
     });
+    const pages = canvases;
 
     const filename = docBaseName(d, "pdf");
     const pdfBlob = pdf.output("blob");
@@ -195,6 +184,63 @@ const shareMessage = (d, cust, biz) => {
 // Share the document as a PNG image. Uses the Web Share API where available
 // (Android/iOS) so the picture and text go together into WhatsApp; otherwise
 // downloads the image and opens WhatsApp with the text for manual attach.
+// The desktop hand-off: the image is already saved, so all that is left is
+// opening the right chat. This is a real link the user presses, which is the
+// only reliable way — a window.open() after the image has been generated is no
+// longer attached to the click that started it, and browsers silently block it.
+const openWhatsAppHandoff = (d, cust, msg, fileName, folderName) => {
+  const link = `https://wa.me/${waNumber(cust.phone)}?text=${encodeURIComponent(msg)}`;
+  const wrap = el("div");
+
+  const where = folderName
+    ? `Saved to your "${folderName}" folder as ${fileName}.`
+    : `Saved to your Downloads folder as ${fileName}.`;
+  wrap.appendChild(el("div", { style: { fontSize: "13px", lineHeight: "1.55", marginBottom: "10px" } }, where));
+
+  const steps = el("ol", { style: { fontSize: "12.5px", lineHeight: "1.6", margin: "0 0 16px 18px", color: "var(--muted)" } });
+  steps.appendChild(el("li", {}, `Open ${cust.companyName}'s chat with the button below — the message is written for you.`));
+  steps.appendChild(el("li", {}, "Attach the image you just saved, and send."));
+  wrap.appendChild(steps);
+  wrap.appendChild(el("div", { style: { fontSize: "11.5px", color: "var(--muted)", marginBottom: "14px", lineHeight: "1.5" } },
+    "WhatsApp does not let a website attach the file for you on a computer. On a phone it does — tap WhatsApp there and the document goes along with the message."));
+
+  const bar = el("div", { class: "action-bar" });
+  bar.appendChild(el("button", { class: "btn btn-secondary", type: "button", onclick: closeModal }, "Not now"));
+  // An <a> the user clicks, not a scripted window.open, so nothing blocks it.
+  const go = el("a", {
+    class: "btn btn-green keep-label", href: link, target: "_blank", rel: "noopener noreferrer",
+    style: { textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "center" },
+    onclick: () => {
+      if (d.status === "Draft") { d.status = "Sent"; saveDB(); }
+      track("document.shared", { type: d.type, via: "wa.me" });
+      closeModal();
+    },
+  });
+  const icon = svgIcon("whatsapp");
+  if (icon) go.appendChild(icon);
+  go.appendChild(el("span", {}, "Open WhatsApp"));
+  bar.appendChild(go);
+  wrap.appendChild(bar);
+
+  openModal(`Send ${DOC_TYPES[d.type].shortLabel} #${d.number} on WhatsApp`, wrap, { guard: false });
+};
+
+// wa.me needs a full international number with no plus sign. Most Nepali
+// businesses save a customer as "9801234567" or "980-123 4567", which wa.me
+// reads as a US number and fails on — so a bare ten-digit mobile starting with
+// 9 gets Nepal's 977 in front of it. Anything already carrying a country code
+// (a leading +, 00, or 977) is left exactly as typed, so overseas customers
+// still work.
+const waNumber = (raw) => {
+  const typed = String(raw || "").trim();
+  let digits = typed.replace(/[^0-9]/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);          // 00977… -> 977…
+  else if (typed.startsWith("+")) return digits;                   // already international
+  if (digits.startsWith("977")) return digits;
+  if (/^9\d{9}$/.test(digits)) return "977" + digits;              // Nepali mobile
+  return digits;
+};
+
 const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
   if (!cust || !cust.phone) { toast("Customer phone number is missing", "err"); return; }
   const original = btn ? btn.innerHTML : null;
@@ -219,9 +265,12 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
       return;
     }
 
-    // No file-sharing support (typically desktop): save the image, then open
-    // this exact customer's WhatsApp chat with the message ready — the image
-    // needs a manual attach here, since wa.me links can't carry a file.
+    // No file-sharing support — this is the desktop case. wa.me links cannot
+    // carry a file, so the image is saved and the chat is opened for a manual
+    // attach. Opening it automatically does not work: by the time the image has
+    // been drawn and written, the browser no longer counts this as something
+    // the user clicked, and it blocks the popup with no message. So save the
+    // file, then hand over a real button for the user to press.
     const saved = blob && await writeToFolder(blob, filename);
     if (!saved && blob) {
       // A Blob URL (not canvas.toDataURL — that's unreliable for downloads on
@@ -238,16 +287,7 @@ const shareWhatsAppImage = async (previewEl, d, cust, biz, btn) => {
       // the download — revoking too early can cancel it on some browsers.
       setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
     }
-    // Give the download a moment to register before navigating away — opening
-    // WhatsApp immediately could interrupt a download that hadn't started yet.
-    await new Promise(res => setTimeout(res, 500));
-    const phone = cust.phone.replace(/[^0-9]/g, "");
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
-    if (d.status === "Draft") { d.status = "Sent"; saveDB(); }
-    toast(saved
-      ? `Image saved to "${saved.name}" as ${docFileName(d, "png")} — attach it in the chat that just opened`
-      : `Image saved to your Downloads folder as ${docFileName(d, "png")} — attach it in the chat that just opened`,
-      "ok", 8000);
+    openWhatsAppHandoff(d, cust, msg, docFileName(d, "png"), saved ? saved.name : "");
   } catch (e) {
     if (e && e.name === "AbortError") return; // user dismissed the share sheet
     track("export.failed", { type: d.type, format: "whatsapp" });

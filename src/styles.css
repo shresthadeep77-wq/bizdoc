@@ -196,6 +196,23 @@ button.stat-tile:hover { box-shadow: var(--shadow-sm); }
 .totals { background: var(--primary-tint); padding: 12px; border-radius: var(--radius-sm); }
 .totals-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
 .totals-row.grand { font-weight: 700; font-size: 15px; border-top: 2px solid var(--primary); padding-top: 8px; margin-top: 8px; color: var(--primary); }
+.totals-row { align-items: center; gap: 10px; }
+/* Tax-rate row: the two presets sit beside the box rather than above it. */
+.tax-rate-controls { display: flex; align-items: center; gap: 6px; }
+.chip-btn { border: 0; background: var(--surface); color: var(--muted); box-shadow: var(--shadow-sm);
+  border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; line-height: 1.4; }
+.chip-btn:hover { color: var(--primary); }
+.chip-btn:active { box-shadow: var(--shadow-inset); }
+
+/* Shown above a saved document whose stored totals no longer match its items.
+   In-app only — @media print already hides .no-print, and this sits outside
+   the .pv-page that gets exported. */
+.doc-totals-warning { display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12;
+  border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 12px;
+  font-size: 12.5px; line-height: 1.5; }
+.doc-totals-warning > div { flex: 1 1 260px; min-width: 0; }
+.chip-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* Preview — A4 (210mm x 297mm) @ 96dpi = 794x1123px */
 .preview-wrap { background: #55606e; padding: 20px 12px; overflow-x: auto; }
@@ -241,7 +258,18 @@ button.stat-tile:hover { box-shadow: var(--shadow-sm); }
 .pv-items td { padding: 5px 6px; border: 1px solid #d0d0d0; line-height: 1.35; }
 .pv-items .num { text-align: right; font-variant-numeric: tabular-nums; }
 .pv-items .pv-cat-chip { display: inline-block; background: #e8eef5; color: #1F4E79; font-size: 8.5px; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-right: 5px; letter-spacing: 0.3px; text-transform: uppercase; line-height: 1.2; vertical-align: 1px; }
-.pv-items .pv-desc-text { }
+/* A part number or product name with no spaces in it (a long SKU, a URL) must
+   wrap inside its cell rather than pushing the price columns off the page. */
+.pv-items .pv-desc-text { overflow-wrap: anywhere; }
+.pv-items td, .pv-items th { overflow-wrap: anywhere; }
+/* The discount column: the percentage, and the list price it came off. */
+.pv-items .pv-disc-pct { font-weight: 700; white-space: nowrap; }
+.pv-items .pv-disc-was { font-size: 8.5px; color: #6b7280; white-space: nowrap; }
+/* Marks a line that carries no VAT, for when the plain "TAX" column has been
+   replaced by the discount or VAT column. */
+.pv-items .pv-novat-chip { display: inline-block; margin-left: 6px; padding: 0 4px;
+  border: 1px solid #cbd5e1; border-radius: 3px; font-size: 8px; font-weight: 700;
+  letter-spacing: .03em; color: #64748b; vertical-align: 1px; white-space: nowrap; }
 /* "Continued" marker on the last row of a non-final page */
 .pv-items-cont-note { padding: 4px 8px; text-align: right; font-size: 9.5px; font-style: italic; color: #6b7280; border: 1px solid #1F4E79; border-top: none; background: #f9fafb; }
 /* Totals block — full width, below items */
@@ -602,7 +630,7 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
      fits the modal/viewport. Printing must undo that: otherwise the browser
      prints the shrunk box at full (unscaled) font size and every line of
      text overlaps the next — the same issue the html2canvas capture path
-     already guards against via withScalerReset(). */
+     avoids by cloning each page onto an untransformed stage. */
   .pv-scaler { transform: none !important; height: auto !important; }
   .pv-book { gap: 0; }
   .pv-page { box-shadow: none; page-break-after: always; break-after: page; }
@@ -621,12 +649,19 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 .crumbs ol { list-style: none; display: flex; flex-wrap: wrap; gap: 7px; font-size: 12px; color: var(--muted); }
 .crumbs li { display: flex; align-items: center; gap: 7px; }
 .crumbs li + li::before { content: "\203A"; color: #9aa3b0; }
-.crumbs a { color: var(--muted); text-decoration: none; }
+/* Same reason as the footer links: 12px text is a 14px-tall tap target. */
+.crumbs a { color: var(--muted); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 24px; padding: 0 4px; margin-inline: -4px; }
 .crumbs a:hover { color: var(--primary); text-decoration: underline; }
 .crumbs [aria-current="page"] { color: var(--text); font-weight: 600; }
 .app-foot { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--divider); }
-.app-foot-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; }
-.app-foot-links a { color: var(--muted); text-decoration: none; }
+.app-foot-links { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 12px; }
+/* The text is 12px, which is a 14px-tall target — too small to hit reliably
+   with a thumb. The padding brings each link up to the 24px minimum without
+   changing how the row looks; the negative inline margin keeps the first link
+   flush with the text above it. */
+.app-foot-links a { color: var(--muted); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 24px; padding: 0 4px; margin-inline: -4px; }
 .app-foot-links a:hover { color: var(--primary); text-decoration: underline; }
 
 /* Shown only when scripting is off — the app itself cannot start without it. */

@@ -680,6 +680,8 @@ const renderSettingsData = (biz) => {
     openModal("CSV templates", w);
   }}, "\u{1F4C4} Templates"));
   dc.appendChild(csvGrid);
+  dc.appendChild(el("div", { style: { fontSize: "12px", fontWeight: 600, color: "var(--muted)", margin: "14px 0 6px" } }, "Storage"));
+  dc.appendChild(renderStorageMeter());
   dc.appendChild(el("div", { style: { fontSize: "12px", fontWeight: 600, color: "var(--muted)", margin: "10px 0 6px" } }, "Full backup"));
   dc.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "8px" }, onclick: exportBackup }, "\u{1F4E5} Export backup (JSON)"));
   dc.appendChild(el("button", { class: "btn btn-secondary btn-full", style: { marginBottom: "8px" }, onclick: importBackup }, "\u{1F4E4} Import backup (JSON)"));

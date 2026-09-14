@@ -64,7 +64,7 @@ const normalizeDB = (raw) => {
     if (!Array.isArray(d.lineItems)) d.lineItems = [];
     if (!d.status) d.status = "Draft";
     const t = d.totals || (d.totals = {});
-    ["subtotal", "taxable", "tax", "delivery", "freight", "insurance", "legal", "inspection", "other1", "other2", "total", "discountGiven"].forEach(k => {
+    ["subtotal", "taxable", "tax", "taxIncluded", "delivery", "freight", "insurance", "legal", "inspection", "other1", "other2", "total", "discountGiven"].forEach(k => {
       if (typeof t[k] !== "number" || isNaN(t[k])) t[k] = 0;
     });
     if (typeof t.taxRate !== "number" || isNaN(t.taxRate)) t.taxRate = 0;
@@ -91,12 +91,31 @@ const loadDB = () => {
   catch (e) { return defaultDB(); }
 };
 
+// Warn once per session when the browser's storage is nearly full, rather than
+// letting the first sign of trouble be a save that fails and loses the work.
+// About 5 MB is the usual localStorage ceiling; a UTF-16 character costs 2 bytes.
+const STORAGE_WARN_AT_BYTES = 4.5 * 1024 * 1024;
+let storageWarned = false;
+
 const saveDB = () => {
+  let json;
   try {
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    json = JSON.stringify(db);
+  } catch (e) {
+    console.error("Could not prepare data for saving:", e);
+    toast("Couldn't save your changes. Please try again.", "err");
+    return;
+  }
+  try {
+    localStorage.setItem(DB_KEY, json);
   } catch (e) {
     console.error("Save failed:", e);
-    toast("Save failed — storage may be full (try a smaller logo/signature image)", "err");
+    toast("Couldn't save — this browser's storage is full. Export a backup now, then remove a large logo or signature image to free space.", "err", 10000);
+    return;
+  }
+  if (!storageWarned && json.length * 2 > STORAGE_WARN_AT_BYTES) {
+    storageWarned = true;
+    toast("This browser's storage is nearly full. Export a backup from Settings → Data & backup.", "err", 9000);
   }
 };
 
@@ -109,4 +128,14 @@ let db = loadDB();
 // Units for the active business (falls back to a sensible default outside biz context)
 const bizUnits = () => (activeBiz()?.units && activeBiz().units.length) ? activeBiz().units : DEFAULT_UNITS;
 
-const uid = (kind) => { if (!db.nextIds) db.nextIds = {}; if (db.nextIds[kind] === undefined) db.nextIds[kind] = 1; const id = db.nextIds[kind]++; saveDB(); return id; };
+// Next id for a kind of record. It deliberately does NOT write to storage:
+// importing a thousand products would otherwise serialise the entire database
+// a thousand times over, and the counter does not need saving on its own —
+// normalizeDB() raises every counter above the highest id it actually finds
+// when the app next loads, so an id can never be handed out twice. Callers
+// save once, after the records are in.
+const uid = (kind) => {
+  if (!db.nextIds) db.nextIds = {};
+  if (db.nextIds[kind] === undefined) db.nextIds[kind] = 1;
+  return db.nextIds[kind]++;
+};

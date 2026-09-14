@@ -8,12 +8,14 @@ const printDoc = (pv) => {
   if (!w) { track("export.failed", { format: "print", reason: "popup-blocked" });
     toast("Popup blocked — allow popups for this page, then tap Print again", "err"); return; }
   track("document.printed");
-  const mainStyle = document.querySelector("style");
+  // Every <style> in the app, not just the first — the print window has none of
+  // its own, so anything left behind here prints as unstyled text.
+  const appCss = Array.from(document.querySelectorAll("style")).map(s => s.textContent).join("\n");
   w.document.open();
   w.document.write("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Print</title></head><body></body></html>");
   w.document.close();
   const style = w.document.createElement("style");
-  style.textContent = (mainStyle ? mainStyle.textContent : "") + `
+  style.textContent = appCss + `
     html, body { margin: 0; padding: 0; background: #fff; }
     .pv-scaler { transform: none !important; height: auto !important; }
     .pv-book { display: flex; flex-direction: column; gap: 0; align-items: center; }
@@ -50,6 +52,25 @@ const openDocPreview = (d) => {
     errBox.appendChild(fix);
     openModal(`${d.type} #${d.number}`, errBox, { wide: true });
     return;
+  }
+
+  // A document saved by an older build can carry totals that no longer match
+  // its own line items — VAT used to be added on top of prices that already
+  // included it. The saved figures are left alone (this document may already
+  // have been sent), but say so and offer the one-click fix. Shown in the app
+  // only; it is not part of the printed page.
+  const mismatch = totalsMismatch(d);
+  if (mismatch) {
+    const warn = el("div", { class: "doc-totals-warning" });
+    const txt = el("div");
+    txt.appendChild(el("div", { style: { fontWeight: 700, marginBottom: "2px" } }, "These totals need recalculating"));
+    txt.appendChild(el("div", {}, `This document was saved with ${d.currency} ${fmt(mismatch.stored)}, but its own items now add up to ` +
+      `${d.currency} ${fmt(mismatch.correct)} — a difference of ${d.currency} ${fmt(Math.abs(mismatch.difference))}. ` +
+      `Older versions added VAT a second time to prices that already included it. Nothing has been changed for you.`));
+    warn.appendChild(txt);
+    warn.appendChild(el("button", { class: "btn btn-primary", type: "button", style: { flexShrink: "0" },
+      onclick: () => { closeModal(); editDoc(d); toast("Check the figures, then press Save", "ok", 6000); } }, "Fix it"));
+    wrap.appendChild(warn);
   }
 
   // Chain link — if this doc was converted from another, show the source and

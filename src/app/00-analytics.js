@@ -130,14 +130,35 @@ const trackError = (message, source) => {
 
 // ---- automatic capture -----------------------------------------------------
 
+// A failure inside a button handler never reaches render()'s recovery screen:
+// the click simply appears to do nothing, which reads as "the button is
+// broken". Say something, once, in plain words — the detail is in the console
+// and in /admin, not in the user's face. Throttled so a loop cannot bury the
+// screen in toasts.
+let lastErrorToast = 0;
+const reportUnexpectedError = (message) => {
+  const m = String(message || "");
+  // Not real failures: the user dismissing a share sheet, and a layout
+  // notification some browsers emit that nothing is actually waiting on.
+  if (/AbortError|ResizeObserver loop/i.test(m)) return;
+  const now = Date.now();
+  if (now - lastErrorToast < 8000) return;
+  lastErrorToast = now;
+  try { toast("Something went wrong. Please try that again.", "err", 5000); } catch (e) { /* too early to toast */ }
+};
+
 window.addEventListener("error", (e) => {
   if (!e) return;
-  trackError(e.message || (e.error && e.error.message), e.filename);
+  const message = e.message || (e.error && e.error.message);
+  trackError(message, e.filename);
+  reportUnexpectedError(message);
 });
 
 window.addEventListener("unhandledrejection", (e) => {
   const r = e && e.reason;
-  trackError((r && r.message) || String(r || "Unhandled promise rejection"), "promise");
+  const message = (r && r.message) || String(r || "Unhandled promise rejection");
+  trackError(message, "promise");
+  reportUnexpectedError(message);
 });
 
 // One entry per app open. The referrer is kept only as a hostname (where the

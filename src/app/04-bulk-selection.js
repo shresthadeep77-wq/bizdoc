@@ -93,7 +93,18 @@ const toast = (msg, kind = "ok", ms = 1800) => {
   }, ms);
 };
 
-const fmt = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Money, as a person reads it: Indian grouping (1,23,456.78), always 2 decimals.
+// safeNum first, so a stray "" or NaN prints 0.00 rather than the word "NaN"
+// in the middle of an invoice.
+const fmt = (n) => round2(safeNum(n)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Quantities are counts, not money: show 2 as "2" and 1.5 as "1.5", and never
+// leak a floating-point tail like 1.5000000000000002 onto a document.
+const fmtQty = (n) => {
+  const v = safeNum(n);
+  return Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000);
+};
+// A percentage without trailing zeros: 13, 0, 7.5 — not "13.000".
+const fmtPct = (n) => String(Math.round(safeNum(n) * 1000) / 1000);
 
 // Convert a number to words using the Indian numbering system (Lakh / Crore).
 // Used for the "In words" line on documents.

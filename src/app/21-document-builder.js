@@ -25,6 +25,9 @@ const startNewDoc = (type) => {
     bankId: biz.defaultBankId || null,
     showBanks: hasUsableBank(biz),
     showTerms: true,
+    // On by default once the customer's rate card actually discounts something,
+    // so the saving is visible without anyone having to find the switch.
+    showDiscountColumn: false,
     status: "Draft",
     currency: biz.currency,
     lineItems: [],
@@ -36,6 +39,87 @@ const startNewDoc = (type) => {
     businessId: db.activeBusinessId
   };
   openDocBuilder();
+};
+
+// The builder keeps a few working flags on the document while it is open.
+// They mean nothing once it is saved, and leaving them in storage makes a
+// backup file confusing to read.
+const storableDoc = (d) => {
+  const out = { ...d };
+  delete out._editing;
+  delete out._seq;
+  delete out._onTotals;
+  delete out._discountColSet;
+  delete out._autosaved;
+  if (out.shipping) { out.shipping = { ...out.shipping }; delete out.shipping._userSetWeight; }
+  return out;
+};
+
+// ==================== AUTOSAVE ====================
+// Everything typed into the builder is written into Documents as a Draft every
+// few seconds, so a closed tab, a flat battery or a stray back gesture cannot
+// lose a half-finished invoice.
+//
+// The draft is a real document from the first autosave onwards: it has an id,
+// it takes its number from the series, and it shows up in the Documents list
+// with status Draft. Pressing Save later updates that same record rather than
+// creating a second one — see persistDoc().
+//
+// Nothing is written until there is something worth keeping, so tapping "New
+// document" and changing your mind leaves no litter behind.
+const AUTOSAVE_EVERY_MS = 3000;
+let autosaveTimer = null;
+let autosaveLastJson = "";
+
+const draftWorthKeeping = () =>
+  !!docBuilder && (docBuilder.customerId != null || (docBuilder.lineItems || []).length > 0);
+
+// Writes the draft if anything has actually changed. Returns "created",
+// "updated" or "" (nothing to do), so the caller can say so on screen.
+const autosaveDraft = () => {
+  if (!draftWorthKeeping()) return "";
+  recomputeTotals();
+
+  const stamp = new Date().toISOString();
+  const known = docBuilder._editing || docBuilder._autosaved;
+  const at = known ? db.documents.findIndex(x => x.id === docBuilder.id) : -1;
+  const isNew = at < 0;
+
+  // Settle the identity and the number *before* taking the fingerprint below,
+  // or the very next pass sees "the id changed" and writes all over again.
+  if (isNew) {
+    docBuilder.id = docBuilder.id || uid("doc");
+    docBuilder.createdAt = docBuilder.createdAt || stamp;
+    if (!docBuilder._editing && !docBuilder._autosaved) {
+      const biz = activeBiz();
+      if (biz) biz[DOC_TYPES[docBuilder.type].seqKey] = docBuilder._seq + 1;
+    }
+  }
+
+  const record = storableDoc(docBuilder);
+  const fingerprint = JSON.stringify(record);
+  if (fingerprint === autosaveLastJson) return ""; // nothing has changed
+  autosaveLastJson = fingerprint;
+
+  const row = { ...record, id: docBuilder.id, createdAt: docBuilder.createdAt || stamp, updatedAt: stamp };
+  let outcome;
+  if (isNew) {
+    db.documents.push(row);
+    outcome = docBuilder._autosaved ? "updated" : "created";
+    docBuilder._autosaved = true;
+  } else {
+    row.createdAt = db.documents[at].createdAt || row.createdAt;
+    db.documents[at] = row;
+    outcome = "updated";
+  }
+  saveDB();
+  return outcome;
+};
+
+const stopAutosave = () => {
+  if (autosaveTimer) clearInterval(autosaveTimer);
+  autosaveTimer = null;
+  autosaveLastJson = "";
 };
 
 const editDoc = (d) => {
@@ -87,7 +171,7 @@ const repriceLineItems = (includeManual = false) => {
     const list = Number(li.listRate);
     if (!list && list !== 0) return; // ad-hoc line with no list price
     const { pct } = resolveDiscount({ category: li.catPath?.[0], subCategory1: li.catPath?.[1], subCategory2: li.catPath?.[2], subCategory3: li.catPath?.[3] }, rules);
-    const net = pct ? +(list * (1 - pct / 100)).toFixed(2) : list;
+    const net = pct ? round2(list * (1 - pct / 100)) : list;
     if (net !== li.rate || pct !== li.discountPct || li.manualRate) changed++;
     li.rate = net; li.discountPct = pct;
     if (includeManual) li.manualRate = false; // rule-priced again from here on
@@ -104,37 +188,24 @@ const applyLineDiscount = (li, pct, rateInp) => {
   if (!isFinite(list)) return;
   const p = clampPct(pct);
   li.discountPct = p;
-  li.rate = p ? +(list * (1 - p / 100)).toFixed(2) : list;
+  li.rate = p ? round2(list * (1 - p / 100)) : list;
   li.manualRate = false;
   if (rateInp) rateInp.value = li.rate;
 };
 
+// Recalculate the open document's totals in place. All the arithmetic lives in
+// computeTotals() (src/app/00-money.js) so the builder, the printed document
+// and the tests can never drift apart.
 const recomputeTotals = () => {
-  const t = docBuilder.totals;
-  const r = (t.taxRate || 0) / 100;
-  const sep = !!docBuilder.separateVat;
-  let base = 0, taxableBase = 0, tax = 0;
-  docBuilder.lineItems.forEach(li => {
-    const line = li.qty * li.rate;
-    if (sep && li.taxable && li.rateIncludesVat && r > 0) {
-      const b = line / (1 + r); base += b; taxableBase += b; tax += line - b;
-    } else if (sep && li.taxable) {
-      base += line; taxableBase += line; tax += line * r;
-    } else {
-      base += line; if (li.taxable) taxableBase += line;
-    }
-  });
-  if (!sep) tax = taxableBase * r;
-  t.subtotal = base;
-  t.discountGiven = docBuilder.lineItems.reduce((s, li) => {
-    const list = Number(li.listRate);
-    if (!list && list !== 0) return s;
-    return s + (li.qty * Math.max(0, list - li.rate));
-  }, 0);
-  t.taxable = taxableBase;
-  t.tax = tax;
-  t.total = t.subtotal + t.tax + Number(t.delivery || 0) + Number(t.freight || 0) + Number(t.insurance || 0) + Number(t.legal || 0) + Number(t.inspection || 0) + Number(t.other1 || 0) + Number(t.other2 || 0);
-  const gw = docBuilder.lineItems.reduce((s, li) => s + (li.qty * (li.weight || 0)), 0);
+  computeTotals(docBuilder);
+  // Offer the discount column the moment there is a discount to show, unless
+  // the user has already made their own choice about it.
+  if (!docBuilder._discountColSet && docBuilder.totals.discountGiven > 0) {
+    docBuilder.showDiscountColumn = true;
+  }
+  // Gross weight is a convenience, not money: fill it in from the line weights
+  // until the user types their own figure, then leave theirs alone.
+  const gw = documentGrossWeight(docBuilder);
   if (gw > 0 && !docBuilder.shipping._userSetWeight) docBuilder.shipping.grossWeight = gw.toFixed(2) + " kg";
 };
 
@@ -269,15 +340,15 @@ const openDocBuilder = () => {
       row.appendChild(el("div", { class: "li-num" }, String(idx + 1)));
       row.appendChild(el("input", { class: "li-desc", placeholder: "Description", "aria-label": "Description", value: li.description, oninput: (e) => { li.description = e.target.value; }}));
       row.appendChild(el("input", { class: "li-unit", placeholder: "Unit", "aria-label": "Unit", value: li.unit, oninput: (e) => { li.unit = e.target.value; }}));
-      row.appendChild(el("input", { class: "li-qty", type: "number", inputmode: "decimal", placeholder: "Qty", "aria-label": "Quantity", value: li.qty, oninput: (e) => { li.qty = parseFloat(e.target.value) || 0; recomputeTotals(); refreshTotals(); if (docBuilder.shipping._userSetWeight === false || !docBuilder.shipping._userSetWeight) updateGross(); }}));
-      const rateInp = el("input", { class: "li-rate", type: "number", inputmode: "decimal", placeholder: "Rate", "aria-label": "Rate", value: li.rate, oninput: (e) => {
-        li.rate = parseFloat(e.target.value) || 0;
+      row.appendChild(el("input", { class: "li-qty", type: "number", inputmode: "decimal", placeholder: "Qty", "aria-label": "Quantity", min: "0", step: "any", value: li.qty, oninput: (e) => { li.qty = Math.max(0, safeNum(e.target.value)); recomputeTotals(); refreshTotals(); if (docBuilder.shipping._userSetWeight === false || !docBuilder.shipping._userSetWeight) updateGross(); }}));
+      const rateInp = el("input", { class: "li-rate", type: "number", inputmode: "decimal", placeholder: "Rate", "aria-label": "Rate", min: "0", step: "any", value: li.rate, oninput: (e) => {
+        li.rate = Math.max(0, safeNum(e.target.value));
         li.manualRate = true; // don't overwrite a hand-typed rate on reprice
         recomputeTotals(); refreshTotals(); rerenderNote(idx);
       }});
       rateInputs[idx] = rateInp;
       row.appendChild(rateInp);
-      row.appendChild(el("button", { class: "remove-btn", title: "Remove line", onclick: () => { docBuilder.lineItems.splice(idx, 1); recomputeTotals(); rerenderLI(); updateTotals(); updateGross(); }}, "×"));
+      row.appendChild(el("button", { class: "remove-btn", type: "button", title: "Remove line", "aria-label": `Remove line ${idx + 1}`, onclick: () => { docBuilder.lineItems.splice(idx, 1); recomputeTotals(); rerenderLI(); updateTotals(); updateGross(); }}, "×"));
       liList.appendChild(row);
       // Builder-only discount note. Never printed — the document stays silent.
       const note = el("div", { class: "li-note", id: `li-note-${idx}` });
@@ -321,7 +392,7 @@ const openDocBuilder = () => {
   }
   const updateGross = () => {
     if (!docBuilder.shipping._userSetWeight) {
-      const gw = docBuilder.lineItems.reduce((s, li) => s + (li.qty * (li.weight || 0)), 0);
+      const gw = documentGrossWeight(docBuilder);
       if (gw > 0) { docBuilder.shipping.grossWeight = gw.toFixed(2) + " kg"; if (grossInp) grossInp.value = docBuilder.shipping.grossWeight; }
     }
   };
@@ -377,7 +448,7 @@ const openDocBuilder = () => {
     const rules = customerRules(docBuilder.customerId);
     const { pct } = resolveDiscount(p, rules);
     const listRate = Number(p.rate) || 0;
-    const netRate = pct ? +(listRate * (1 - pct / 100)).toFixed(2) : listRate;
+    const netRate = pct ? round2(listRate * (1 - pct / 100)) : listRate;
     docBuilder.lineItems.push({
       partNumber: p.partNumber || String(docBuilder.lineItems.length + 1),
       description: p.description, unit: p.unit, qty: parseFloat(qty) || 1,
@@ -413,7 +484,7 @@ const openDocBuilder = () => {
       const rules = customerRules(docBuilder.customerId);
       const { pct } = resolveDiscount(p, rules);
       const listRate = Number(p.rate) || 0;
-      const netRate = pct ? +(listRate * (1 - pct / 100)).toFixed(2) : listRate;
+      const netRate = pct ? round2(listRate * (1 - pct / 100)) : listRate;
       const row = el("div", { class: "prod-result-row" });
       const info = el("div", { style: { flex: "1", minWidth: "0" } });
       info.appendChild(el("div", { style: { fontWeight: 600, fontSize: "13px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, p.description));
@@ -523,7 +594,7 @@ const openDocBuilder = () => {
     }
     const { pct } = resolveDiscount(np, customerRules(docBuilder.customerId));
     if (!pct) { npDiscNote.appendChild(el("span", { class: "li-note-none" }, "No category discount for this customer.")); return; }
-    const net = +((Number(np.rate) || 0) * (1 - pct / 100)).toFixed(2);
+    const net = round2(safeNum(np.rate) * (1 - pct / 100));
     npDiscNote.appendChild(el("span", { class: "li-note-disc" },
       `${pct}% off this category → ${activeBiz().currency} ${fmt(net)}/${np.unit}`));
   };
@@ -572,7 +643,7 @@ const openDocBuilder = () => {
     docBuilder.lineItems.push({
       partNumber: String(docBuilder.lineItems.length + 1),
       description: np.description.trim(), unit: np.unit, qty: np.qty || 1,
-      rate: pct ? +(listRate * (1 - pct / 100)).toFixed(2) : listRate,
+      rate: pct ? round2(listRate * (1 - pct / 100)) : listRate,
       listRate, discountPct: pct, catPath: productPath(np),
       taxable: np.taxable, weight: np.weight || 0
     });
@@ -653,7 +724,31 @@ const openDocBuilder = () => {
   wrap.appendChild(liCard);
 
   wrap = steps.charges;
-  wrap.appendChild(checkboxField("Separate VAT from prices", "separateVat", docBuilder, () => { recomputeTotals(); updateTotals(); }));
+  // This is a presentation choice only. Whether a rate already contains VAT is
+  // a property of the product and is always honoured — see computeTotals().
+  // ---- What the document shows beside each line ----
+  // Both of these are layout choices. Neither changes a single figure the
+  // customer owes — the grand total is identical whichever way round they are.
+  const colCard = el("div", { class: "card" });
+  colCard.appendChild(el("div", { class: "card-title" }, "What to show on the document"));
+  const toggleHint = (text) => el("div", {
+    style: { fontSize: "11.5px", color: "var(--muted)", margin: "-2px 0 12px 28px", lineHeight: "1.45" },
+  }, text);
+
+  colCard.appendChild(checkboxField("Separate VAT from prices", "separateVat", docBuilder,
+    () => { recomputeTotals(); updateTotals(); }));
+  colCard.appendChild(toggleHint(
+    "Off: every price prints exactly as you typed it. On: for products whose rate already " +
+    "includes VAT, the price prints without the VAT and the VAT goes in its own column — " +
+    "prices that carry no VAT, and non-taxable products, are left alone either way. " +
+    "The grand total is the same whichever you choose."));
+
+  colCard.appendChild(checkboxField("Show the discount for each line", "showDiscountColumn", docBuilder,
+    () => { docBuilder._discountColSet = true; updateTotals(); }));
+  colCard.appendChild(toggleHint(
+    "Adds a DISCOUNT column showing the percentage off and the list price it came off, " +
+    "so the customer can see what they saved. Replaces the plain “TAX” column."));
+  wrap.appendChild(colCard);
   // Totals
   const totCard = el("div", { class: "card totals" });
   const totCt = el("div", { id: "tot-ct" });
@@ -670,18 +765,35 @@ const openDocBuilder = () => {
       r.appendChild(ve);
       return r;
     };
+    // An extra charge adds to the bill, so it can never be negative — a minus
+    // sign here would quietly reduce the total with nothing on the document
+    // explaining why.
     const rowInp = (l, k) => {
       const r = el("div", { class: "totals-row" });
       r.appendChild(el("div", {}, l));
-      const i = el("input", { type: "number", inputmode: "decimal", value: t[k] || 0, style: { width: "100px", textAlign: "right" }, oninput: (e) => { t[k] = parseFloat(e.target.value) || 0; recomputeTotals(); refreshTotals(); }});
+      const i = el("input", { type: "number", inputmode: "decimal", min: "0", step: "any",
+        "aria-label": `${l} charge`, value: t[k] || 0,
+        style: { width: "100px", textAlign: "right" },
+        oninput: (e) => { t[k] = Math.max(0, safeNum(e.target.value)); recomputeTotals(); refreshTotals(); }});
       r.appendChild(i);
       return r;
     };
     totCt.appendChild(rowT("Subtotal", t.subtotal, "subtotal"));
     totCt.appendChild(rowT("Taxable", t.taxable, "taxable"));
+    // Tax rate. Nepal VAT is 13%, and "no VAT" is the other everyday case, so
+    // both are one tap — typing is still there for anything else.
     const taxRow = el("div", { class: "totals-row" });
     taxRow.appendChild(el("div", {}, "Tax rate %"));
-    taxRow.appendChild(el("input", { type: "number", inputmode: "decimal", value: t.taxRate, style: { width: "100px", textAlign: "right" }, oninput: (e) => { t.taxRate = parseFloat(e.target.value) || 0; recomputeTotals(); refreshTotals(); }}));
+    const taxRight = el("div", { class: "tax-rate-controls" });
+    const taxInp = el("input", { type: "number", inputmode: "decimal", min: "0", max: "100", step: "any",
+      "aria-label": "Tax rate percent", value: t.taxRate,
+      style: { width: "80px", textAlign: "right" },
+      oninput: (e) => { t.taxRate = Math.min(100, Math.max(0, safeNum(e.target.value))); recomputeTotals(); refreshTotals(); }});
+    const setRate = (v) => { t.taxRate = v; taxInp.value = v; recomputeTotals(); refreshTotals(); };
+    taxRight.appendChild(el("button", { type: "button", class: "chip-btn", title: "No VAT", onclick: () => setRate(0) }, "0%"));
+    taxRight.appendChild(el("button", { type: "button", class: "chip-btn", title: "Nepal VAT", onclick: () => setRate(13) }, "13%"));
+    taxRight.appendChild(taxInp);
+    taxRow.appendChild(taxRight);
     totCt.appendChild(taxRow);
     totCt.appendChild(rowT("Tax", t.tax, "tax"));
     totCt.appendChild(rowInp("Delivery", "delivery"));
@@ -691,7 +803,6 @@ const openDocBuilder = () => {
       totCt.appendChild(rowInp("Legal/Consular", "legal"));
       totCt.appendChild(rowInp("Inspection/Cert.", "inspection"));
     }
-    totCt.appendChild(rowT("TOTAL", t.total, "total"));
     const gr = el("div", { class: "totals-row grand" });
     gr.appendChild(el("div", {}, "GRAND TOTAL"));
     const grv = el("div", {}, `${docBuilder.currency} ${fmt(t.total)}`);
@@ -844,10 +955,37 @@ const openDocBuilder = () => {
   const saveDoc = () => {
     if (!docBuilder.customerId) { goStep("party"); toast("Select a customer first", "err"); return; }
     if (docBuilder.lineItems.length === 0) { goStep("items"); toast("Add at least one line item", "err"); return; }
+    if (!String(docBuilder.number || "").trim()) { goStep("details"); toast("This document needs a number", "err"); return; }
+    stopAutosave();
+
+    // Two documents of the same type sharing a number is a real problem at
+    // audit time, and it happens easily — the next-number counter was reset in
+    // Settings, or a number was typed over by hand. Say so before saving
+    // rather than after.
+    const clash = db.documents.find(d =>
+      d.businessId === (docBuilder.businessId ?? db.activeBusinessId) &&
+      d.type === docBuilder.type &&
+      d.id !== docBuilder.id &&
+      String(d.number).trim().toLowerCase() === String(docBuilder.number).trim().toLowerCase());
+    if (clash) {
+      confirmModal(
+        `${DOC_TYPES[docBuilder.type].shortLabel} #${docBuilder.number} already exists for this business. ` +
+        `Two documents with the same number are hard to tell apart later. Save it anyway?`,
+        () => persistDoc(),
+        { title: "That number is already used", confirmLabel: "Save anyway", cancelLabel: "Go back and change it", danger: false });
+      return;
+    }
+    persistDoc();
+  };
+
+  const persistDoc = () => {
     recomputeTotals();
     // Drop transient builder-only keys before persisting.
     delete docBuilder._onTotals;
-    const idx = docBuilder._editing ? db.documents.findIndex(d => d.id === docBuilder.id) : -1;
+    // An autosaved draft is already a row in Documents, so saving updates that
+    // row — otherwise pressing Save would leave the draft behind as a duplicate.
+    const known = docBuilder._editing || docBuilder._autosaved;
+    const idx = known ? db.documents.findIndex(d => d.id === docBuilder.id) : -1;
     let saved;
     // `date` is the document's own date and the user can set it to anything, so
     // it cannot answer "how many were created today". These two can. Documents
@@ -856,16 +994,17 @@ const openDocBuilder = () => {
     const stamp = new Date().toISOString();
     if (idx >= 0) {
       docBuilder.updatedAt = stamp;
-      saved = db.documents[idx] = { ...docBuilder };
+      saved = db.documents[idx] = storableDoc(docBuilder);
     } else {
       docBuilder.createdAt = docBuilder.createdAt || stamp;
       docBuilder.updatedAt = stamp;
       // Either a brand-new document, or one that was deleted elsewhere while it
       // was open here — save it rather than throwing the work away.
       docBuilder.id = docBuilder.id || uid("doc");
-      saved = { ...docBuilder };
+      saved = storableDoc(docBuilder);
       db.documents.push(saved);
-      if (!docBuilder._editing) {
+      // Take the next number in the series — unless autosave already did.
+      if (!docBuilder._editing && !docBuilder._autosaved) {
         const biz = activeBiz();
         biz[DOC_TYPES[docBuilder.type].seqKey] = docBuilder._seq + 1;
       }
@@ -898,6 +1037,7 @@ const openDocBuilder = () => {
       `${docBuilder.currency} ${fmt(t.total || 0)}`));
     const bits = [`${n} item${n === 1 ? "" : "s"}`];
     if (t.discountGiven > 0) bits.push(`${fmt(t.discountGiven)} off`);
+    if (docBuilder._autosaved) bits.push("Draft saved");
     totalLine.appendChild(el("div", { class: "step-total-sub" }, bits.join(" • ")));
   };
 
@@ -939,4 +1079,42 @@ const openDocBuilder = () => {
   goStep("party");
 
   openModal(`${docBuilder._editing ? "Edit" : "New"} ${DOC_TYPES[docBuilder.type].label}`, shell, { wide: true });
+
+  // ---- Autosave ----
+  // The timer stops itself once the builder is off the screen, whichever way it
+  // was closed — saved, cancelled, or the phone's back button.
+  stopAutosave();
+  autosaveTimer = setInterval(() => {
+    if (!document.body.contains(shell)) { stopAutosave(); return; }
+    let outcome = "";
+    try {
+      outcome = autosaveDraft();
+    } catch (e) {
+      console.error("Autosave failed:", e);
+      stopAutosave(); // keep quiet rather than warning every three seconds
+      toast("Couldn't save a draft automatically — use Save when you're done.", "err", 6000);
+      return;
+    }
+    if (!outcome) return;
+    refreshFooter();
+    if (outcome === "created") {
+      toast(`Saved as a draft — ${DOC_TYPES[docBuilder.type].shortLabel} #${docBuilder.number} is in Documents now`, "ok", 5000);
+    }
+  }, AUTOSAVE_EVERY_MS);
+
+  // Closing is not losing anything once a draft exists, and the standard
+  // "Discard your changes?" would say otherwise.
+  const builderBg = modalStack[modalStack.length - 1];
+  if (builderBg) {
+    builderBg._closePrompt = () => {
+      if (!docBuilder || !docBuilder._autosaved) return null;
+      return {
+        title: "Leave this for now?",
+        message: `${DOC_TYPES[docBuilder.type].shortLabel} #${docBuilder.number} is saved as a draft in Documents. ` +
+          `You can open it again from there and carry on where you left off.`,
+        confirmLabel: "Leave it as a draft",
+        cancelLabel: "Keep editing",
+      };
+    };
+  }
 };

@@ -1,6 +1,11 @@
 // ==================== CSV EXPORT / IMPORT ====================
 const csvEscape = (v) => {
-  const s = v === null || v === undefined ? "" : String(v);
+  let s = v === null || v === undefined ? "" : String(v);
+  // Excel and Sheets treat a cell starting with = + - or @ as a formula, so a
+  // product description someone typed as "=1+1" (or something worse) would be
+  // run when the file is opened instead of read as text. A leading apostrophe
+  // is the standard way to say "this is text"; the spreadsheet doesn't show it.
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
 const toCSV = (rows, cols) =>
@@ -25,11 +30,25 @@ const parseCSV = (text) => {
 };
 
 const downloadTextFile = (text, filename, mime = "text/csv;charset=utf-8") => {
-  const blob = new Blob([text], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  try {
+    // The byte-order mark is what tells Excel on Windows the file is UTF-8.
+    // Without it, Nepali text in an exported CSV opens as mojibake.
+    const blob = new Blob(["﻿" + text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a); // Firefox ignores a click on a detached link
+    a.click();
+    a.remove();
+    // Revoking on the next tick cancels the download on some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    return true;
+  } catch (e) {
+    console.error("File download failed:", e);
+    toast("Couldn't save that file. Please try again.", "err");
+    return false;
+  }
 };
 
 const PRODUCT_COLS = ["partNumber", "description", "unit", "rate", "weight", "hsn", "taxable",
@@ -38,16 +57,15 @@ const CUSTOMER_COLS = ["clientNo", "companyName", "contactName", "phone", "vatNo
   "addr1", "addr2", "country", "regNo", "shipAddr1", "shipAddr2", "eximCode", "discountRules"];
 
 const exportProductsCSV = () => {
-  track("csv.exported", { kind: "products" });
   const rows = bizProducts().map(p => ({ ...p, taxable: p.taxable ? "yes" : "no" }));
   if (!rows.length) { toast("No products to export", "err"); return; }
   const code = (activeBiz()?.shortCode || autoShortCode(activeBiz()?.name)).replace(/\s+/g, "");
-  downloadTextFile(toCSV(rows, PRODUCT_COLS), `products_${code}_${today()}.csv`);
+  if (!downloadTextFile(toCSV(rows, PRODUCT_COLS), `products_${code}_${today()}.csv`)) return;
+  track("csv.exported", { kind: "products" });
   toast(`Exported ${rows.length} products`);
 };
 
 const exportCustomersCSV = () => {
-  track("csv.exported", { kind: "customers" });
   const rows = bizCustomers().map(c => ({
     ...c,
     clientNo: "C" + String(c.id).padStart(4, "0"),
@@ -56,12 +74,12 @@ const exportCustomersCSV = () => {
   }));
   if (!rows.length) { toast("No customers to export", "err"); return; }
   const code = (activeBiz()?.shortCode || autoShortCode(activeBiz()?.name)).replace(/\s+/g, "");
-  downloadTextFile(toCSV(rows, CUSTOMER_COLS), `customers_${code}_${today()}.csv`);
+  if (!downloadTextFile(toCSV(rows, CUSTOMER_COLS), `customers_${code}_${today()}.csv`)) return;
+  track("csv.exported", { kind: "customers" });
   toast(`Exported ${rows.length} customers`);
 };
 
 const exportDocumentsCSV = () => {
-  track("csv.exported", { kind: "documents" });
   const rows = bizDocs().map(d => {
     const c = db.customers.find(x => x.id === d.customerId);
     return {
@@ -76,8 +94,9 @@ const exportDocumentsCSV = () => {
   });
   if (!rows.length) { toast("No documents to export", "err"); return; }
   const code = (activeBiz()?.shortCode || autoShortCode(activeBiz()?.name)).replace(/\s+/g, "");
-  downloadTextFile(toCSV(rows, ["type", "number", "date", "status", "party", "currency",
-    "subtotal", "tax", "total", "discountGiven", "lineCount"]), `documents_${code}_${today()}.csv`);
+  if (!downloadTextFile(toCSV(rows, ["type", "number", "date", "status", "party", "currency",
+    "subtotal", "tax", "total", "discountGiven", "lineCount"]), `documents_${code}_${today()}.csv`)) return;
+  track("csv.exported", { kind: "documents" });
   toast(`Exported ${rows.length} documents`);
 };
 
@@ -158,11 +177,11 @@ const showImportPreview = (kind, header, body) => {
         const existing = mode.replace ? bizProducts().find(p => (p.description || "").toLowerCase() === desc.toLowerCase()) : null;
         const rec = {
           partNumber: g(r, "partNumber"), description: desc, unit: g(r, "unit") || "pcs",
-          rate: parseFloat(g(r, "rate")) || 0, weight: parseFloat(g(r, "weight")) || 0,
+          rate: Math.max(0, safeNum(g(r, "rate"))), weight: Math.max(0, safeNum(g(r, "weight"))),
           hsn: g(r, "hsn"), taxable: !/^(no|false|0)$/i.test(g(r, "taxable") || "yes"),
           category: g(r, "category"), subCategory1: g(r, "subCategory1"),
           subCategory2: g(r, "subCategory2"), subCategory3: g(r, "subCategory3"),
-          packQty: parseFloat(g(r, "packQty")) || 0, packUnit: g(r, "packUnit") || "box",
+          packQty: Math.max(0, safeNum(g(r, "packQty"))), packUnit: g(r, "packUnit") || "box",
           notes: g(r, "notes"), businessId: db.activeBusinessId
         };
         if (existing) { Object.assign(existing, rec); updated++; }
@@ -175,7 +194,7 @@ const showImportPreview = (kind, header, body) => {
         const discountRules = rulesRaw ? rulesRaw.split("|").map(s => {
           const [pathPart, pctPart] = s.split(":");
           const path = (pathPart || "").trim().split(">").map(x => x.trim()).filter(Boolean);
-          const pct = parseFloat(pctPart) || 0;
+          const pct = Math.min(100, Math.max(0, safeNum(pctPart))); // a discount outside 0-100% is a typo
           return path.length ? { path, pct } : null;
         }).filter(Boolean) : [];
         const rec = {

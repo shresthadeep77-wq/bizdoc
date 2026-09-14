@@ -200,8 +200,21 @@ const openCategoryPicker = (onPick, opts = {}) => {
   openModal(multi ? "Choose categories" : "Choose category", wrap);
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
-const addDays = (dateStr, n) => { const d = new Date(dateStr); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+// Dates are YYYY-MM-DD strings throughout, and they are *local* dates.
+// toISOString() would give the UTC day instead: Nepal is UTC+5:45, so anything
+// made between midnight and 05:45 in Kathmandu came out dated the day before.
+const isoDate = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const today = () => isoDate(new Date());
+// Add days to a YYYY-MM-DD string. The parts are read out by hand rather than
+// handed to new Date("2026-09-14"), which the browser reads as UTC midnight and
+// can shift a day either way depending on where the user is.
+const addDays = (dateStr, n) => {
+  const [y, m, day] = String(dateStr || "").split("-").map(Number);
+  const base = (y && m && day) ? new Date(y, m - 1, day) : new Date();
+  base.setDate(base.getDate() + (Number(n) || 0));
+  return isoDate(base);
+};
 const activeBiz = () => db.businesses.find(b => b.id === db.activeBusinessId);
 const bizCustomers = () => db.customers.filter(c => c.businessId === db.activeBusinessId);
 const bizProducts = () => db.products.filter(p => p.businessId === db.activeBusinessId);
@@ -235,7 +248,8 @@ const TERM_PRESETS = [
 ];
 
 const formatDocNumber = (fmtStr, seq, date) => {
-  const d = new Date(date || today());
+  const [fy, fm, fd] = String(date || today()).split("-").map(Number);
+  const d = (fy && fm && fd) ? new Date(fy, fm - 1, fd) : new Date();
   return fmtStr
     .replace('{YYYY}', d.getFullYear())
     .replace('{YY}', String(d.getFullYear()).slice(-2))

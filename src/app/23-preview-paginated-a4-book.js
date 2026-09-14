@@ -118,6 +118,18 @@ const renderPreview = (d, biz, cust) => {
   const displayRows = buildDisplayRows();
 
   const hidePrices = !!cfg.hidePrices;
+  const taxRatePct = (d.totals && d.totals.taxRate) || 0;
+  const separateVat = !!d.separateVat;
+  const showDiscount = !!d.showDiscountColumn;
+  // The middle column is whichever of these the document asks for. With neither
+  // switched on it is the plain "TAX" column marking which lines carry VAT,
+  // exactly as it has always been.
+  const middleCols = [];
+  if (showDiscount) middleCols.push("DISCOUNT");
+  if (separateVat) middleCols.push("VAT");
+  const hasPlainTaxColumn = !middleCols.length;
+  if (hasPlainTaxColumn) middleCols.push("TAX");
+
   const buildItemsTable = () => {
     const items = el("div", { class: "pv-items" });
     const table = el("table");
@@ -125,7 +137,7 @@ const renderPreview = (d, biz, cust) => {
     const trH = el("tr");
     const cols = hidePrices
       ? ["S.N.", "DESCRIPTION", "QTY", "UNIT"]
-      : ["S.N.", "DESCRIPTION", "QTY", "UNIT", "UNIT PRICE", "TAX", "TOTAL AMOUNT"];
+      : ["S.N.", "DESCRIPTION", "QTY", "UNIT", "UNIT PRICE"].concat(middleCols, ["TOTAL AMOUNT"]);
     cols.forEach(h => trH.appendChild(el("th", {}, h)));
     thead.appendChild(trH);
     table.appendChild(thead);
@@ -143,20 +155,41 @@ const renderPreview = (d, biz, cust) => {
     const cat = Array.isArray(li.catPath) && li.catPath.length ? li.catPath[0] : "";
     if (cat) descCell.appendChild(el("span", { class: "pv-cat-chip" }, cat));
     descCell.appendChild(el("span", { class: "pv-desc-text" }, li.description));
+    // The plain "TAX" column is what marks which lines carry VAT. When a
+    // discount or VAT column has taken its place, an exempt line has to say so
+    // some other way — on a tax invoice that is not optional.
+    if (!hidePrices && !hasPlainTaxColumn && !li.taxable && safeNum(taxRatePct) > 0) {
+      descCell.appendChild(el("span", { class: "pv-novat-chip" }, "no VAT"));
+    }
     r.appendChild(descCell);
-    r.appendChild(el("td", { class: "num" }, String(li.qty)));
+    r.appendChild(el("td", { class: "num" }, fmtQty(li.qty)));
     r.appendChild(el("td", {}, li.unit));
     if (!hidePrices) {
-      r.appendChild(el("td", { class: "num" }, fmt(li.rate)));
-      const sep = !!d.separateVat;
-      const tr = (d.totals && d.totals.taxRate || 0) / 100;
-      let taxCell = li.taxable ? "X" : "";
-      if (sep && li.taxable && tr > 0) {
-        const perUnit = li.rateIncludesVat ? (li.rate - li.rate / (1 + tr)) : (li.rate * tr);
-        taxCell = fmt(perUnit);
+      // Every figure in the row comes from the one place the totals come from,
+      // so the column always adds up to the Subtotal printed below it.
+      const a = lineAmounts(li, taxRatePct, separateVat);
+      r.appendChild(el("td", { class: "num" }, fmt(a.unitPrinted)));
+
+      if (showDiscount) {
+        const cell = el("td", { class: "num" });
+        const disc = lineDiscount(li, taxRatePct, separateVat);
+        if (disc) {
+          cell.appendChild(el("div", { class: "pv-disc-pct" }, `−${fmtPct(disc.pct)}%`));
+          cell.appendChild(el("div", { class: "pv-disc-was" }, `was ${fmt(disc.listUnit)}`));
+        } else {
+          cell.appendChild(el("span", {}, "–"));
+        }
+        r.appendChild(cell);
       }
-      r.appendChild(el("td", { class: sep ? "num" : "", style: sep ? {} : { textAlign: "center" } }, taxCell));
-      r.appendChild(el("td", { class: "num" }, fmt(li.qty * li.rate)));
+      if (separateVat) {
+        r.appendChild(el("td", { class: "num" },
+          li.taxable && safeNum(taxRatePct) > 0 ? fmt(a.vatToAdd || a.vatInside) : "–"));
+      }
+      if (hasPlainTaxColumn) {
+        r.appendChild(el("td", { style: { textAlign: "center" } }, li.taxable ? "X" : ""));
+      }
+
+      r.appendChild(el("td", { class: "num" }, fmt(a.linePrinted)));
     }
     return r;
   };
@@ -173,10 +206,14 @@ const renderPreview = (d, biz, cust) => {
     wrap.appendChild(note);
     const tbl = el("table");
     const trAdd = (l, v) => { const r = el("tr"); r.appendChild(el("td", {}, l)); r.appendChild(el("td", {}, v)); tbl.appendChild(r); };
-    trAdd("Subtotal", fmt(t.subtotal));
+    trAdd(separateVat ? "Subtotal (excl. VAT)" : "Subtotal", fmt(t.subtotal));
     trAdd("Taxable", fmt(t.taxable));
-    trAdd("Tax rate", (Number(t.taxRate) || 0).toFixed(3) + "%");
-    trAdd("Tax", t.tax > 0 ? fmt(t.tax) : "-");
+    trAdd("Tax rate", fmtPct(t.taxRate) + "%");
+    trAdd(separateVat ? "VAT" : "VAT to add", t.tax > 0 ? fmt(t.tax) : "-");
+    // When prices are printed as typed, part of the VAT is already inside them.
+    // Saying so is what makes the subtotal above and the total below add up for
+    // anyone checking the arithmetic by hand.
+    if (safeNum(t.taxIncluded) > 0) trAdd("VAT already in prices", fmt(t.taxIncluded));
     if (Number(t.delivery) > 0) trAdd("Delivery", fmt(t.delivery));
     if (!isQuote) {
       trAdd("Freight", t.freight > 0 ? fmt(t.freight) : "-");
@@ -361,48 +398,75 @@ const renderPreview = (d, biz, cust) => {
   const emptyItemsH = measureHeight([buildItemsTable()]);
   const finishH = measureHeight(finishSectionsBuilder());
 
-  // Row height: measure a real row using the first line item (or synthesize)
-  let rowH = 22;
-  {
-    const sampleTable = buildItemsTable();
-    const tbody = sampleTable.querySelector("tbody");
-    const sampleData = d.lineItems[0] || { partNumber: "1", unit: "pcs", description: "Sample line item description text goes here", qty: 1, rate: 100, taxable: true };
-    tbody.appendChild(buildItemRow(sampleData, 0));
-    const withOneH = measureHeight([sampleTable]);
-    rowH = Math.max(20, withOneH - emptyItemsH);
-  }
+  // -------- How tall is each row, really? --------
+  // Rows are not a uniform height: a long product description wraps onto two or
+  // three lines, a category chip adds another. Working the page out from one
+  // sample row's height overfilled the page, and because .pv-page is
+  // overflow:hidden the rows that did not fit were silently cut off the
+  // document — they simply were not on the invoice. So measure every row once,
+  // for real, and pack pages from those numbers.
+  const measureRowHeights = () => {
+    if (!displayRows.length) return [];
+    const table = buildItemsTable();
+    const tbody = table.querySelector("tbody");
+    const trs = displayRows.map((entry, i) => {
+      const tr = buildDisplayRow(entry, i + 1);
+      tbody.appendChild(tr);
+      return tr;
+    });
+    const holder = el("div", {
+      class: "pv-page",
+      style: { position: "absolute", left: "-99999px", top: "0", visibility: "hidden", height: "auto" }
+    });
+    holder.appendChild(table);
+    document.body.appendChild(holder);
+    const heights = trs.map(tr => Math.max(1, tr.getBoundingClientRect().height));
+    holder.remove();
+    return heights;
+  };
+  const rowHeights = measureRowHeights();
 
   const SAFETY = 40; // buffer against sub-pixel & border/margin drift + page footer breathing room
-  const p1MaxRows = Math.max(1, Math.floor((CONTENT_H - letterheadH - emptyItemsH - SAFETY) / rowH));
-  const contMaxRows = Math.max(1, Math.floor((CONTENT_H - contHdrH - emptyItemsH - SAFETY) / rowH));
-  const p1WithFinishMaxRows = Math.max(0, Math.floor((CONTENT_H - letterheadH - emptyItemsH - finishH - SAFETY) / rowH));
-  const contWithFinishMaxRows = Math.max(0, Math.floor((CONTENT_H - contHdrH - emptyItemsH - finishH - SAFETY) / rowH));
+  // Room left for item rows on a page, given whether it carries the letterhead
+  // (first page) or the short continuation header, and whether the totals,
+  // terms, bank and signature blocks have to fit under them (last page).
+  const rowBudget = (isFirstPage, withFinish) =>
+    CONTENT_H - (isFirstPage ? letterheadH : contHdrH) - emptyItemsH - (withFinish ? finishH : 0) - SAFETY;
+
+  // How many rows starting at `from` fit into `budget`.
+  const rowsThatFit = (from, budget) => {
+    let n = 0, used = 0;
+    while (from + n < rowHeights.length && used + rowHeights[from + n] <= budget) {
+      used += rowHeights[from + n];
+      n++;
+    }
+    return n;
+  };
 
   // -------- Distribute items across pages --------
   const nItems = displayRows.length;
   const distribution = []; // items per page
   const layouts = [];      // "p1_full" | "p1_with_finish" | "cont" | "cont_with_finish" | "finish_only"
 
-  if (nItems <= p1WithFinishMaxRows) {
-    // Whole doc fits on one page
-    distribution.push(nItems);
-    layouts.push("p1_with_finish");
-  } else {
-    distribution.push(p1MaxRows);
-    layouts.push("p1_full");
-    let remaining = nItems - p1MaxRows;
-    while (remaining > contWithFinishMaxRows) {
-      distribution.push(contMaxRows);
-      layouts.push("cont");
-      remaining -= contMaxRows;
+  let placed = 0;
+  let isFirstPage = true;
+  for (;;) {
+    // Could this be the last page — everything left, plus the closing blocks?
+    const fitWithFinish = rowsThatFit(placed, rowBudget(isFirstPage, true));
+    if (placed + fitWithFinish >= nItems) {
+      const rows = nItems - placed;
+      distribution.push(rows);
+      layouts.push(rows === 0 && !isFirstPage ? "finish_only" : (isFirstPage ? "p1_with_finish" : "cont_with_finish"));
+      break;
     }
-    if (remaining > 0) {
-      distribution.push(remaining);
-      layouts.push("cont_with_finish");
-    } else {
-      distribution.push(0);
-      layouts.push("finish_only");
-    }
+    // Not the last page: fill it with rows only, and carry on.
+    // A single row taller than a whole page still has to go somewhere, so never
+    // place zero — that would loop forever.
+    const rows = Math.max(1, rowsThatFit(placed, rowBudget(isFirstPage, false)));
+    distribution.push(rows);
+    layouts.push(isFirstPage ? "p1_full" : "cont");
+    placed += rows;
+    isFirstPage = false;
   }
 
   // -------- Build the book --------

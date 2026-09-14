@@ -60,7 +60,21 @@ document.addEventListener("keydown", trapModalTab);
 // Close the top modal, asking first if the user typed something they'd lose.
 const attemptClose = () => {
   const top = modalStack[modalStack.length - 1];
-  if (top && top._guard && top._dirty) {
+  if (!top || !top._guard) { closeModal(); return; }
+  // A modal that has already saved the user's work somewhere describes closing
+  // in its own words. The document builder autosaves, so telling someone their
+  // changes are about to be discarded there would simply be untrue.
+  const own = typeof top._closePrompt === "function" ? top._closePrompt() : null;
+  if (own) {
+    confirmModal(own.message, () => { closeModal(); }, {
+      title: own.title || "Close this?",
+      confirmLabel: own.confirmLabel || "Close",
+      cancelLabel: own.cancelLabel || "Keep editing",
+      danger: own.danger === true,
+    });
+    return;
+  }
+  if (top._dirty) {
     confirmModal("Discard your changes?", () => { closeModal(); },
       { confirmLabel: "Discard", cancelLabel: "Keep editing" });
     return;

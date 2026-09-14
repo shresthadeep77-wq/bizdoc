@@ -29,6 +29,7 @@ src/
   pwa.js          registers the service worker / manifest (http(s) only)
   vendor/         bundled libraries: qrcode, html2canvas, jspdf
   app/            the app itself, numbered in load order
+    00-money.js   every calculation involving money (see "The money")
   admin/          the /admin dashboard (see "The admin panel")
   site/           the written guide pages (see "The site around the app")
     pages.json    every route, its title, description and copy — one source
@@ -37,7 +38,7 @@ src/
     body-*.html   the prose of each page
 build.js          the only build step
 sw.js             service worker, so the app opens with no internet
-tools/            regenerates assets/ — only needed if a template changes
+tools/            the tests, plus the script that regenerates assets/
 ```
 
 Built into the repo root, and served from there by GitHub Pages:
@@ -59,12 +60,99 @@ if you add or rename a file, add it there too.
 
 ```
 node build.js          rebuild everything from src/
+node tools/test.js     run every check (npm test does the same)
 node build.js --check  fail if the built files are stale (run before committing)
 node build.js --single [out.html]
                        one fully self-contained file, libraries and all
 node tools/make-assets.js
                        redraw the icons and the social card (needs Edge/Chrome)
 ```
+
+There is a `package.json`, but it has no dependencies and nothing to install —
+it exists only so `npm run build` and `npm test` work for people who expect
+them. Every script is plain Node and runs the same way without npm.
+
+## The tests
+
+`node tools/test.js` runs all of these and stops at the first failure.
+
+| Test | What it protects |
+| --- | --- |
+| `tools/test-money.js` | Every calculation involving money. Pure Node, instant. |
+| `tools/test-document.js` | Renders real documents in headless Edge/Chrome and checks nothing falls off an A4 page, the printed column adds up to the subtotal, and every type still renders. |
+| `tools/test-responsive.js` | Loads the app in an iframe at 320, 390, 768 and 1280px and checks nothing scrolls sideways, every button is big enough to tap, and every field has a label. |
+| `tools/test-links.js` | Every internal link, the sitemap and robots.txt agree with each other. |
+
+The two browser tests skip themselves if neither Edge nor Chrome is installed.
+They need a browser because the things they catch — a table row that wraps onto
+a third line and pushes the last row off the page — only exist once something
+has actually laid the page out.
+
+`node build.js` also refuses to build JavaScript that does not parse. The whole
+app is one `<script>`, so a single stray character anywhere in `src/app/` used
+to produce a blank white page with nothing in the build output to explain it.
+
+## The money
+
+Everything that touches an amount goes through `src/app/00-money.js`, and
+`tools/test-money.js` covers it. The rules it exists to enforce:
+
+- **Round like a person, not like a float.** `Math.round(n * 100) / 100` turns
+  1.005 into 1.00, because the stored value is really 1.00499999999999989.
+  `round2()` decides on the decimal digits instead.
+- **Multiply in whole numbers.** `2.5 * 33.33` is 83.32499999999999, which
+  rounds *down* and loses a paisa on every line like it. `mulExact()` multiplies
+  25 by 3333 and puts the point back.
+- **"Rate includes VAT" is a property of the product, so it is always honoured.**
+  A product priced at 113 including 13% VAT is worth 100 plus 13 VAT — never 113
+  with another 14.69 added on top.
+- **What is printed always adds up to the totals beside it.** Whichever way a
+  document is laid out, the TOTAL AMOUNT column sums to the Subtotal underneath
+  it, and Subtotal + VAT + charges is the grand total.
+
+### The two layout switches
+
+Both live in the builder's Charges step, and **neither changes a single figure
+the customer owes.** `tools/test-money.js` runs six shapes of document through
+both settings and insists the grand total and the taxable value come out
+identical; if a change ever breaks that, the tests fail.
+
+**Separate VAT from prices**
+
+- *Off* (the default) — every price prints exactly as it was typed. A rate with
+  no VAT in it, and a non-taxable product, are untouched; a VAT-inclusive rate
+  still prints as the full 113 the customer pays. The totals block then states
+  how much VAT is already inside those prices, so the arithmetic can be checked
+  by hand.
+- *On* — for products whose rate already includes VAT, the price prints without
+  the VAT and the VAT goes in its own column. Everything else is left alone.
+
+Same document, same total, stated two ways:
+
+| | Subtotal | VAT to add | VAT already in prices | Total |
+| --- | --- | --- | --- | --- |
+| Off | 1,856 | 52 | 156 | **2,158** |
+| On | 1,700 | 208 | – | **2,158** |
+
+**Show the discount for each line** adds a DISCOUNT column with the percentage
+off and the list price it came off, replacing the plain "TAX" column. It turns
+itself on the first time a line is actually discounted, and stays wherever the
+user puts it after that.
+
+## Autosave
+
+A document being built is written into Documents as a Draft every three seconds
+(`src/app/21-document-builder.js`), so a closed tab or a flat battery cannot
+lose it. From the first autosave it is a real document: it has an id, it takes
+its number from the series, and it appears in the list with a Draft badge.
+Pressing Save updates that same record — it never leaves a duplicate behind,
+and never takes a second number. Nothing is written until there is a customer or
+at least one line item, so opening the builder and changing your mind leaves
+nothing behind.
+
+Documents saved before this was fixed keep their stored totals — they may
+already have been sent — but opening one shows a notice with what the figures
+should be, and a button to correct it.
 
 **Always edit `src/`, never the built files directly** — the next build
 overwrites them. Then open `index.html` in a browser to see the change; there is
@@ -146,6 +234,7 @@ file for that case.
 | loading/repairing saved data | `src/app/01-storage.js` |
 | PDF / PNG / WhatsApp export | `src/app/24-share.js` |
 | routing, page titles, structured data | `src/app/28-routing-seo.js` |
+| any calculation involving money | `src/app/00-money.js` |
 | what gets recorded for /admin | `src/app/00-analytics.js` |
 | the admin dashboard | `src/admin/` |
 | the guide pages' wording | `src/site/body-*.html` |
