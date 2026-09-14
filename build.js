@@ -7,6 +7,9 @@
  *   node build.js --single [out.html]
  *                            one fully self-contained HTML file, libraries and
  *                            all, for putting on a USB stick
+ *   node build.js --out <dir>
+ *                            build into <dir> instead of the repo root, with
+ *                            the committed static files copied in beside it
  *
  * What it produces:
  *
@@ -409,6 +412,20 @@ const outputs = () => {
 
 const args = process.argv.slice(2);
 
+// Where the built files land. Normally the repo root, because that is what
+// GitHub Pages serves and what --check compares against. `--out public` writes
+// a self-contained copy somewhere else instead, for a host that insists on a
+// directory of its own (Vercel does) — the root stays untouched.
+const outArg = args.indexOf("--out");
+const OUT = outArg === -1
+  ? ROOT
+  : path.resolve(ROOT, args[outArg + 1] || "public");
+
+// The service worker, the manifest and the icons are committed, not generated,
+// so they already sit beside the built files in the root. A copy written
+// anywhere else has to bring them along or it is not a working site.
+const STATIC = ["sw.js", "manifest.webmanifest", "favicon.ico", "icon.svg", "assets"];
+
 if (args.includes("--single")) {
   const out = args[args.indexOf("--single") + 1] || "bizdoc-offline.html";
   // path.resolve, not path.join: an absolute destination ("D:/usb/bizdoc.html")
@@ -446,11 +463,18 @@ if (args.includes("--check")) {
 
 let total = 0;
 Object.keys(files).forEach((rel) => {
-  const abs = path.join(ROOT, rel);
+  const abs = path.join(OUT, rel);
   fs.mkdirSync(path.dirname(abs), { recursive: true });
   fs.writeFileSync(abs, files[rel]);
   total += Buffer.byteLength(files[rel]);
 });
+
+if (OUT !== ROOT) {
+  STATIC.forEach((rel) => {
+    const from = path.join(ROOT, rel);
+    if (fs.existsSync(from)) fs.cpSync(from, path.join(OUT, rel), { recursive: true });
+  });
+}
 
 const kb = (rel) => (Buffer.byteLength(files[rel]) / 1024).toFixed(0) + " KB";
 console.log(`built ${Object.keys(files).length} files (${(total / 1024).toFixed(0)} KB total)`);
@@ -458,3 +482,4 @@ console.log(`  ${"index.html".padEnd(22)}${kb("index.html")}   loaded every visi
 console.log(`  ${"lib/".padEnd(22)}${((Buffer.byteLength(files["lib/jspdf.js"]) + Buffer.byteLength(files["lib/html2canvas.js"])) / 1024).toFixed(0)} KB   only when exporting`);
 contentPages().forEach((p) => console.log(`  ${p.file.padEnd(22)}${kb(p.file)}`));
 console.log(`  ${"admin/index.html".padEnd(22)}${kb("admin/index.html")}   private, noindex`);
+if (OUT !== ROOT) console.log(`  into ${path.relative(ROOT, OUT)}/, with ${STATIC.join(", ")}`);

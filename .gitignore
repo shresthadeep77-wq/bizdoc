@@ -1,3 +1,8 @@
 # Built on demand by `node build.js --single`, for copying somewhere with no
 # web server. Not part of the deployed site, so it is not committed.
 bizdoc-offline.html
+
+# Written by `node build.js --out public` for hosts that want a directory of
+# their own. Built on demand from src/, same as everything else, so it is not
+# committed — the deployed copy is the one the host builds.
+public/

@@ -64,9 +64,21 @@ node tools/test.js     run every check (npm test does the same)
 node build.js --check  fail if the built files are stale (run before committing)
 node build.js --single [out.html]
                        one fully self-contained file, libraries and all
+node build.js --out public
+                       build into public/ instead of the repo root, with
+                       sw.js, the manifest and the icons copied in beside it
 node tools/make-assets.js
                        redraw the icons and the social card (needs Edge/Chrome)
 ```
+
+`--out` exists for hosts that insist on serving a directory of their own rather
+than the repo root. `vercel.json` uses it; GitHub Pages keeps serving the root,
+which is what `--check` and the tests compare against. Note that the built
+files carry the GitHub Pages address — canonical URLs, `sitemap.xml`,
+`robots.txt` and the links in `404.html` all start `/bizdoc/` — so a copy served
+from another domain points search engines back here and its 404 page links into
+a path that does not exist there. `src/site/pages.json` holds the `origin` and
+`base` those come from.
 
 There is a `package.json`, but it has no dependencies and nothing to install —
 it exists only so `npm run build` and `npm test` work for people who expect
