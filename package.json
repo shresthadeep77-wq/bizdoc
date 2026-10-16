@@ -2,7 +2,7 @@
   "name": "bizdoc",
   "version": "1.0.0",
   "private": true,
-  "description": "Proforma invoices, purchase orders, quotations, tax invoices and delivery notes — in the browser, offline, with no account and no server.",
+  "description": "Proforma invoices, purchase orders, quotations, tax invoices and delivery notes — in the browser, offline, no account needed; optional Google sign-in syncs a private copy.",
   "license": "MIT",
   "comment": "There are deliberately no dependencies. This file exists only so that the usual npm commands work; every script is plain Node and runs the same way without npm.",
   "scripts": {

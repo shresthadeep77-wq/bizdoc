@@ -34,11 +34,15 @@ const exportBackup = async () => {
 // that turns out to be the wrong file is one click away from being undone.
 // Only ever one such copy is kept, and failing to write it never blocks the
 // restore the user actually asked for.
+// Signed in, the copy is the account's, so it is kept under the account's own
+// prefix and offered only to that account — never to the signed-out view or
+// to someone else signing in on this browser.
 const RESCUE_KEY = "pipomaker_before_restore";
+const rescueKey = () => (cloudAccount ? ACCOUNT_DB_PREFIX + cloudAccount.id + ":before_restore" : RESCUE_KEY);
 const stashCurrentData = () => {
   try {
     if (!db || !Array.isArray(db.businesses) || !db.businesses.length) return false;
-    localStorage.setItem(RESCUE_KEY, JSON.stringify(db));
+    localStorage.setItem(rescueKey(), JSON.stringify(db));
     return true;
   } catch (e) {
     return false; // usually storage is full; the restore still goes ahead
@@ -56,6 +60,9 @@ const scanDeviceData = () => {
   let keys = [];
   try { keys = Object.keys(localStorage); } catch (e) { return found; }
   keys.forEach(k => {
+    // Another account's copy is not "data saved on this device" to offer
+    // anyone who opens the app — it belongs to whoever signs in as them.
+    if (k.startsWith(ACCOUNT_DB_PREFIX) && k !== activeDbKey() && k !== rescueKey()) return;
     let raw;
     try { raw = localStorage.getItem(k); } catch (e) { return; }
     if (!raw || raw.length < 20 || raw[0] !== "{") return;
@@ -63,7 +70,7 @@ const scanDeviceData = () => {
     try { v = JSON.parse(raw); } catch (e) { return; }
     if (!v || !Array.isArray(v.businesses) || !v.businesses.length) return;
     found.push({
-      key: k, data: v, isCurrent: k === DB_KEY, isRescue: k === RESCUE_KEY,
+      key: k, data: v, isCurrent: k === activeDbKey(), isRescue: k === rescueKey() || k === RESCUE_KEY,
       sizeKB: Math.max(1, Math.round(raw.length / 1024)),
       names: v.businesses.map(b => b && b.name).filter(Boolean),
       businesses: v.businesses.length,
@@ -97,13 +104,16 @@ const restoreDeviceEntry = (entry) => {
       toast("Couldn't load that copy. Nothing was changed.", "err");
       return;
     }
+    // That was this device's data going into the account by hand — don't
+    // then also offer to add it a second time.
+    if (cloud.meta) { cloud.meta.migrationOffered = true; saveSyncMeta(); }
     if (modalStack.length) closeModal();
     render();
     toast(`Loaded ${entry.businesses} business${entry.businesses === 1 ? "" : "es"} from this device`, "ok", 4000);
   };
   if (db.businesses.length) {
     confirmModal(
-      `This replaces every business, customer, product and document currently in the app with the copy saved on this device (${deviceEntrySummary(entry)}).`,
+      `This replaces every business, customer, product and document currently in the app with the copy saved on this device (${deviceEntrySummary(entry)}).` + cloudReplaceNote(),
       apply, { title: "Load saved data?", confirmLabel: "Load it" });
   } else {
     apply();
@@ -168,7 +178,7 @@ const importBackup = () => {
       confirmModal(
         `This replaces everything currently in the app with what is in this file (${counts}). ` +
         `Your current data is kept on this device first, so if this is the wrong file you can get it back ` +
-        `from Settings → Data & backup → "Data saved on this device".`,
+        `from Settings → Data & backup → "Data saved on this device".` + cloudReplaceNote(),
         () => {
           const stashed = stashCurrentData();
           try {

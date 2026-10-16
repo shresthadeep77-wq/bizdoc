@@ -672,3 +672,56 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 .noscript-note li { margin-bottom: 6px; }
 
 @media print { .app-foot, .crumbs { display: none !important; } }
+
+/* Account & sync — the topbar status button and the panel behind it.
+   Status colours: one dot per state, so the button reads at a glance and the
+   label carries the exact meaning for anyone who cannot tell the colours apart. */
+.topbar-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; }
+.cloud-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px 0 6px; border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; font-size: 12.5px; font-weight: 600; white-space: nowrap; flex: none; position: relative; transition: background .18s var(--ease); }
+.cloud-btn:hover { background: rgba(255,255,255,.24); }
+.cloud-btn-icon svg { width: 18px; height: 18px; display: block; }
+.cloud-btn-avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex: none; }
+.cloud-btn-avatar.avatar-initial { display: inline-flex; align-items: center; justify-content: center; background: #fff; color: var(--primary); font-size: 11px; font-weight: 700; }
+.cloud-dot { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; flex: none; }
+.cloud-local .cloud-dot { display: none; }
+.cloud-ok .cloud-dot { background: #22c55e; }
+.cloud-pending .cloud-dot, .cloud-sync .cloud-dot { background: #60a5fa; }
+.cloud-sync .cloud-dot { animation: pulseDot 1.2s ease-in-out infinite; }
+.cloud-offline .cloud-dot { background: #9ca3af; }
+.cloud-warn .cloud-dot { background: #f59e0b; }
+.cloud-error .cloud-dot { background: #f87171; }
+@keyframes pulseDot { 50% { opacity: .35; } }
+/* On a phone the dot carries the state and the label goes; the full wording is
+   still the button's accessible name. */
+@media (max-width: 560px) {
+  .cloud-btn { padding: 0 8px 0 6px; }
+  .cloud-btn:not(.cloud-local) .cloud-btn-label { display: none; }
+}
+
+.cloud-panel { display: flex; flex-direction: column; gap: 12px; }
+.cloud-lede { font-size: 13.5px; line-height: 1.5; color: var(--text); margin-bottom: 4px; }
+.cloud-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+.cloud-profile { display: flex; align-items: center; gap: 12px; }
+.cloud-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: none; box-shadow: var(--shadow-sm); }
+.cloud-avatar.avatar-initial { display: inline-flex; align-items: center; justify-content: center; background: var(--primary); color: #fff; font-size: 18px; font-weight: 700; }
+.cloud-name { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-email { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-status { border-radius: var(--radius-sm); padding: 12px 14px; background: var(--surface); box-shadow: var(--shadow-inset); display: flex; flex-direction: column; gap: 4px; }
+.cloud-status-label { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+.cloud-status-detail { font-size: 12.5px; line-height: 1.45; color: #374151; }
+.cloud-status-meta { font-size: 11.5px; color: var(--muted); }
+.cloud-failed { margin: 0 0 0 18px; font-size: 12px; line-height: 1.5; color: #374151; }
+.cloud-actions { display: flex; flex-direction: column; gap: 8px; }
+.btn-google { background: #fff; color: #1f1f1f; border: 1px solid #dadce0; box-shadow: var(--shadow-sm); font-weight: 600; gap: 10px; }
+.btn-google:hover { background: #f8fafc; }
+.btn-google .spin { border-color: rgba(31,78,121,.25); border-top-color: var(--primary); }
+.btn-google-g { display: inline-flex; }
+.cloud-conflict { border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.cloud-conflict-title { font-weight: 700; font-size: 13.5px; margin-bottom: 6px; overflow-wrap: anywhere; }
+.cloud-conflict-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12.5px; margin-bottom: 6px; }
+.cloud-conflict-fields { font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+.cloud-conflict-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cloud-conflict-actions .btn { flex: 1 1 140px; justify-content: center; }
+@media (max-width: 480px) { .cloud-conflict-sides { grid-template-columns: 1fr; } }
+.cloud-signout-bar .btn-danger { flex-basis: 100%; order: 3; }
+@media print { .cloud-btn { display: none !important; } }

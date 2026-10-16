@@ -2,9 +2,10 @@
 
 > A free, offline-first web app for creating business documents — proforma
 > invoices, purchase orders, quotations, tax invoices and delivery notes — with
-> PDF, PNG, print and WhatsApp output. It runs entirely in the browser: no
-> account, no server, no database. Everything a user enters is stored in their
-> own browser's localStorage, on their own device.
+> PDF, PNG, print and WhatsApp output. It runs entirely in the browser and needs
+> no account: everything a user enters is stored in their own browser's
+> localStorage, on their own device. Signing in with Google is optional and
+> keeps a private copy in sync across the user's devices.
 
 Built and used mainly for small trading and manufacturing businesses. Currency
 and tax defaults lean towards Nepal (NPR, PAN, 13% VAT) but nothing is hardcoded
@@ -16,7 +17,7 @@ to one country.
 - [Customers](https://shresthadeep77-wq.github.io/bizdoc/customers/): Keep customers, contacts, VAT numbers and per-customer discount rules in one list, then print a dated statement of every document raised against any account.
 - [Products](https://shresthadeep77-wq.github.io/bizdoc/products/): Hold part numbers, descriptions, units, rates, weights and HSN codes in a searchable catalogue with categories, bulk rate updates and CSV import and export.
 - [Offline & install](https://shresthadeep77-wq.github.io/bizdoc/offline/): Install PI & PO Maker to your home screen or desktop and raise documents with no internet at all. How the offline cache works and how to move your data between devices.
-- [Privacy](https://shresthadeep77-wq.github.io/bizdoc/privacy/): There is no account, no server and no analytics. Everything you type is stored in your own browser's localStorage and is only sent anywhere if you explicitly back it up to Google Drive.
+- [Privacy](https://shresthadeep77-wq.github.io/bizdoc/privacy/): No account needed and no analytics. Everything you type is stored in your own browser, and is only sent anywhere if you back it up to Google Drive or choose to sign in and sync it to your own private account.
 - [The app itself](https://shresthadeep77-wq.github.io/bizdoc/): the tool, which is what the site is for.
 
 ## What it does
@@ -35,12 +36,15 @@ to one country.
   before anything is written.
 - Backup and restore as a JSON file, or to a single file in the user's own
   Google Drive (drive.file scope — it can only see the file it created).
+- Optional sign-in with Google: a private, per-user cloud copy (Supabase, with
+  row-level security) that syncs between devices and keeps working offline.
 
 ## Privacy
 
-There is no backend. No analytics, no cookies, no tracking, no account. The two
-things that can leave the device are a Google Drive backup and a WhatsApp share,
-both only when the user starts them. See https://shresthadeep77-wq.github.io/bizdoc/privacy/.
+No analytics, no cookies, no tracking, and no account needed. Three things can
+leave the device, each only when the user starts it: a Google Drive backup, a
+WhatsApp share, and — if they choose to sign in — sync to their own private
+account. See https://shresthadeep77-wq.github.io/bizdoc/privacy/.
 
 ## Source
 

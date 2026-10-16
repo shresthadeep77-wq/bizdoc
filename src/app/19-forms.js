@@ -542,6 +542,9 @@ const BIZ_SECTIONS = [
 // selected section's form on the right. Saves the whole business on Save.
 const SETTINGS_NAV = [
   { group: "Business", items: BIZ_SECTIONS },
+  { group: "Account", items: [
+    { key: "account",    icon: "☁️", title: "Account & sync", desc: "Google sign-in, cloud copy, offline sync" },
+  ]},
   { group: "This device", items: [
     { key: "savefolder", icon: "\u{1F4C1}", title: "Save location", desc: "Where PDFs and backups land" },
     { key: "data",       icon: "\u{1F4BE}", title: "Data & backup", desc: "CSV export, JSON backup, delete business" },
@@ -556,6 +559,7 @@ const openSettingsSectionPopup = (it, sections, biz) => {
   if (sections[it.key]) wrap.appendChild(sections[it.key]());
   else if (it.key === "savefolder") wrap.appendChild(renderSettingsSaveFolder(biz));
   else if (it.key === "data") wrap.appendChild(renderSettingsData(biz));
+  else if (it.key === "account") wrap.appendChild(renderSettingsAccount());
   const bar = el("div", { class: "action-bar" });
   bar.appendChild(el("button", { class: "btn btn-primary btn-full", onclick: () => closeModal() }, "Done"));
   wrap.appendChild(bar);
@@ -615,6 +619,8 @@ const openSettingsModal = () => {
       content.appendChild(renderSettingsSaveFolder(biz));
     } else if (settingsActiveKey === "data") {
       content.appendChild(renderSettingsData(biz));
+    } else if (settingsActiveKey === "account") {
+      content.appendChild(renderSettingsAccount());
     }
   };
   drawContent();

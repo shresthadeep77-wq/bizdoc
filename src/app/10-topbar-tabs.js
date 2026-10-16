@@ -16,7 +16,10 @@ const renderTopbar = () => {
     sw.appendChild(opt);
   });
   sw.appendChild(el("option", { value: "__new__" }, "+ Add business…"));
-  bar.appendChild(sw);
+  const right = el("div", { class: "topbar-right" });
+  right.appendChild(renderCloudButton());
+  right.appendChild(sw);
+  bar.appendChild(right);
   return bar;
 };
 

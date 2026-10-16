@@ -5,7 +5,7 @@
 //
 // Strategy: network-first for pages, so a new deploy is picked up on the next
 // online visit; cache-first for everything else.
-const CACHE = "pipo-v4";
+const CACHE = "pipo-v5";
 const APP = "./";
 
 // Fetched during install so the first offline visit already has them. The two
@@ -16,6 +16,9 @@ const PRECACHE = [
   "./",
   "./lib/html2canvas.js",
   "./lib/jspdf.js",
+  // Only fetched by a signed-in browser, but it has to be here already for a
+  // signed-in device to open and sync again after a restart with no connection.
+  "./lib/supabase.js",
   "./assets/icon-192.png",
   "./assets/apple-touch-icon.png",
   "./manifest.webmanifest",

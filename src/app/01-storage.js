@@ -86,10 +86,34 @@ const normalizeDB = (raw) => {
   return db;
 };
 
-const loadDB = () => {
-  try { return normalizeDB(JSON.parse(localStorage.getItem(DB_KEY))); }
+// ---- whose data is on screen ----
+// Signed out, the app is exactly what it always was: one database under DB_KEY.
+// Signed in, each account gets its own copy under its own key, so two people
+// sharing a browser never see — or upload — each other's records, and signing
+// out puts the device's own data back. Which account is active is recorded
+// here, synchronously, so the right data is drawn on the very first frame,
+// offline included, before the sign-in library has even loaded.
+const ACCOUNT_KEY = "pipomaker_account";
+const ACCOUNT_DB_PREFIX = DB_KEY + ":user:";
+
+const readStoredAccount = () => {
+  try {
+    const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY));
+    return (a && typeof a.id === "string" && a.id) ? a : null;
+  } catch (e) { return null; }
+};
+let cloudAccount = readStoredAccount();
+const activeDbKey = () => (cloudAccount ? ACCOUNT_DB_PREFIX + cloudAccount.id : DB_KEY);
+
+// Set by the sync code (29–31) so it hears about every save without each of
+// the hundred call sites knowing it exists.
+let onDBSaved = null;
+
+const readDBAt = (key) => {
+  try { return normalizeDB(JSON.parse(localStorage.getItem(key))); }
   catch (e) { return defaultDB(); }
 };
+const loadDB = () => readDBAt(activeDbKey());
 
 // Warn once per session when the browser's storage is nearly full, rather than
 // letting the first sign of trouble be a save that fails and loses the work.
@@ -107,7 +131,7 @@ const saveDB = () => {
     return;
   }
   try {
-    localStorage.setItem(DB_KEY, json);
+    localStorage.setItem(activeDbKey(), json);
   } catch (e) {
     console.error("Save failed:", e);
     toast("Couldn't save — this browser's storage is full. Export a backup now, then remove a large logo or signature image to free space.", "err", 10000);
@@ -117,6 +141,7 @@ const saveDB = () => {
     storageWarned = true;
     toast("This browser's storage is nearly full. Export a backup from Settings → Data & backup.", "err", 9000);
   }
+  if (onDBSaved) onDBSaved();
 };
 
 // Swap in a whole database from a backup/restore. Always normalised first, so a

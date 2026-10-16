@@ -9,6 +9,11 @@
  *   3. the printed document, in a real browser
  *   4. the screens at phone, tablet and laptop widths
  *   5. every internal link and the sitemap
+ *   6. the cloud sync rules (fake server)
+ *   7. sign-in states and offline account data, in a real browser
+ *
+ * The database's Row Level Security has its own runner, tools/test-rls.mjs,
+ * because it needs PGlite installed first (see SUPABASE_SETUP.md).
  *
  * Checks 3 and 4 need Edge or Chrome; they skip themselves if neither is here.
  */
@@ -22,6 +27,8 @@ const STEPS = [
   ["The printed document", ["tools/test-document.js"]],
   ["Screens at every width", ["tools/test-responsive.js"]],
   ["Links and the sitemap", ["tools/test-links.js"]],
+  ["Cloud sync rules", ["tools/test-sync.js"]],
+  ["Sign-in and sync in a real browser", ["tools/test-browser.mjs"]],
 ];
 
 let failed = 0;
