@@ -309,7 +309,11 @@ const writeStore = (patch) => {
 
 const readAppDB = () => {
   try {
-    const raw = localStorage.getItem(DB_KEY);
+    // While signed in, the app shows that account's copy (see the app's
+    // 01-storage.js), so count the same records it does.
+    let key = DB_KEY;
+    try { const acct = JSON.parse(localStorage.getItem("pipomaker_account")); if (acct && acct.id) key = DB_KEY + ":user:" + acct.id; } catch (e) { /* signed out */ }
+    const raw = localStorage.getItem(key);
     const d = raw ? JSON.parse(raw) : null;
     if (!d || typeof d !== "object") return null;
     return {

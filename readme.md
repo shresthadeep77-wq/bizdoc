@@ -6,14 +6,19 @@ WhatsApp output.
 
 Live: https://shresthadeep77-wq.github.io/bizdoc/
 
-There is no server and no account. Everything you enter is stored in your own
-browser (localStorage), which means **data is per browser and per device**. Use
+No account is needed. Everything you enter is stored in your own browser
+(localStorage), which means **data is per browser and per device** — use
 Settings -> Data & backup to move it anywhere else.
+
+Signing in with Google is optional: it keeps a private copy in Supabase that
+syncs across your devices and still works offline. Setup, schema, security and
+limitations are in **[SUPABASE_SETUP.md](SUPABASE_SETUP.md)**.
 
 ## How the project is put together
 
-- **No framework, no dependencies, no install.** Plain JavaScript that builds
-  the screen with a small `el()` helper.
+- **No framework, no install.** Plain JavaScript that builds the screen with a
+  small `el()` helper. The only third-party code is vendored in `src/vendor/`
+  (QR codes, PDF export, and supabase-js for the optional sign-in).
 - `index.html` at the root is the whole app in one file — that is what GitHub
   Pages serves, and it works offline or straight off a `file://` path. The two
   PDF libraries sit beside it in `lib/` and are fetched only when needed.
@@ -27,7 +32,8 @@ src/
   index.html      app shell — <head>, meta tags, include markers
   styles.css      all styling, design tokens at the top (:root)
   pwa.js          registers the service worker / manifest (http(s) only)
-  vendor/         bundled libraries: qrcode, html2canvas, jspdf
+  cloud.config.json  Supabase URL + publishable key (public by design)
+  vendor/         bundled libraries: qrcode, html2canvas, jspdf, supabase
   app/            the app itself, numbered in load order
   admin/          the /admin dashboard (see "The admin panel")
   site/           the written guide pages (see "The site around the app")
@@ -37,7 +43,8 @@ src/
     body-*.html   the prose of each page
 build.js          the only build step
 sw.js             service worker, so the app opens with no internet
-tools/            regenerates assets/ — only needed if a template changes
+supabase/         database migration and the two-user RLS test
+tools/            dev server, tests, and asset regeneration
 ```
 
 Built into the repo root, and served from there by GitHub Pages:
@@ -45,6 +52,7 @@ Built into the repo root, and served from there by GitHub Pages:
 ```
 index.html                    the app
 lib/jspdf.js, html2canvas.js  fetched only when someone exports
+lib/supabase.js               fetched only by a signed-in browser
 documents/ customers/ products/ offline/ privacy/    the guides
 admin/                        the private usage dashboard (noindex)
 404.html sitemap.xml robots.txt llms.txt
@@ -64,6 +72,10 @@ node build.js --single [out.html]
                        one fully self-contained file, libraries and all
 node tools/make-assets.js
                        redraw the icons and the social card (needs Edge/Chrome)
+node tools/serve.js    serve at http://localhost:8080/bizdoc/ (needed to test sign-in)
+node tools/test-sync.js        sync-rule tests
+node tools/test-rls.mjs        migration + RLS test on local Postgres (see SUPABASE_SETUP.md)
+node tools/test-browser.mjs    headless-browser smoke test of the built app
 ```
 
 **Always edit `src/`, never the built files directly** — the next build
@@ -147,6 +159,8 @@ file for that case.
 | PDF / PNG / WhatsApp export | `src/app/24-share.js` |
 | routing, page titles, structured data | `src/app/28-routing-seo.js` |
 | what gets recorded for /admin | `src/app/00-analytics.js` |
+| sign-in, sync, account screens | `src/app/29-cloud-sync-core.js`, `30-cloud-auth.js`, `31-cloud-ui.js` |
+| cloud tables and security | `supabase/migrations/`, `SUPABASE_SETUP.md` |
 | the admin dashboard | `src/admin/` |
 | the guide pages' wording | `src/site/body-*.html` |
 | titles, descriptions, the sitemap | `src/site/pages.json` |

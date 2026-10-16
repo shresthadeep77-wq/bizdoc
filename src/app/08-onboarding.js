@@ -33,6 +33,24 @@ const renderOnboard = () => {
   restore.appendChild(restoreRow);
   wrap.appendChild(restore);
 
+  // A new device's way back to an account's data — there is no topbar yet.
+  if (cloudConfigured() && cloudSupportedHere()) {
+    const acc = el("div", { class: "card", style: { marginBottom: "20px" } });
+    acc.appendChild(el("div", { class: "card-title" }, "Your account"));
+    if (!cloudAccount) {
+      acc.appendChild(el("div", { style: { fontSize: "12px", color: "var(--muted)", marginBottom: "10px" } },
+        "Signed in before on another device? Sign in to bring your businesses, customers, products and documents here."));
+      acc.appendChild(googleButton());
+    } else {
+      const loading = cloud.meta && !cloud.meta.firstPullDone && cloud.state !== "expired";
+      acc.appendChild(el("div", { style: { fontSize: "12.5px", marginBottom: "10px" } },
+        loading ? `Signed in as ${cloudAccount.email}. Loading your account…`
+                : `Signed in as ${cloudAccount.email}. This account has no businesses yet — set one up below and it's saved to your account.`));
+      acc.appendChild(el("button", { class: "btn btn-secondary btn-full", onclick: openAccountModal }, "Account & sync"));
+    }
+    wrap.appendChild(acc);
+  }
+
   wrap.appendChild(el("p", {}, found.length ? "Or set up a new business." : "Let's set up your first business."));
   const form = renderBusinessForm(null, (biz) => {
     biz.id = uid("biz");

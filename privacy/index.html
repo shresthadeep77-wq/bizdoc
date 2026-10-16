@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
-<title>Privacy — Your Data Never Leaves Your Browser — PI &amp; PO Maker</title>
-<meta name="description" content="There is no account, no server and no analytics. Everything you type is stored in your own browser's localStorage and is only sent anywhere if you explicitly back it up to Google Drive.">
+<title>Privacy — Where Your Data Is Stored — PI &amp; PO Maker</title>
+<meta name="description" content="No account needed and no analytics. Everything you type is stored in your own browser, and is only sent anywhere if you back it up to Google Drive or choose to sign in and sync it to your own private account.">
 <link rel="canonical" href="https://shresthadeep77-wq.github.io/bizdoc/privacy/">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="icon" href="../favicon.ico" sizes="32x32">
@@ -15,7 +15,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="PI &amp; PO Maker">
 <meta property="og:title" content="Privacy">
-<meta property="og:description" content="There is no account, no server and no analytics. Everything you type is stored in your own browser's localStorage and is only sent anywhere if you explicitly back it up to Google Drive.">
+<meta property="og:description" content="No account needed and no analytics. Everything you type is stored in your own browser, and is only sent anywhere if you back it up to Google Drive or choose to sign in and sync it to your own private account.">
 <meta property="og:url" content="https://shresthadeep77-wq.github.io/bizdoc/privacy/">
 <meta property="og:image" content="https://shresthadeep77-wq.github.io/bizdoc/assets/social-card.png">
 <meta property="og:image:width" content="1200">
@@ -24,7 +24,7 @@
 <meta property="og:locale" content="en">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Privacy">
-<meta name="twitter:description" content="There is no account, no server and no analytics. Everything you type is stored in your own browser's localStorage and is only sent anywhere if you explicitly back it up to Google Drive.">
+<meta name="twitter:description" content="No account needed and no analytics. Everything you type is stored in your own browser, and is only sent anywhere if you back it up to Google Drive or choose to sign in and sync it to your own private account.">
 <meta name="twitter:image" content="https://shresthadeep77-wq.github.io/bizdoc/assets/social-card.png">
 <meta name="twitter:image:alt" content="PI &amp; PO Maker — proforma invoices, purchase orders and quotations, offline.">
 <style>
@@ -184,8 +184,8 @@ tbody th { font-weight: 700; color: var(--text); }
       "@type": "WebPage",
       "@id": "https://shresthadeep77-wq.github.io/bizdoc/privacy/#page",
       "url": "https://shresthadeep77-wq.github.io/bizdoc/privacy/",
-      "name": "Privacy — Your Data Never Leaves Your Browser — PI & PO Maker",
-      "description": "There is no account, no server and no analytics. Everything you type is stored in your own browser's localStorage and is only sent anywhere if you explicitly back it up to Google Drive.",
+      "name": "Privacy — Where Your Data Is Stored — PI & PO Maker",
+      "description": "No account needed and no analytics. Everything you type is stored in your own browser, and is only sent anywhere if you back it up to Google Drive or choose to sign in and sync it to your own private account.",
       "inLanguage": "en",
       "isPartOf": {
         "@id": "https://shresthadeep77-wq.github.io/bizdoc/#website"
@@ -238,24 +238,27 @@ tbody th { font-weight: 700; color: var(--text); }
 </nav>
 
 <main id="main" class="site-main">
-<h1>Your data never leaves your browser</h1>
-<p class="lede">No account, no server, no analytics, no cookies. What you type stays on the device you typed it on.</p>
+<h1>Where your data is stored</h1>
+<p class="lede">No account needed, no analytics, no tracking cookies. What you type stays on the device you typed it on — unless you choose to sign in and sync it to your own private account.</p>
 
 <p>This page describes exactly what the app does with what you type. It is short
 because the app does very little.</p>
 
-<h2>There is no server</h2>
-<p>PI &amp; PO Maker is a static page. Once it has loaded, there is no backend it talks
+<h2>By default, nothing leaves your device</h2>
+<p>PI &amp; PO Maker is a static page. Unless you sign in, there is no backend it talks
 to, no API it posts to and nowhere for your documents to be sent. Businesses,
 customers, products and documents are written to <code>localStorage</code> in your own
 browser, under a single key, on the device you are using.</p>
 
-<h2>No account, no cookies, no third parties</h2>
+<h2>No account needed, no tracking</h2>
 <ul>
-  <li>There is no sign-up and no login.</li>
+  <li>You never have to sign up or log in. Signing in is optional, and only
+      needed to keep a copy in sync across devices (see below).</li>
   <li>No third-party analytics or telemetry service is loaded. Nothing is sent to
       Google Analytics, Plausible, Sentry or anything like them.</li>
-  <li>The app sets no cookies and no tracking identifiers.</li>
+  <li>The app sets no cookies and no tracking identifiers. If you sign in, your
+      sign-in session is kept in this browser's storage so you stay signed in;
+      it is not used for anything else.</li>
   <li>There are no advertising or social scripts on the page.</li>
 </ul>
 
@@ -275,8 +278,22 @@ that a search took place.</p>
 the recording off entirely and delete what is stored. Your documents are not
 affected either way.</p>
 
-<h2>The two things that do leave your device</h2>
-<p>Both are off until you start them, and neither runs in the background.</p>
+<h2>The things that can leave your device</h2>
+<p>Each one is off until you start it.</p>
+<h3>Signing in to sync (optional)</h3>
+<p>If you choose <em>Continue with Google</em>, Google confirms who you are and the app
+receives your name, email address and profile picture — nothing else from your Google
+account. From then on your businesses, customers, products and documents are also
+stored in a private database (hosted by Supabase) so they appear on every device you
+sign in on. Every row is tied to your account and the database itself refuses to show
+it to anyone else; this is enforced on the server, not just hidden in the app.</p>
+<p>While signed in, a copy stays in this browser so the app keeps working offline.
+Changes made offline upload automatically once the connection is back. The usage log
+described above is never uploaded. Signing out shows this device's own data again;
+you can also choose to remove the account's copy from the device when you sign out.</p>
+<p>One thing to know: the app is hosted on <code>github.io</code>, and pages published under
+the same GitHub user name share one browser storage area. That includes the sign-in
+session. Only sign in on a device you trust, and sign out on shared computers.</p>
 <h3>Google Drive backup</h3>
 <p>If — and only if — you press <em>Back up to Google Drive</em>, the app loads Google's
 sign-in script, asks for your permission, and writes one JSON file into your own
@@ -294,11 +311,12 @@ until you choose a recipient and press send yourself.</p>
   <caption class="sr-only">Where each kind of data is stored</caption>
   <thead><tr><th scope="col">Data</th><th scope="col">Where it lives</th><th scope="col">Sent anywhere?</th></tr></thead>
   <tbody>
-    <tr><th scope="row">Business details, logo, stamp, signature</th><td>Your browser</td><td>No</td></tr>
-    <tr><th scope="row">Customers, tax numbers, addresses</th><td>Your browser</td><td>No</td></tr>
-    <tr><th scope="row">Products and rates</th><td>Your browser</td><td>No</td></tr>
-    <tr><th scope="row">Documents and totals</th><td>Your browser</td><td>No</td></tr>
-    <tr><th scope="row">Bank account details for the payment QR</th><td>Your browser</td><td>No — the QR is drawn locally</td></tr>
+    <tr><th scope="row">Business details, logo, stamp, signature</th><td>Your browser</td><td>Only to your own account, if you sign in</td></tr>
+    <tr><th scope="row">Customers, tax numbers, addresses</th><td>Your browser</td><td>Only to your own account, if you sign in</td></tr>
+    <tr><th scope="row">Products and rates</th><td>Your browser</td><td>Only to your own account, if you sign in</td></tr>
+    <tr><th scope="row">Documents and totals</th><td>Your browser</td><td>Only to your own account, if you sign in</td></tr>
+    <tr><th scope="row">Bank account details for the payment QR</th><td>Your browser</td><td>Only to your own account, if you sign in — the QR is always drawn locally</td></tr>
+    <tr><th scope="row">Your name, email and profile picture</th><td>Your browser, while signed in</td><td>Received from Google when you sign in; never shared</td></tr>
     <tr><th scope="row">Backup file</th><td>Wherever you save it</td><td>Only to your own Drive, only when you ask</td></tr>
     <tr><th scope="row">Usage log (actions and errors, no contents)</th><td>Your browser</td><td>No</td></tr>
   </tbody>
@@ -306,7 +324,7 @@ until you choose a recipient and press send yourself.</p>
 </div>
 
 <h2>The other side of that bargain</h2>
-<p>Because nothing is on a server, nobody can recover your data for you. If you clear
+<p>If you have not signed in, nothing is on a server, so nobody can recover your data for you. If you clear
 your browsing data, uninstall the browser, or lose the device, the records go with it.
 Storage is also per browser and per device — Chrome on your laptop and Safari on your
 phone are two separate sets of data.</p>
@@ -315,7 +333,11 @@ a schedule that matches how much work you would hate to retype.</p>
 
 <h2>Deleting everything</h2>
 <p>Clearing site data for this page in your browser's settings removes every trace of
-it, the usage log included. There is no copy anywhere else to ask us to delete, and no account to close.</p>
+it from that browser, the usage log included. If you never signed in, there is no copy
+anywhere else. If you did, deleting a record in the app removes it from every device and
+marks it deleted in your account; its last version is kept there, out of sight, so a
+mistaken delete can be recovered. To have your account and everything in it erased for
+good, ask the maintainer through the project's GitHub page.</p>
 
 <h2>Where to go next</h2>
 <ul>
@@ -328,7 +350,7 @@ it, the usage log included. There is no copy anywhere else to ask us to delete, 
   <div class="foot-cols">
     <div>
       <h2>PI &amp; PO Maker</h2>
-      <p>A free, offline document tool for small businesses. No account, no server, no subscription.</p>
+      <p>A free, offline document tool for small businesses. No account needed, no subscription.</p>
       <a class="btn btn-primary" href="../">Open the app</a>
     </div>
     <div>

@@ -29,5 +29,8 @@
   "26-backup.js",
   "27-utils.js",
   "28-routing-seo.js",
-  "29-boot.js"
+  "29-cloud-sync-core.js",
+  "30-cloud-auth.js",
+  "31-cloud-ui.js",
+  "32-boot.js"
 ]

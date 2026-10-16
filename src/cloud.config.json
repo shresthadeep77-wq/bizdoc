@@ -1,0 +1,5 @@
+{
+  "_about": "Public Supabase settings, baked into index.html by build.js. Both values are meant to be public: the publishable key only identifies the project, and Row Level Security decides what anyone can read or write. NEVER put a secret key, service_role key, database password or OAuth client secret here — the build refuses them. Override per build with BIZDOC_SUPABASE_URL / BIZDOC_SUPABASE_PUBLISHABLE_KEY.",
+  "url": "https://hxrbntfgtkhlemdqhxlv.supabase.co",
+  "publishableKey": "sb_publishable_O_rlZwqbISPdySvcCQWAkA_A8agkp_r"
+}

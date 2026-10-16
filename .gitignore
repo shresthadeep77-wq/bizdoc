@@ -1,3 +1,11 @@
 # Built on demand by `node build.js --single`, for copying somewhere with no
 # web server. Not part of the deployed site, so it is not committed.
 bizdoc-offline.html
+
+# Local-only test tooling (tools/test-rls.mjs installs PGlite here) and any
+# per-machine environment overrides for build.js. Nothing in either is needed
+# to build or deploy the site.
+.cache/
+.env
+.env.local
+.env.*.local

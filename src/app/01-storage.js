@@ -86,18 +86,44 @@ const normalizeDB = (raw) => {
   return db;
 };
 
-const loadDB = () => {
-  try { return normalizeDB(JSON.parse(localStorage.getItem(DB_KEY))); }
+// ---- whose data is on screen ----
+// Signed out, the app is exactly what it always was: one database under DB_KEY.
+// Signed in, each account gets its own copy under its own key, so two people
+// sharing a browser never see — or upload — each other's records, and signing
+// out puts the device's own data back. Which account is active is recorded
+// here, synchronously, so the right data is drawn on the very first frame,
+// offline included, before the sign-in library has even loaded.
+const ACCOUNT_KEY = "pipomaker_account";
+const ACCOUNT_DB_PREFIX = DB_KEY + ":user:";
+
+const readStoredAccount = () => {
+  try {
+    const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY));
+    return (a && typeof a.id === "string" && a.id) ? a : null;
+  } catch (e) { return null; }
+};
+let cloudAccount = readStoredAccount();
+const activeDbKey = () => (cloudAccount ? ACCOUNT_DB_PREFIX + cloudAccount.id : DB_KEY);
+
+// Set by the sync code (29–31) so it hears about every save without each of
+// the hundred call sites knowing it exists.
+let onDBSaved = null;
+
+const readDBAt = (key) => {
+  try { return normalizeDB(JSON.parse(localStorage.getItem(key))); }
   catch (e) { return defaultDB(); }
 };
+const loadDB = () => readDBAt(activeDbKey());
 
 const saveDB = () => {
   try {
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    localStorage.setItem(activeDbKey(), JSON.stringify(db));
   } catch (e) {
     console.error("Save failed:", e);
     toast("Save failed — storage may be full (try a smaller logo/signature image)", "err");
+    return;
   }
+  if (onDBSaved) onDBSaved();
 };
 
 // Swap in a whole database from a backup/restore. Always normalised first, so a

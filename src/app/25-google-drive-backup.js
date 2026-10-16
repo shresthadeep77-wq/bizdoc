@@ -91,7 +91,7 @@ const gdriveRestore = async (btn) => {
     const imported = JSON.parse(await res.text());
     if (!imported.businesses) throw new Error("Backup file is invalid");
     confirmModal(
-      "This replaces all current data with the backup from Google Drive. Your current data will be lost.",
+      "This replaces all current data with the backup from Google Drive. Your current data will be lost." + cloudReplaceNote(),
       () => { replaceDB(imported); render(); toast("Restored from Google Drive"); },
       { title: "Replace all data?", confirmLabel: "Replace data" }
     );

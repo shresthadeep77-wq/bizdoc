@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1F4E79">
 <title>PI &amp; PO Maker — Free Offline Proforma Invoice, Purchase Order &amp; Quotation Generator</title>
-<meta name="description" content="Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes in your browser. Exports PDF, PNG, print and WhatsApp. No account, no server, works offline.">
+<meta name="description" content="Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes in your browser. Exports PDF, PNG, print and WhatsApp. No account needed, works offline.">
 <link rel="canonical" href="https://shresthadeep77-wq.github.io/bizdoc/">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <!-- Inline SVG icon first: no extra request, and no 404 when the app is opened
@@ -21,7 +21,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="PI &amp; PO Maker">
 <meta property="og:title" content="PI &amp; PO Maker — proforma invoices, purchase orders and quotations, offline">
-<meta property="og:description" content="Create proforma invoices, purchase orders and quotations in your browser. No account, no server — your data stays on your device.">
+<meta property="og:description" content="Create proforma invoices, purchase orders and quotations in your browser. No account needed — your data stays on your device unless you choose to sync it.">
 <meta property="og:url" content="https://shresthadeep77-wq.github.io/bizdoc/">
 <meta property="og:image" content="https://shresthadeep77-wq.github.io/bizdoc/assets/social-card.png">
 <meta property="og:image:width" content="1200">
@@ -30,7 +30,7 @@
 <meta property="og:locale" content="en">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="PI &amp; PO Maker — proforma invoices, purchase orders and quotations, offline">
-<meta name="twitter:description" content="Create proforma invoices, purchase orders and quotations in your browser. No account, no server — your data stays on your device.">
+<meta name="twitter:description" content="Create proforma invoices, purchase orders and quotations in your browser. No account needed — your data stays on your device unless you choose to sync it.">
 <meta name="twitter:image" content="https://shresthadeep77-wq.github.io/bizdoc/assets/social-card.png">
 <meta name="twitter:image:alt" content="PI &amp; PO Maker — proforma invoices, purchase orders and quotations, offline.">
 <script type="application/ld+json">
@@ -42,7 +42,7 @@
       "@id": "https://shresthadeep77-wq.github.io/bizdoc/#website",
       "url": "https://shresthadeep77-wq.github.io/bizdoc/",
       "name": "PI & PO Maker",
-      "description": "Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes in your browser. Exports PDF, PNG, print and WhatsApp. No account, no server, works offline.",
+      "description": "Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes in your browser. Exports PDF, PNG, print and WhatsApp. No account needed, works offline.",
       "inLanguage": "en"
     },
     {
@@ -52,7 +52,7 @@
       "url": "https://shresthadeep77-wq.github.io/bizdoc/",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Any browser. Installable on Android, iOS, Windows, macOS and Linux.",
-      "description": "Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes in your browser. Exports PDF, PNG, print and WhatsApp. No account, no server, works offline.",
+      "description": "Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes in your browser. Exports PDF, PNG, print and WhatsApp. No account needed, works offline.",
       "image": "https://shresthadeep77-wq.github.io/bizdoc/assets/social-card.png",
       "browserRequirements": "Requires JavaScript.",
       "isAccessibleForFree": true,
@@ -71,7 +71,8 @@
         "Product catalogue with categories and bulk rate updates",
         "A4 PDF, PNG, print and WhatsApp export",
         "CSV import and export",
-        "Works offline; data stored only in the browser"
+        "Works offline; data stored in the browser",
+        "Optional Google sign-in to keep a private copy in sync across devices"
       ]
     },
     {
@@ -724,6 +725,59 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
 .noscript-note li { margin-bottom: 6px; }
 
 @media print { .app-foot, .crumbs { display: none !important; } }
+
+/* Account & sync — the topbar status button and the panel behind it.
+   Status colours: one dot per state, so the button reads at a glance and the
+   label carries the exact meaning for anyone who cannot tell the colours apart. */
+.topbar-right { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; }
+.cloud-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px 0 6px; border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; font-size: 12.5px; font-weight: 600; white-space: nowrap; flex: none; position: relative; transition: background .18s var(--ease); }
+.cloud-btn:hover { background: rgba(255,255,255,.24); }
+.cloud-btn-icon svg { width: 18px; height: 18px; display: block; }
+.cloud-btn-avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex: none; }
+.cloud-btn-avatar.avatar-initial { display: inline-flex; align-items: center; justify-content: center; background: #fff; color: var(--primary); font-size: 11px; font-weight: 700; }
+.cloud-dot { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; flex: none; }
+.cloud-local .cloud-dot { display: none; }
+.cloud-ok .cloud-dot { background: #22c55e; }
+.cloud-pending .cloud-dot, .cloud-sync .cloud-dot { background: #60a5fa; }
+.cloud-sync .cloud-dot { animation: pulseDot 1.2s ease-in-out infinite; }
+.cloud-offline .cloud-dot { background: #9ca3af; }
+.cloud-warn .cloud-dot { background: #f59e0b; }
+.cloud-error .cloud-dot { background: #f87171; }
+@keyframes pulseDot { 50% { opacity: .35; } }
+/* On a phone the dot carries the state and the label goes; the full wording is
+   still the button's accessible name. */
+@media (max-width: 560px) {
+  .cloud-btn { padding: 0 8px 0 6px; }
+  .cloud-btn:not(.cloud-local) .cloud-btn-label { display: none; }
+}
+
+.cloud-panel { display: flex; flex-direction: column; gap: 12px; }
+.cloud-lede { font-size: 13.5px; line-height: 1.5; color: var(--text); margin-bottom: 4px; }
+.cloud-note { font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+.cloud-profile { display: flex; align-items: center; gap: 12px; }
+.cloud-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: none; box-shadow: var(--shadow-sm); }
+.cloud-avatar.avatar-initial { display: inline-flex; align-items: center; justify-content: center; background: var(--primary); color: #fff; font-size: 18px; font-weight: 700; }
+.cloud-name { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-email { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-status { border-radius: var(--radius-sm); padding: 12px 14px; background: var(--surface); box-shadow: var(--shadow-inset); display: flex; flex-direction: column; gap: 4px; }
+.cloud-status-label { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+.cloud-status-detail { font-size: 12.5px; line-height: 1.45; color: #374151; }
+.cloud-status-meta { font-size: 11.5px; color: var(--muted); }
+.cloud-failed { margin: 0 0 0 18px; font-size: 12px; line-height: 1.5; color: #374151; }
+.cloud-actions { display: flex; flex-direction: column; gap: 8px; }
+.btn-google { background: #fff; color: #1f1f1f; border: 1px solid #dadce0; box-shadow: var(--shadow-sm); font-weight: 600; gap: 10px; }
+.btn-google:hover { background: #f8fafc; }
+.btn-google .spin { border-color: rgba(31,78,121,.25); border-top-color: var(--primary); }
+.btn-google-g { display: inline-flex; }
+.cloud-conflict { border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.cloud-conflict-title { font-weight: 700; font-size: 13.5px; margin-bottom: 6px; overflow-wrap: anywhere; }
+.cloud-conflict-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12.5px; margin-bottom: 6px; }
+.cloud-conflict-fields { font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+.cloud-conflict-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cloud-conflict-actions .btn { flex: 1 1 140px; justify-content: center; }
+@media (max-width: 480px) { .cloud-conflict-sides { grid-template-columns: 1fr; } }
+.cloud-signout-bar .btn-danger { flex-basis: 100%; order: 3; }
+@media print { .cloud-btn { display: none !important; } }
 </style>
 </head>
 <body>
@@ -746,6 +800,10 @@ input[type="number"], .pv-tot-tbl td, .li-row input[type="number"], .amt, .prod-
   </div>
 </noscript>
 
+<script>
+// Public by design — see src/cloud.config.json.
+const CLOUD_CONFIG = {"url":"https://hxrbntfgtkhlemdqhxlv.supabase.co","publishableKey":"sb_publishable_O_rlZwqbISPdySvcCQWAkA_A8agkp_r"};
+</script>
 <script>
 /* qrcode-generator v2.0.4 — MIT (c) Kazuhiko Arase — bundled for offline QR of banking details */
 //---------------------------------------------------------------------
@@ -3358,18 +3416,44 @@ const normalizeDB = (raw) => {
   return db;
 };
 
-const loadDB = () => {
-  try { return normalizeDB(JSON.parse(localStorage.getItem(DB_KEY))); }
+// ---- whose data is on screen ----
+// Signed out, the app is exactly what it always was: one database under DB_KEY.
+// Signed in, each account gets its own copy under its own key, so two people
+// sharing a browser never see — or upload — each other's records, and signing
+// out puts the device's own data back. Which account is active is recorded
+// here, synchronously, so the right data is drawn on the very first frame,
+// offline included, before the sign-in library has even loaded.
+const ACCOUNT_KEY = "pipomaker_account";
+const ACCOUNT_DB_PREFIX = DB_KEY + ":user:";
+
+const readStoredAccount = () => {
+  try {
+    const a = JSON.parse(localStorage.getItem(ACCOUNT_KEY));
+    return (a && typeof a.id === "string" && a.id) ? a : null;
+  } catch (e) { return null; }
+};
+let cloudAccount = readStoredAccount();
+const activeDbKey = () => (cloudAccount ? ACCOUNT_DB_PREFIX + cloudAccount.id : DB_KEY);
+
+// Set by the sync code (29–31) so it hears about every save without each of
+// the hundred call sites knowing it exists.
+let onDBSaved = null;
+
+const readDBAt = (key) => {
+  try { return normalizeDB(JSON.parse(localStorage.getItem(key))); }
   catch (e) { return defaultDB(); }
 };
+const loadDB = () => readDBAt(activeDbKey());
 
 const saveDB = () => {
   try {
-    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    localStorage.setItem(activeDbKey(), JSON.stringify(db));
   } catch (e) {
     console.error("Save failed:", e);
     toast("Save failed — storage may be full (try a smaller logo/signature image)", "err");
+    return;
   }
+  if (onDBSaved) onDBSaved();
 };
 
 // Swap in a whole database from a backup/restore. Always normalised first, so a
@@ -4134,6 +4218,24 @@ const renderOnboard = () => {
   restore.appendChild(restoreRow);
   wrap.appendChild(restore);
 
+  // A new device's way back to an account's data — there is no topbar yet.
+  if (cloudConfigured() && cloudSupportedHere()) {
+    const acc = el("div", { class: "card", style: { marginBottom: "20px" } });
+    acc.appendChild(el("div", { class: "card-title" }, "Your account"));
+    if (!cloudAccount) {
+      acc.appendChild(el("div", { style: { fontSize: "12px", color: "var(--muted)", marginBottom: "10px" } },
+        "Signed in before on another device? Sign in to bring your businesses, customers, products and documents here."));
+      acc.appendChild(googleButton());
+    } else {
+      const loading = cloud.meta && !cloud.meta.firstPullDone && cloud.state !== "expired";
+      acc.appendChild(el("div", { style: { fontSize: "12.5px", marginBottom: "10px" } },
+        loading ? `Signed in as ${cloudAccount.email}. Loading your account…`
+                : `Signed in as ${cloudAccount.email}. This account has no businesses yet — set one up below and it's saved to your account.`));
+      acc.appendChild(el("button", { class: "btn btn-secondary btn-full", onclick: openAccountModal }, "Account & sync"));
+    }
+    wrap.appendChild(acc);
+  }
+
   wrap.appendChild(el("p", {}, found.length ? "Or set up a new business." : "Let's set up your first business."));
   const form = renderBusinessForm(null, (biz) => {
     biz.id = uid("biz");
@@ -4203,7 +4305,10 @@ const renderTopbar = () => {
     sw.appendChild(opt);
   });
   sw.appendChild(el("option", { value: "__new__" }, "+ Add business…"));
-  bar.appendChild(sw);
+  const right = el("div", { class: "topbar-right" });
+  right.appendChild(renderCloudButton());
+  right.appendChild(sw);
+  bar.appendChild(right);
   return bar;
 };
 
@@ -6345,6 +6450,9 @@ const BIZ_SECTIONS = [
 // selected section's form on the right. Saves the whole business on Save.
 const SETTINGS_NAV = [
   { group: "Business", items: BIZ_SECTIONS },
+  { group: "Account", items: [
+    { key: "account",    icon: "☁️", title: "Account & sync", desc: "Google sign-in, cloud copy, offline sync" },
+  ]},
   { group: "This device", items: [
     { key: "savefolder", icon: "\u{1F4C1}", title: "Save location", desc: "Where PDFs and backups land" },
     { key: "data",       icon: "\u{1F4BE}", title: "Data & backup", desc: "CSV export, JSON backup, delete business" },
@@ -6359,6 +6467,7 @@ const openSettingsSectionPopup = (it, sections, biz) => {
   if (sections[it.key]) wrap.appendChild(sections[it.key]());
   else if (it.key === "savefolder") wrap.appendChild(renderSettingsSaveFolder(biz));
   else if (it.key === "data") wrap.appendChild(renderSettingsData(biz));
+  else if (it.key === "account") wrap.appendChild(renderSettingsAccount());
   const bar = el("div", { class: "action-bar" });
   bar.appendChild(el("button", { class: "btn btn-primary btn-full", onclick: () => closeModal() }, "Done"));
   wrap.appendChild(bar);
@@ -6418,6 +6527,8 @@ const openSettingsModal = () => {
       content.appendChild(renderSettingsSaveFolder(biz));
     } else if (settingsActiveKey === "data") {
       content.appendChild(renderSettingsData(biz));
+    } else if (settingsActiveKey === "account") {
+      content.appendChild(renderSettingsAccount());
     }
   };
   drawContent();
@@ -8888,7 +8999,7 @@ const gdriveRestore = async (btn) => {
     const imported = JSON.parse(await res.text());
     if (!imported.businesses) throw new Error("Backup file is invalid");
     confirmModal(
-      "This replaces all current data with the backup from Google Drive. Your current data will be lost.",
+      "This replaces all current data with the backup from Google Drive. Your current data will be lost." + cloudReplaceNote(),
       () => { replaceDB(imported); render(); toast("Restored from Google Drive"); },
       { title: "Replace all data?", confirmLabel: "Replace data" }
     );
@@ -8928,6 +9039,9 @@ const scanDeviceData = () => {
   let keys = [];
   try { keys = Object.keys(localStorage); } catch (e) { return found; }
   keys.forEach(k => {
+    // Another account's copy is not "data saved on this device" to offer
+    // anyone who opens the app — it belongs to whoever signs in as them.
+    if (k.startsWith(ACCOUNT_DB_PREFIX) && k !== activeDbKey()) return;
     let raw;
     try { raw = localStorage.getItem(k); } catch (e) { return; }
     if (!raw || raw.length < 20 || raw[0] !== "{") return;
@@ -8935,7 +9049,7 @@ const scanDeviceData = () => {
     try { v = JSON.parse(raw); } catch (e) { return; }
     if (!v || !Array.isArray(v.businesses) || !v.businesses.length) return;
     found.push({
-      key: k, data: v, isCurrent: k === DB_KEY,
+      key: k, data: v, isCurrent: k === activeDbKey(),
       sizeKB: Math.max(1, Math.round(raw.length / 1024)),
       names: v.businesses.map(b => b && b.name).filter(Boolean),
       businesses: v.businesses.length,
@@ -8961,13 +9075,16 @@ const restoreDeviceEntry = (entry) => {
   track("backup.device_restore");
   const apply = () => {
     replaceDB(JSON.parse(JSON.stringify(entry.data)));
+    // That was this device's data going into the account by hand — don't
+    // then also offer to add it a second time.
+    if (cloud.meta) { cloud.meta.migrationOffered = true; saveSyncMeta(); }
     if (modalStack.length) closeModal();
     render();
     toast(`Loaded ${entry.businesses} business${entry.businesses === 1 ? "" : "es"} from this device`, "ok", 4000);
   };
   if (db.businesses.length) {
     confirmModal(
-      `This replaces every business, customer, product and document currently in the app with the copy saved on this device (${deviceEntrySummary(entry)}).`,
+      `This replaces every business, customer, product and document currently in the app with the copy saved on this device (${deviceEntrySummary(entry)}).` + cloudReplaceNote(),
       apply, { title: "Load saved data?", confirmLabel: "Load it" });
   } else {
     apply();
@@ -9018,7 +9135,7 @@ const importBackup = () => {
         const imported = JSON.parse(r.result);
         if (!imported.businesses) throw new Error("Invalid backup");
         confirmModal(
-          "This replaces every business, customer, product, and document currently in the app with what's in this backup file. Your current data will be lost.",
+          "This replaces every business, customer, product, and document currently in the app with what's in this backup file. Your current data will be lost." + cloudReplaceNote(),
           () => { replaceDB(imported); render(); toast("Backup restored"); },
           { title: "Replace all data?", confirmLabel: "Replace data" }
         );
@@ -9243,6 +9360,1425 @@ const renderAppFooter = (tab) => {
   return foot;
 };
 
+// ==================== CLOUD SYNC — CORE ====================
+// The rules for keeping this device's `db` and the signed-in user's cloud copy
+// in step. No network and no screen code lives here: it is handed the data and
+// an `api` object, which is what lets tools/test-sync.js run it under Node
+// against a fake server.
+//
+// How changes are found. Rather than logging every edit as it happens — the
+// app mutates `db` from a hundred places and then calls saveDB() — sync keeps,
+// per account, a note of every record as it last agreed with the cloud: its
+// version and a hash of its contents ("base"). Any record whose hash differs is
+// a pending change; any base entry with no record left is a pending delete.
+// Both db and base live in localStorage, so pending work survives a refresh, a
+// crash or a week offline, and working it out again is always safe to repeat.
+//
+// How conflicts are caught. Every cloud row has a version the server bumps on
+// each write. An upload says "I am changing version N"; if the cloud is
+// already past N, someone else got there first and the write is refused rather
+// than overwriting it. The user then picks which copy to keep.
+//
+// Identity. The app's ids are small numbers handed out per device, so two
+// devices working offline will both create "product 41". Every record also
+// carries `_uid`, a UUID made on the device that created it, which is the
+// cloud's primary key. When two devices did pick the same number, the one not
+// yet uploaded is renumbered, and everything pointing at it follows.
+
+const SYNC_KINDS = [
+  { kind: "businesses", table: "bizdoc_businesses", idKey: "biz",  label: "Business" },
+  { kind: "customers",  table: "bizdoc_customers",  idKey: "cust", label: "Customer" },
+  { kind: "products",   table: "bizdoc_products",   idKey: "prod", label: "Product" },
+  { kind: "documents",  table: "bizdoc_documents",  idKey: "doc",  label: "Document" },
+];
+const SYNC_KIND = Object.fromEntries(SYNC_KINDS.map(k => [k.kind, k]));
+
+// Fields that describe this device rather than the business. The save folder
+// is a handle to a folder on this computer, meaningless anywhere else.
+const DEVICE_LOCAL_FIELDS = { businesses: ["saveFolderDisplayName"] };
+
+// Number-series counters. Two devices issuing invoices offline both bump them,
+// which would otherwise be a conflict on the whole business every time.
+const BIZ_COUNTER_FIELDS = ["nextPi", "nextPo", "nextQt", "nextInv", "nextDn"];
+
+const SYNC_META_VERSION = 1;
+const PUSH_CHUNK = 200;
+const PULL_PAGE = 500;
+// Rows are stamped with the time their transaction started, so one that
+// commits late can carry a timestamp older than rows already pulled. Each pull
+// re-reads this far back; versions make the overlap harmless.
+const PULL_OVERLAP_MS = 60 * 1000;
+
+const emptySyncMeta = (userId) => ({
+  v: SYNC_META_VERSION,
+  userId,
+  base: { businesses: {}, customers: {}, products: {}, documents: {} },
+  cursors: {},        // kind -> { t, id } — where the last pull got to
+  maxIds: {},         // idKey -> highest local_id seen in the cloud, tombstones included
+  conflicts: [],      // { kind, uid, remote, at }
+  failed: {},         // "kind:uid" -> { message, at } — uploads the server refused
+  lastSyncAt: null,
+  firstPullDone: false,
+  migrationOffered: false,
+});
+
+const normalizeSyncMeta = (raw, userId) => {
+  const m = (raw && typeof raw === "object" && raw.userId === userId) ? raw : emptySyncMeta(userId);
+  const e = emptySyncMeta(userId);
+  m.base = Object.assign(e.base, m.base || {});
+  SYNC_KINDS.forEach(k => { if (!m.base[k.kind] || typeof m.base[k.kind] !== "object") m.base[k.kind] = {}; });
+  if (!m.cursors || typeof m.cursors !== "object") m.cursors = {};
+  if (!m.maxIds || typeof m.maxIds !== "object") m.maxIds = {};
+  if (!Array.isArray(m.conflicts)) m.conflicts = [];
+  if (!m.failed || typeof m.failed !== "object") m.failed = {};
+  return m;
+};
+
+// ---- hashing ----------------------------------------------------------------
+
+// JSON with keys sorted at every level. The database stores records as jsonb,
+// which does not keep key order, so a record that went up and came back has
+// its keys shuffled — a plain JSON.stringify would call that a change.
+const canonJSON = (v) => {
+  if (v === null || typeof v !== "object") {
+    const s = JSON.stringify(v);
+    return s === undefined ? "null" : s;
+  }
+  if (Array.isArray(v)) return "[" + v.map(canonJSON).join(",") + "]";
+  return "{" + Object.keys(v).filter(k => v[k] !== undefined && typeof v[k] !== "function").sort()
+    .map(k => JSON.stringify(k) + ":" + canonJSON(v[k])).join(",") + "}";
+};
+
+// cyrb53: a fast 53-bit string hash. It only has to tell "same contents" from
+// "different contents" for one record at a time, not resist an attacker.
+const hash53 = (str) => {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+};
+
+// What goes to the cloud for a record: everything except this device's own fields.
+const cloudView = (kind, rec) => {
+  const drop = DEVICE_LOCAL_FIELDS[kind];
+  if (!drop) return rec;
+  const out = Object.assign({}, rec);
+  drop.forEach(f => { delete out[f]; });
+  return out;
+};
+const recordHash = (kind, rec) => hash53(canonJSON(cloudView(kind, rec)));
+
+// Turn a cloud row back into an app record. The row's columns are the truth
+// for identity, whatever the JSON says.
+const recordFromRow = (row) => Object.assign({}, row.data || {}, { id: Number(row.local_id), _uid: row.id });
+
+// ---- identity -----------------------------------------------------------------
+
+const newUuid = () => {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map(x => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+};
+
+// Give every record a unique `_uid`. Returns true if anything changed.
+//
+// Missing: a record created since the last sync. If base already knows a uid
+// for this record's number and nothing else holds it, the record is that one
+// (restored from a backup made before sign-in, say) and takes it back, so it
+// updates the cloud row instead of duplicating it.
+// Duplicated: "duplicate product" copies the whole object, `_uid` included.
+// The copy whose number matches what base recorded keeps it; others get new ones.
+const ensureUids = (db, meta, genUuid = newUuid) => {
+  let changed = false;
+  SYNC_KINDS.forEach(({ kind }) => {
+    const base = meta.base[kind];
+    const byLocalId = {};
+    Object.keys(base).forEach(uid => { byLocalId[base[uid].id] = uid; });
+    const holders = {};
+    db[kind].forEach(r => { if (r._uid) (holders[r._uid] = holders[r._uid] || []).push(r); });
+    Object.keys(holders).forEach(uid => {
+      const list = holders[uid];
+      if (list.length < 2) return;
+      const keeper = list.find(r => base[uid] && r.id === base[uid].id) || list[0];
+      list.forEach(r => { if (r !== keeper) { r._uid = genUuid(); changed = true; } });
+    });
+    const taken = new Set(db[kind].map(r => r._uid).filter(Boolean));
+    db[kind].forEach(r => {
+      if (r._uid) return;
+      const prior = byLocalId[r.id];
+      r._uid = (prior && !taken.has(prior)) ? prior : genUuid();
+      taken.add(r._uid);
+      changed = true;
+    });
+  });
+  return changed;
+};
+
+// ---- renumbering --------------------------------------------------------------
+
+const highestId = (list) => list.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+
+// Next number nobody — on this device or in the cloud — has used for `kind`.
+const reserveId = (db, meta, kind) => {
+  const { idKey } = SYNC_KIND[kind];
+  const n = Math.max(Number(db.nextIds[idKey]) || 1, highestId(db[kind]) + 1, (Number(meta.maxIds[idKey]) || 0) + 1);
+  db.nextIds[idKey] = n + 1;
+  return n;
+};
+
+// Every place one record points at another by number. Renumbering a record
+// has to follow all of them, or the pointer quietly lands on something else.
+const rewriteRefs = (r, kind, from, to) => {
+  let hit = false;
+  if (kind === "businesses" && r.businessId === from) { r.businessId = to; hit = true; }
+  if (kind === "customers" && r.customerId === from) { r.customerId = to; hit = true; }
+  if (kind === "products" && Array.isArray(r.lineItems)) {
+    r.lineItems.forEach(li => { if (li && li.productId === from) { li.productId = to; hit = true; } });
+  }
+  if (kind === "documents" && r.fromDoc && r.fromDoc.id === from) { r.fromDoc.id = to; hit = true; }
+  return hit;
+};
+
+// Move a not-yet-uploaded record to a new number. Only records with local,
+// unsynced changes follow it: a record that matches the cloud exactly cannot
+// be pointing at something that has never been uploaded, and its references
+// to the same number mean the cloud's record, which is keeping it.
+const renumberLocal = (db, meta, kind, rec, newId) => {
+  const oldId = rec.id;
+  const holders = SYNC_KINDS.filter(k => k.kind !== "businesses").map(k => k.kind);
+  holders.forEach(hk => {
+    db[hk].forEach(r => {
+      if (r === rec) return;
+      const b = r._uid && meta.base[hk][r._uid];
+      if (b && b.h === recordHash(hk, r)) return;
+      rewriteRefs(r, kind, oldId, newId);
+    });
+  });
+  if (kind === "businesses" && db.activeBusinessId === oldId) db.activeBusinessId = newId;
+  rec.id = newId;
+};
+
+// ---- working out what to upload -----------------------------------------------
+
+const conflictKey = (kind, uid) => kind + ":" + uid;
+const hasConflict = (meta, kind, uid) => meta.conflicts.some(c => c.kind === kind && c.uid === uid);
+
+// [{ kind, uid, op, rec, hash, baseVersion }] for one kind, or all of them.
+const computeChanges = (db, meta, onlyKind) => {
+  const out = [];
+  SYNC_KINDS.forEach(({ kind }) => {
+    if (onlyKind && kind !== onlyKind) return;
+    const base = meta.base[kind];
+    const present = new Set();
+    db[kind].forEach(rec => {
+      // Uids are handed out when a sync starts, so a record made while
+      // offline or signed out of the session has none yet. It is still a
+      // change waiting to go up, and the status has to say so.
+      if (!rec._uid) { out.push({ kind, uid: null, op: "insert", rec, hash: null }); return; }
+      present.add(rec._uid);
+      if (hasConflict(meta, kind, rec._uid)) return;
+      const h = recordHash(kind, rec);
+      const b = base[rec._uid];
+      if (!b) out.push({ kind, uid: rec._uid, op: "insert", rec, hash: h });
+      else if (b.h !== h) out.push({ kind, uid: rec._uid, op: "update", rec, hash: h, baseVersion: b.v });
+    });
+    Object.keys(base).forEach(uid => {
+      if (present.has(uid) || hasConflict(meta, kind, uid)) return;
+      out.push({ kind, uid, op: "delete", rec: null, hash: null, baseVersion: base[uid].v });
+    });
+  });
+  return out;
+};
+
+const pendingSummary = (db, meta) => {
+  const changes = computeChanges(db, meta);
+  const byKind = {};
+  changes.forEach(c => { byKind[c.kind] = (byKind[c.kind] || 0) + 1; });
+  return { count: changes.length, byKind };
+};
+
+// ---- taking in cloud rows -------------------------------------------------------
+
+// Replace a record's contents in place. Screens hold references to the live
+// object (the settings popup edits `biz` directly), so swapping in a new
+// object would leave their next save writing into one nobody can see.
+const overwriteRecord = (kind, target, incoming) => {
+  const keep = {};
+  (DEVICE_LOCAL_FIELDS[kind] || []).forEach(f => { if (target[f] !== undefined) keep[f] = target[f]; });
+  Object.keys(target).forEach(k => { delete target[k]; });
+  Object.assign(target, incoming, keep);
+};
+
+// Two edits to a business that differ only in number counters merge cleanly:
+// keep the higher counter so neither device re-issues a number.
+const tryAutoMerge = (kind, local, remoteRec) => {
+  if (kind !== "businesses") return null;
+  const a = cloudView(kind, local), b = cloudView(kind, remoteRec);
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    if (BIZ_COUNTER_FIELDS.includes(k)) continue;
+    if (canonJSON(a[k]) !== canonJSON(b[k])) return null;
+  }
+  const merged = Object.assign({}, remoteRec);
+  BIZ_COUNTER_FIELDS.forEach(k => { merged[k] = Math.max(Number(a[k]) || 1, Number(b[k]) || 1); });
+  return merged;
+};
+
+const recordConflict = (meta, kind, uid, row) => {
+  meta.conflicts = meta.conflicts.filter(c => !(c.kind === kind && c.uid === uid));
+  meta.conflicts.push({ kind, uid, remote: row || null, at: new Date().toISOString() });
+};
+
+// Free `localId` for a cloud record by moving whichever different local
+// record holds it.
+const clearIdFor = (db, meta, kind, uid, localId) => {
+  const clash = db[kind].find(r => r.id === localId && r._uid !== uid);
+  if (clash) renumberLocal(db, meta, kind, clash, reserveId(db, meta, kind));
+};
+
+const noteMaxId = (meta, kind, localId) => {
+  const { idKey } = SYNC_KIND[kind];
+  meta.maxIds[idKey] = Math.max(Number(meta.maxIds[idKey]) || 0, Number(localId) || 0);
+};
+
+// Apply one cloud row. Returns "applied" (this device changed), "same",
+// "conflict" or "skip".
+const applyRemoteRow = (db, meta, kind, row) => {
+  const uid = row.id;
+  noteMaxId(meta, kind, row.local_id);
+  const existing = meta.conflicts.find(c => c.kind === kind && c.uid === uid);
+  if (existing) { existing.remote = row; return "conflict"; }
+
+  const base = meta.base[kind];
+  const b = base[uid];
+  if (b && Number(row.version) <= Number(b.v)) return "skip";
+
+  const local = db[kind].find(r => r._uid === uid);
+  const localHash = local ? recordHash(kind, local) : null;
+  const localChanged = local ? (!b || b.h !== localHash) : !!b;
+  const remoteRec = row.deleted ? null : recordFromRow(row);
+  const remoteHash = remoteRec ? recordHash(kind, remoteRec) : null;
+
+  if (!localChanged) {
+    if (row.deleted) {
+      if (local) db[kind] = db[kind].filter(r => r !== local);
+      delete base[uid];
+      return local ? "applied" : "skip";
+    }
+    clearIdFor(db, meta, kind, uid, remoteRec.id);
+    if (local) overwriteRecord(kind, local, remoteRec);
+    else db[kind].push(remoteRec);
+    base[uid] = { v: Number(row.version), h: remoteHash, id: remoteRec.id };
+    return "applied";
+  }
+
+  // Both sides moved.
+  if (row.deleted && !local) { delete base[uid]; return "same"; }
+  if (row.deleted && local && !b) {
+    // Never synced from here, yet the cloud has it deleted: this record was
+    // brought back (undo, or a restored backup). Revive it.
+    base[uid] = { v: Number(row.version), h: "revive", id: local.id };
+    return "same";
+  }
+  if (!row.deleted && local && localHash === remoteHash) {
+    base[uid] = { v: Number(row.version), h: remoteHash, id: local.id };
+    return "same";
+  }
+  if (!row.deleted && local) {
+    const merged = tryAutoMerge(kind, local, remoteRec);
+    if (merged) {
+      overwriteRecord(kind, local, merged);
+      base[uid] = { v: Number(row.version), h: remoteHash, id: local.id };
+      return "applied";
+    }
+  }
+  recordConflict(meta, kind, uid, row);
+  return "conflict";
+};
+
+// ---- resolving conflicts --------------------------------------------------------
+
+// "Keep this device's copy": take the cloud's version number as the starting
+// point, so the next upload is an ordinary update that replaces it.
+const resolveKeepLocal = (db, meta, kind, uid) => {
+  const c = meta.conflicts.find(x => x.kind === kind && x.uid === uid);
+  if (!c) return;
+  const local = db[kind].find(r => r._uid === uid);
+  if (c.remote) meta.base[kind][uid] = { v: Number(c.remote.version), h: "keep-local", id: local ? local.id : Number(c.remote.local_id) };
+  else delete meta.base[kind][uid];     // gone from the cloud entirely: upload as new
+  meta.conflicts = meta.conflicts.filter(x => x !== c);
+};
+
+// "Use the cloud copy": overwrite (or remove) this device's record.
+const resolveUseCloud = (db, meta, kind, uid) => {
+  const c = meta.conflicts.find(x => x.kind === kind && x.uid === uid);
+  if (!c) return;
+  meta.conflicts = meta.conflicts.filter(x => x !== c);
+  const local = db[kind].find(r => r._uid === uid);
+  if (!c.remote || c.remote.deleted) {
+    if (local) db[kind] = db[kind].filter(r => r !== local);
+    delete meta.base[kind][uid];
+    return;
+  }
+  const rec = recordFromRow(c.remote);
+  clearIdFor(db, meta, kind, uid, rec.id);
+  if (local) overwriteRecord(kind, local, rec);
+  else db[kind].push(rec);
+  meta.base[kind][uid] = { v: Number(c.remote.version), h: recordHash(kind, rec), id: rec.id };
+};
+
+// ---- pull -----------------------------------------------------------------------
+
+// Fetch everything changed in the cloud since the last pull and apply it.
+// `api.pull(table, sinceIso, afterUuid, limit)` returns rows in (updated_at, id) order.
+const pullAll = async (db, meta, api) => {
+  let applied = 0;
+  for (const { kind, table } of SYNC_KINDS) {
+    const cur = meta.cursors[kind];
+    let since = cur ? new Date(new Date(cur.t).getTime() - PULL_OVERLAP_MS).toISOString() : null;
+    let after = null;
+    for (;;) {
+      const rows = await api.pull(table, since, after, PULL_PAGE);
+      rows.forEach(row => { if (applyRemoteRow(db, meta, kind, row) === "applied") applied++; });
+      if (rows.length) {
+        const last = rows[rows.length - 1];
+        // Keep the server's own timestamp string: it has microseconds, which a
+        // JS Date would round away and then re-read a row on every page.
+        since = last.updated_at; after = last.id;
+        const prev = meta.cursors[kind];
+        if (!prev || new Date(last.updated_at) >= new Date(prev.t)) meta.cursors[kind] = { t: last.updated_at, id: last.id };
+      }
+      if (rows.length < PULL_PAGE) break;
+    }
+  }
+  SYNC_KINDS.forEach(({ kind, idKey }) => {
+    const floor = (Number(meta.maxIds[idKey]) || 0) + 1;
+    if (!(Number(db.nextIds[idKey]) >= floor)) db.nextIds[idKey] = floor;
+  });
+  meta.firstPullDone = true;
+  return applied;
+};
+
+// ---- push -----------------------------------------------------------------------
+
+const uidOf = (db, kind, localId) => {
+  if (localId === null || localId === undefined) return null;
+  const r = db[kind].find(x => x.id === localId);
+  return r ? r._uid || null : null;
+};
+
+// Build the server op for a change, or return a reason it cannot be sent yet.
+const opPayload = (db, ch) => {
+  if (ch.op === "delete") return { op: { op: "delete", id: ch.uid, base_version: ch.baseVersion } };
+  const rec = ch.rec;
+  const op = { op: ch.op, id: ch.uid, local_id: rec.id, data: cloudView(ch.kind, rec) };
+  if (ch.op === "update") op.base_version = ch.baseVersion;
+  if (ch.kind !== "businesses") {
+    op.business_id = uidOf(db, "businesses", rec.businessId);
+    if (!op.business_id) return { error: "Belongs to a business that no longer exists on this device, so it can't be uploaded." };
+  }
+  if (ch.kind === "documents") op.customer_id = uidOf(db, "customers", rec.customerId);
+  return { op };
+};
+
+// Upload every pending change. Each successful write is recorded in base as it
+// lands, so an interrupted push resumes where it stopped. A record edited
+// again while its upload was in flight keeps the hash taken before the
+// upload, so it simply shows up as changed again next time.
+const pushAll = async (db, meta, api, onProgress) => {
+  const stats = { ok: 0, conflicts: 0, failed: 0, renumbered: 0, again: false };
+  for (const { kind, table } of SYNC_KINDS) {
+    const changes = computeChanges(db, meta, kind).filter(ch => ch.uid);   // ensureUids runs first
+    const ready = [];
+    changes.forEach(ch => {
+      const p = opPayload(db, ch);
+      if (p.error) { meta.failed[conflictKey(kind, ch.uid)] = { message: p.error, at: new Date().toISOString() }; stats.failed++; }
+      else ready.push({ ch, op: p.op });
+    });
+    for (let i = 0; i < ready.length; i += PUSH_CHUNK) {
+      const chunk = ready.slice(i, i + PUSH_CHUNK);
+      const results = await api.push(table, chunk.map(x => x.op));
+      const byId = {};
+      (results || []).forEach(r => { byId[r.id] = r; });
+      chunk.forEach(({ ch }) => {
+        const res = byId[ch.uid];
+        const key = conflictKey(kind, ch.uid);
+        const base = meta.base[kind];
+        if (!res) { stats.again = true; return; }
+        if (res.status === "ok") {
+          delete meta.failed[key];
+          if (ch.op === "delete") delete base[ch.uid];
+          else base[ch.uid] = { v: Number(res.version), h: ch.hash, id: ch.rec.id };
+          noteMaxId(meta, kind, ch.rec ? ch.rec.id : 0);
+          stats.ok++;
+        } else if (res.status === "conflict" || res.status === "exists") {
+          delete meta.failed[key];
+          if (res.row) {
+            const out = applyRemoteRow(db, meta, kind, res.row);
+            if (out === "conflict") stats.conflicts++; else stats.again = true;
+          } else if (res.status === "exists") {
+            // That id belongs to a row this account cannot see. Take a new one.
+            if (ch.rec) { ch.rec._uid = newUuid(); stats.again = true; }
+          } else if (ch.op === "delete") {
+            delete base[ch.uid];          // already gone from the cloud: nothing to do
+          } else {
+            recordConflict(meta, kind, ch.uid, null);
+            stats.conflicts++;
+          }
+        } else if (res.status === "id_taken") {
+          // Another device used this number first. This record has not been
+          // uploaded yet, so it is the one that moves.
+          delete meta.failed[key];
+          if (ch.rec && ch.op === "insert") {
+            noteMaxId(meta, kind, ch.rec.id);
+            renumberLocal(db, meta, kind, ch.rec, reserveId(db, meta, kind));
+            stats.renumbered++; stats.again = true;
+          }
+        } else {
+          meta.failed[key] = { message: res.message || "Rejected by the server", code: res.code, at: new Date().toISOString() };
+          stats.failed++;
+        }
+      });
+      if (onProgress) onProgress(Math.min(i + PUSH_CHUNK, ready.length), ready.length, kind);
+    }
+  }
+  // Failures for records that no longer exist (or no longer differ) are stale.
+  const live = new Set(computeChanges(db, meta).map(c => conflictKey(c.kind, c.uid)));
+  Object.keys(meta.failed).forEach(k => { if (!live.has(k)) delete meta.failed[k]; });
+  return stats;
+};
+
+// ---- bringing in a whole database -----------------------------------------------
+
+// Add every record from `incoming` to `target` as new records: fresh numbers
+// that clash with nothing in either, fresh uids, and every reference inside
+// `incoming` carried across. Used to move a device's signed-out data into an
+// account without disturbing anything the account already holds.
+const mergeIntoAccount = (target, meta, incoming, genUuid = newUuid) => {
+  const src = normalizeDB(JSON.parse(JSON.stringify(incoming)));
+  const maps = {};
+  const counts = {};
+  SYNC_KINDS.forEach(({ kind }) => {
+    maps[kind] = new Map();
+    counts[kind] = src[kind].length;
+    src[kind].forEach(r => {
+      const n = reserveId(target, meta, kind);
+      maps[kind].set(r.id, n);
+      r.id = n;
+      r._uid = genUuid();
+    });
+  });
+  const mapOrNull = (kind, v) => (maps[kind].has(v) ? maps[kind].get(v) : null);
+  ["customers", "products", "documents"].forEach(kind => {
+    src[kind].forEach(r => { r.businessId = mapOrNull("businesses", r.businessId); });
+  });
+  src.documents.forEach(d => {
+    d.customerId = mapOrNull("customers", d.customerId);
+    (d.lineItems || []).forEach(li => { if (li && li.productId != null) li.productId = mapOrNull("products", li.productId); });
+    if (d.fromDoc && d.fromDoc.id != null) d.fromDoc.id = mapOrNull("documents", d.fromDoc.id);
+  });
+  SYNC_KINDS.forEach(({ kind }) => { target[kind].push(...src[kind]); });
+  if (!target.activeBusinessId && target.businesses.length) target.activeBusinessId = target.businesses[0].id;
+  return counts;
+};
+
+// ==================== CLOUD — ACCOUNT, SESSION, SYNC LOOP ====================
+// Optional Google sign-in through Supabase Auth, and the loop that keeps the
+// signed-in account's data in step with the cloud (rules in 29-cloud-sync-core).
+//
+// Nothing here runs for someone who never signs in: the Supabase library is
+// fetched from lib/ only when a sign-in starts, or when this browser already
+// holds a signed-in account. The service worker caches it with the app, so a
+// signed-in device still opens — and keeps working — with no connection.
+//
+// The session itself (access and refresh tokens) is stored and refreshed by
+// supabase-js under AUTH_STORAGE_KEY; this code never reads or copies tokens.
+// CLOUD_CONFIG comes from the build (src/cloud.config.json) and holds only the
+// project URL and the publishable key, both of which are public by design —
+// what protects the data is Row Level Security in the database.
+
+const AUTH_STORAGE_KEY = "bizdoc-auth";
+const SYNC_META_PREFIX = "pipomaker_sync:";
+const AUTH_RETURN_KEY = "bizdoc_auth_return";
+const AUTH_URL_PARAMS = ["code", "error", "error_code", "error_description", "state"];
+const SYNC_BACKOFF_MS = [5000, 15000, 60000, 180000, 300000];
+const SYNC_IDLE_MS = 5 * 60 * 1000;     // look for other devices' changes this often
+const SYNC_PENDING_MS = 30 * 1000;      // retry pending uploads this often
+
+const cloud = {
+  client: null,
+  clientPromise: null,
+  // local    signed out — the app as it always was
+  // starting signed in on this device, session not yet confirmed
+  // ready    session confirmed, syncing
+  // expired  this device still shows the account's data, but the session
+  //          ended; nothing uploads until they sign in again
+  // blocked  another tab switched account; this tab stops touching the cloud
+  state: cloudAccount ? "starting" : "local",
+  phase: "idle",          // idle | syncing
+  online: true,           // did the last attempt reach Supabase?
+  error: null,            // last sync failure that was not just "offline"
+  meta: null,             // sync state for the signed-in account (see 29-cloud-sync-core)
+  gen: 0,                 // bumped on every account switch; stale syncs see it and stop
+  timer: null,
+  backoff: 0,
+  rerun: false,
+  quiet: false,           // set while sync itself saves, so it does not re-trigger
+  progress: null,
+};
+
+const cloudConfigured = () => typeof CLOUD_CONFIG === "object" && !!(CLOUD_CONFIG.url && CLOUD_CONFIG.publishableKey);
+// OAuth has to come back to a real web address; a file:// copy cannot sign in.
+const cloudSupportedHere = () => location.protocol === "https:" || location.protocol === "http:";
+
+const loadSyncMeta = (userId) => {
+  try { return normalizeSyncMeta(JSON.parse(localStorage.getItem(SYNC_META_PREFIX + userId)), userId); }
+  catch (e) { return emptySyncMeta(userId); }
+};
+const saveSyncMeta = () => {
+  if (!cloud.meta) return;
+  try { localStorage.setItem(SYNC_META_PREFIX + cloud.meta.userId, JSON.stringify(cloud.meta)); }
+  catch (e) { console.error("Could not save sync state:", e); }
+};
+if (cloudAccount) cloud.meta = loadSyncMeta(cloudAccount.id);
+
+const storeAccount = (acct) => {
+  try {
+    if (acct) localStorage.setItem(ACCOUNT_KEY, JSON.stringify(acct));
+    else localStorage.removeItem(ACCOUNT_KEY);
+  } catch (e) { /* the in-memory account still applies for this visit */ }
+};
+
+const accountFromUser = (user) => {
+  const m = user.user_metadata || {};
+  return {
+    id: user.id,
+    email: user.email || m.email || "",
+    name: m.full_name || m.name || "",
+    avatar: m.avatar_url || m.picture || "",
+  };
+};
+
+// Added to "replace all data" confirmations: while signed in, replacing the
+// data here also replaces it in the account, on every device.
+const cloudReplaceNote = () => (cloudAccount
+  ? ` Because you're signed in as ${cloudAccount.email || "your account"}, this also replaces the data in your account on every device.`
+  : "");
+
+// ---- the Supabase client ------------------------------------------------------
+
+const cloudClient = () => {
+  if (cloud.client) return Promise.resolve(cloud.client);
+  if (!cloud.clientPromise) {
+    cloud.clientPromise = (window.supabase ? Promise.resolve() : loadScriptOnce("lib/supabase.js")).then(() => {
+      if (!window.supabase || !window.supabase.createClient) throw new Error("Sign-in library did not load");
+      cloud.client = window.supabase.createClient(CLOUD_CONFIG.url, CLOUD_CONFIG.publishableKey, {
+        auth: {
+          flowType: "pkce",
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          // Every site under the same github.io name shares one origin, so the
+          // default key name is not ours alone to assume.
+          storageKey: AUTH_STORAGE_KEY,
+        },
+      });
+      return cloud.client;
+    });
+    cloud.clientPromise.catch(() => { cloud.clientPromise = null; });
+  }
+  return cloud.clientPromise;
+};
+
+const cloudError = (error, status) => {
+  const msg = String((error && error.message) || error || "Sync failed");
+  const e = new Error(msg);
+  const code = error && error.code;
+  if (!status && !code) e.network = true;
+  else if (status === 401 || code === "PGRST301" || code === "PGRST303" || code === "42501" && /signed in/i.test(msg)) e.auth = true;
+  else if (code === "PGRST202" || code === "PGRST205" || code === "42883" || code === "42P01") {
+    e.message = "The BizDoc tables aren't set up in Supabase yet. Run the migration in supabase/migrations (see SUPABASE_SETUP.md).";
+  }
+  return e;
+};
+
+const cloudApi = {
+  pull: async (table, since, after, limit) => {
+    const { data, error, status } = await cloud.client.rpc("bizdoc_pull", { p_table: table, p_since: since, p_after: after, p_limit: limit });
+    if (error) throw cloudError(error, status);
+    return Array.isArray(data) ? data : [];
+  },
+  push: async (table, ops) => {
+    const { data, error, status } = await cloud.client.rpc("bizdoc_push", { p_table: table, p_ops: ops });
+    if (error) throw cloudError(error, status);
+    return Array.isArray(data) ? data : [];
+  },
+};
+
+// ---- coming back from Google ----------------------------------------------------
+
+// Supabase sends the browser back with ?code=… (or ?error=…) on the app's own
+// address. Older/implicit flows use the fragment instead, which the app also
+// uses for its routes (#/products), so only a fragment that is clearly not a
+// route counts.
+const readAuthReturn = () => {
+  const q = new URLSearchParams(location.search);
+  const h = (location.hash && !location.hash.startsWith("#/")) ? new URLSearchParams(location.hash.slice(1)) : new URLSearchParams();
+  const pick = (k) => q.get(k) || h.get(k);
+  if (!pick("code") && !pick("error") && !pick("error_description") && !h.get("access_token")) return null;
+  return { code: pick("code"), error: pick("error"), errorCode: pick("error_code"), description: pick("error_description") };
+};
+
+const cleanAuthReturn = () => {
+  const url = new URL(location.href);
+  AUTH_URL_PARAMS.forEach(p => url.searchParams.delete(p));
+  if (url.hash && !url.hash.startsWith("#/")) url.hash = "";
+  let back = null;
+  try { back = JSON.parse(sessionStorage.getItem(AUTH_RETURN_KEY) || "null"); sessionStorage.removeItem(AUTH_RETURN_KEY); } catch (e) { /* ignore */ }
+  if (back && back.hash && !url.hash) url.hash = back.hash;
+  history.replaceState(history.state, "", url.toString());
+  const tab = tabFromHash();
+  if (tab !== currentTab) { currentTab = tab; render(); }
+};
+
+const explainAuthError = (ret) => {
+  const d = String((ret && (ret.description || ret.error)) || "");
+  let msg;
+  if (/access_denied|cancel/i.test(d + (ret.error || ""))) msg = "Sign-in was cancelled. Nothing changed — you're still using this device's data.";
+  else if (/code verifier|flow state|both auth code and code verifier/i.test(d)) msg = "That sign-in link was started in a different browser or has expired. Please sign in again from here.";
+  else if (/provider is not enabled|unsupported provider/i.test(d)) msg = "Google sign-in isn't switched on for this app yet.";
+  else msg = "Sign-in didn't complete" + (d ? `: ${d}` : ".");
+  toast(msg, "err", 7000);
+};
+
+// ---- starting up ---------------------------------------------------------------
+
+let cloudBooting = null;
+const cloudBoot = () => {
+  if (!cloudBooting) cloudBooting = cloudBootOnce().finally(() => { cloudBooting = null; });
+  return cloudBooting;
+};
+
+const cloudBootOnce = async () => {
+  if (!cloudConfigured() || !cloudSupportedHere()) return;
+  const ret = readAuthReturn();
+  if (!ret && !cloudAccount) return;         // never signed in here: load nothing
+  if (cloud.client && !ret) return;           // already running
+
+  let sb;
+  try { sb = await cloudClient(); }
+  catch (e) {
+    // Offline, and the library was never cached. The account's data is
+    // already on screen; try again when the connection comes back.
+    cloud.online = false;
+    if (ret) { cleanAuthReturn(); toast("Couldn't reach the sign-in service. Check your connection and try again.", "err", 6000); }
+    cloudUpdateUI();
+    return;
+  }
+
+  const { error: initError } = await sb.auth.initialize();
+  let session = null;
+  try { ({ data: { session } } = await sb.auth.getSession()); } catch (e) { /* treated as no session */ }
+
+  if (ret) {
+    cleanAuthReturn();
+    if (ret.error || ret.description) explainAuthError(ret);
+    else if (initError && !session) explainAuthError({ description: initError.message });
+  }
+
+  sb.auth.onAuthStateChange((event, s) => {
+    // Never await Supabase calls inside this callback (it holds the auth
+    // lock); hand off to a fresh task instead.
+    setTimeout(() => cloudOnAuthEvent(event, s), 0);
+  });
+
+  cloudAdoptSession(session, { boot: true, justSignedIn: !!(ret && session && !ret.error) });
+};
+
+const cloudAdoptSession = (session, { boot = false, justSignedIn = false } = {}) => {
+  if (session && session.user) {
+    const acct = accountFromUser(session.user);
+    if (!cloudAccount || cloudAccount.id !== acct.id) {
+      // At start-up nothing is open yet, so switching is safe. Later, a
+      // different account appearing means another tab signed in.
+      if (!boot) { cloudBlockTab(); return; }
+      switchAccount(acct);
+    } else {
+      cloudAccount = acct;
+      storeAccount(acct);
+    }
+    cloud.state = "ready";
+    if (justSignedIn) toast(`Signed in as ${acct.email || acct.name}`, "ok", 3500);
+    cloudRequestSync(0);
+  } else if (cloudAccount) {
+    cloud.state = "expired";
+  }
+  cloudUpdateUI();
+};
+
+const cloudOnAuthEvent = (event, session) => {
+  if (cloud.state === "blocked") return;
+  if (event === "INITIAL_SESSION") return;    // already handled by cloudBoot
+  if (event === "SIGNED_OUT") {
+    if (cloudAccount) { cloud.state = "expired"; cloudUpdateUI(); }
+    return;
+  }
+  if (session && session.user) {
+    if (!cloudAccount || cloudAccount.id !== session.user.id) { cloudBlockTab(); return; }
+    const wasExpired = cloud.state !== "ready";
+    cloud.state = "ready";
+    if (wasExpired) cloudRequestSync(0);
+    cloudUpdateUI();
+  }
+};
+
+// Another tab signed in or out. Two tabs on two accounts would each be
+// uploading into whichever account the other last chose, so this tab stops
+// syncing and asks to be reloaded.
+window.addEventListener("storage", (e) => {
+  if (e.key !== ACCOUNT_KEY || cloud.state === "blocked") return;
+  const now = readStoredAccount();
+  if ((now && now.id) !== (cloudAccount && cloudAccount.id)) cloudBlockTab();
+});
+
+const cloudBlockTab = () => {
+  cloud.state = "blocked";
+  cloud.gen++;
+  clearTimeout(cloud.timer);
+  cloudUpdateUI();
+  openAccountChangedModal();
+};
+
+// ---- switching whose data is on screen ------------------------------------------
+
+const switchAccount = (acct) => {
+  clearTimeout(cloud.timer);
+  cloud.gen++;
+  cloud.phase = "idle";
+  // Whatever the current account had is written to its own key first.
+  cloud.quiet = true;
+  saveDB();
+  cloud.quiet = false;
+  // Nothing from the previous account may carry over: no open popup, no
+  // half-built document, and no "Undo" that would put a deleted record back
+  // into the wrong account's list.
+  modalStack = [];
+  modalHistoryPushed = false;
+  docBuilder = null;
+  if (undoTimer) clearTimeout(undoTimer);
+  document.querySelectorAll(".toast").forEach(t => t.remove());
+
+  cloudAccount = acct;
+  storeAccount(acct);
+  cloud.meta = acct ? loadSyncMeta(acct.id) : null;
+  cloud.error = null;
+  cloud.backoff = 0;
+  db = loadDB();
+  cloud.quiet = true;
+  saveDB();
+  cloud.quiet = false;
+  render();
+};
+
+// ---- sign in / sign out -----------------------------------------------------------
+
+const cloudRedirectUrl = () => location.origin + location.pathname;
+
+const cloudSignIn = async (btn) => {
+  if (!cloudConfigured()) { toast("Cloud sign-in isn't set up in this build.", "err", 5000); return; }
+  if (!cloudSupportedHere()) {
+    toast("Sign-in needs the app opened from its web address, not from a saved file.", "err", 6000);
+    return;
+  }
+  const busy = btnBusy(btn, "Opening Google…");
+  try {
+    // Ask first whether Google is switched on. Otherwise a disabled provider
+    // sends the browser to a bare JSON error page with no way back.
+    let settings = null;
+    try {
+      const r = await fetch(CLOUD_CONFIG.url + "/auth/v1/settings", { headers: { apikey: CLOUD_CONFIG.publishableKey } });
+      settings = await r.json();
+    } catch (e) {
+      throw new Error("Can't reach the sign-in service. Check your internet connection and try again.");
+    }
+    if (!settings || !settings.external || !settings.external.google) {
+      throw new Error("Google sign-in isn't switched on for this app yet.");
+    }
+    const sb = await cloudClient();
+    try {
+      sessionStorage.setItem(AUTH_RETURN_KEY, JSON.stringify({ hash: location.hash.startsWith("#/") ? location.hash : "" }));
+    } catch (e) { /* only costs returning to the home tab */ }
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: cloudRedirectUrl(),
+        // Always show Google's account chooser, so switching accounts works.
+        queryParams: { prompt: "select_account" },
+      },
+    });
+    if (error) throw error;
+    // The browser is leaving for Google; leave the spinner up.
+  } catch (e) {
+    busy.done();
+    toast(e.message || "Sign-in failed", "err", 6000);
+  }
+};
+
+const clearAuthStorage = () => {
+  try {
+    Object.keys(localStorage).forEach(k => {
+      if (k === AUTH_STORAGE_KEY || k.startsWith(AUTH_STORAGE_KEY + "-")) localStorage.removeItem(k);
+    });
+  } catch (e) { /* nothing more to do */ }
+};
+
+// Signs out on this device only. `erase` also removes this account's copy and
+// its unsent changes from this browser.
+const cloudSignOut = async ({ erase = false } = {}) => {
+  const acct = cloudAccount;
+  if (!acct) return;
+  clearTimeout(cloud.timer);
+  cloud.gen++;
+  try {
+    if (cloud.client) {
+      const { error } = await cloud.client.auth.signOut({ scope: "local" });
+      // Offline, supabase-js keeps the session when it cannot reach the
+      // server. Signing out of this device must still work offline.
+      if (error) clearAuthStorage();
+    } else {
+      clearAuthStorage();
+    }
+  } catch (e) { clearAuthStorage(); }
+  cloud.state = "local";
+  switchAccount(null);
+  if (erase) {
+    try {
+      localStorage.removeItem(ACCOUNT_DB_PREFIX + acct.id);
+      localStorage.removeItem(SYNC_META_PREFIX + acct.id);
+    } catch (e) { /* ignore */ }
+  }
+  toast(erase ? "Signed out and removed from this device" : "Signed out — showing this device's own data", "ok", 3500);
+};
+
+// ---- the sync loop -----------------------------------------------------------------
+
+// Working out what is pending hashes every record, and the status button asks
+// on every redraw. Every change to db or sync state goes through saveDB, so
+// the answer only needs recomputing after one.
+let cloudDataGen = 0;
+let cloudPendingCache = { gen: -1, db: null, value: null };
+const cloudPending = () => {
+  if (!cloudAccount || !cloud.meta) return { count: 0, byKind: {} };
+  const c = cloudPendingCache;
+  if (c.gen !== cloudDataGen || c.db !== db) {
+    cloudPendingCache = { gen: cloudDataGen, db, value: pendingSummary(db, cloud.meta) };
+  }
+  return cloudPendingCache.value;
+};
+
+// Save db and sync state together, without the save re-triggering a sync.
+const cloudPersist = () => {
+  cloud.quiet = true;
+  saveDB();
+  cloud.quiet = false;
+  saveSyncMeta();
+};
+
+const cloudRequestSync = (delay = 2000) => {
+  if (cloud.state !== "ready") return;
+  clearTimeout(cloud.timer);
+  cloud.timer = setTimeout(() => cloudRunSync(), delay);
+};
+
+const cloudScheduleNext = () => {
+  if (cloud.state !== "ready") return;
+  let delay;
+  if (!cloud.online || cloud.error) {
+    delay = SYNC_BACKOFF_MS[Math.min(cloud.backoff, SYNC_BACKOFF_MS.length - 1)];
+    cloud.backoff++;
+  } else {
+    delay = cloudPending().count ? SYNC_PENDING_MS : SYNC_IDLE_MS;
+  }
+  cloudRequestSync(delay);
+};
+
+const cloudRunSync = async () => {
+  if (cloud.state !== "ready" || !cloud.client || !cloud.meta || !cloudAccount) return;
+  if (cloud.phase === "syncing") { cloud.rerun = true; return; }
+  const gen = cloud.gen, d = db, m = cloud.meta;
+  const firstPull = !m.firstPullDone;
+  cloud.phase = "syncing";
+  cloudUpdateUI();
+  let applied = 0;
+  let renderNeeded = false;
+  try {
+    // Confirm who is actually signed in before sending anything: queued
+    // changes belong to the account they were made under, and to no other.
+    const { data: { session } } = await cloud.client.auth.getSession();
+    if (gen !== cloud.gen) return;
+    if (!session) { cloud.state = "expired"; return; }
+    if (session.user.id !== m.userId) { cloudBlockTab(); return; }
+
+    if (ensureUids(d, m)) cloudPersist();
+    for (let round = 0; round < 3; round++) {
+      const got = await pullAll(d, m, cloudApi);
+      if (gen !== cloud.gen) return;
+      if (got) { applied += got; normalizeDB(d); }
+      const stats = await pushAll(d, m, cloudApi, (done, total) => {
+        cloud.progress = total > PUSH_CHUNK ? `${done}/${total}` : null;
+        cloudUpdateUI();
+      });
+      if (gen !== cloud.gen) return;
+      if (stats.renumbered || stats.conflicts) renderNeeded = true;
+      cloudPersist();
+      if (!stats.again) break;
+      ensureUids(d, m);
+    }
+    m.lastSyncAt = new Date().toISOString();
+    cloud.online = true;
+    cloud.error = null;
+    cloud.backoff = 0;
+  } catch (e) {
+    if (gen !== cloud.gen) return;
+    if (e.network) cloud.online = false;
+    else if (e.auth) cloud.state = "expired";
+    else { cloud.online = true; cloud.error = e.message || "Sync failed"; }
+    console.warn("Sync stopped:", e.message || e);
+  } finally {
+    if (gen === cloud.gen) {
+      cloudPersist();
+      cloud.phase = "idle";
+      cloud.progress = null;
+      // The first pull also redraws an empty account, so the welcome screen
+      // stops saying "Loading your account…".
+      if (applied || renderNeeded || (firstPull && m.firstPullDone && !d.businesses.length)) cloudRenderWhenIdle();
+      cloudUpdateUI();
+      if (m.firstPullDone && !m.migrationOffered) cloudMaybeOfferMigration();
+      if (cloud.rerun) { cloud.rerun = false; cloudRequestSync(300); }
+      else cloudScheduleNext();
+    }
+  }
+};
+
+// A remote change redraws the screen, but not under someone's fingers: a
+// redraw rebuilds the page and would drop the field they are typing in. With
+// a popup open, closing it redraws anyway.
+let cloudRenderPending = false;
+const cloudRenderWhenIdle = () => {
+  if (modalStack.length) return;
+  const a = document.activeElement;
+  const typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && document.getElementById("app").contains(a);
+  if (!typing) { render(); return; }
+  if (cloudRenderPending) return;
+  cloudRenderPending = true;
+  a.addEventListener("blur", () => { cloudRenderPending = false; setTimeout(cloudRenderWhenIdle, 0); }, { once: true });
+};
+
+// Every local save: refresh the status soon, upload a little later so a burst
+// of edits goes up together.
+let cloudUiTimer = null;
+onDBSaved = () => {
+  cloudDataGen++;
+  if (!cloudAccount || cloud.quiet) return;
+  clearTimeout(cloudUiTimer);
+  cloudUiTimer = setTimeout(cloudUpdateUI, 300);
+  cloudRequestSync(2500);
+};
+
+// `online` only means a network interface is up, not that Supabase answers —
+// so it is a hint to try now, and the attempt itself decides the status.
+window.addEventListener("online", () => {
+  if (!cloudAccount) return;
+  cloud.backoff = 0;
+  if (!cloud.client) cloudBoot();
+  else cloudRequestSync(500);
+});
+window.addEventListener("offline", () => { if (cloudAccount) { cloud.online = false; cloudUpdateUI(); } });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || cloud.state !== "ready" || !cloud.meta) return;
+  const last = cloud.meta.lastSyncAt ? Date.parse(cloud.meta.lastSyncAt) : 0;
+  if (Date.now() - last > 60 * 1000) cloudRequestSync(500);
+});
+
+// ---- conflicts, migration ---------------------------------------------------------
+
+const cloudResolve = (kind, uid, keep) => {
+  if (!cloud.meta) return;
+  if (keep === "local") resolveKeepLocal(db, cloud.meta, kind, uid);
+  else resolveUseCloud(db, cloud.meta, kind, uid);
+  normalizeDB(db);
+  cloudPersist();
+  if (keep !== "local") cloudRenderWhenIdle();
+  cloudUpdateUI();
+  cloudRequestSync(300);
+};
+
+// This device's signed-out data, if there is any worth offering.
+const deviceLocalData = () => {
+  const d = readDBAt(DB_KEY);
+  return d.businesses.length ? d : null;
+};
+
+const cloudMaybeOfferMigration = () => {
+  const m = cloud.meta;
+  if (!m || m.migrationOffered) return;
+  if (!deviceLocalData()) { m.migrationOffered = true; saveSyncMeta(); return; }
+  // Wait for a quiet moment rather than stacking a question on top of work.
+  if (modalStack.length) return;
+  openMigrationModal();
+};
+
+const cloudMergeDeviceData = () => {
+  const local = deviceLocalData();
+  if (!local || !cloud.meta) return null;
+  const counts = mergeIntoAccount(db, cloud.meta, local);
+  cloud.meta.migrationOffered = true;
+  normalizeDB(db);
+  saveDB();          // through the hook, so the upload is scheduled
+  saveSyncMeta();
+  render();
+  cloudRequestSync(300);
+  return counts;
+};
+
+// ==================== CLOUD — SCREENS ====================
+// The topbar status button, the Account & sync panel (also a Settings
+// section), conflict review, the "bring this device's data in" question and
+// sign-out. The status shown is always the truth as far as this device knows
+// it: "Synced" only after the server confirmed every change, never on the
+// strength of a save that has only reached this browser.
+
+const timeAgo = (iso) => {
+  if (!iso) return "never";
+  const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+  if (s < 45) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return new Date(iso).toLocaleDateString();
+};
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + "s")}`;
+
+const pendingWords = (byKind) => SYNC_KINDS
+  .filter(k => byKind[k.kind])
+  .map(k => plural(byKind[k.kind], k.label.toLowerCase()))
+  .join(", ");
+
+// { key, label, detail } — key picks the colour: local ok pending sync offline warn error
+const cloudStatus = () => {
+  if (!cloudAccount) return { key: "local", label: "Sign in", detail: "Saved on this device only. Sign in to keep a private copy in your account and use it on other devices." };
+  if (cloud.state === "blocked") return { key: "error", label: "Reload", detail: "You signed in or out in another tab. Reload this tab to carry on." };
+  const p = cloudPending();
+  const conflicts = cloud.meta ? cloud.meta.conflicts.length : 0;
+  const failed = cloud.meta ? Object.keys(cloud.meta.failed).length : 0;
+  const waiting = p.count ? `${plural(p.count, "change")} saved on this device, not yet in your account.` : "";
+  if (cloud.state === "expired") return { key: "warn", label: "Sign in again", detail: "Your sign-in has ended. " + (waiting || "Everything here is kept.") + " Sign in again to sync." };
+  if (cloud.state === "starting") return { key: "sync", label: "Connecting…", detail: waiting || "Checking your account." };
+  if (cloud.phase === "syncing") return { key: "sync", label: cloud.progress ? `Syncing ${cloud.progress}` : "Syncing…", detail: waiting || "Checking for changes." };
+  if (conflicts) return { key: "warn", label: `${conflicts} to review`, detail: `${plural(conflicts, "record")} changed both here and on another device. Choose which copy to keep.` };
+  if (!cloud.online) return { key: "offline", label: p.count ? `Offline · ${p.count}` : "Offline", detail: waiting ? waiting + " They upload automatically when the connection is back." : "Everything was uploaded before the connection dropped." };
+  if (cloud.error) return { key: "error", label: "Sync error", detail: cloud.error };
+  if (failed) return { key: "error", label: `${failed} not uploaded`, detail: `${plural(failed, "record")} couldn't be uploaded. They are safe on this device — see below.` };
+  if (p.count) return { key: "pending", label: `${p.count} to upload`, detail: waiting };
+  return { key: "ok", label: "Synced", detail: "Every change is saved in your account." };
+};
+
+const CLOUD_ICON = "M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z";
+
+const fillCloudButton = (btn) => {
+  const st = cloudStatus();
+  btn.className = "cloud-btn cloud-" + st.key;
+  btn.title = st.detail;
+  btn.setAttribute("aria-label", `${st.label}. ${st.detail}`);
+  btn.innerHTML = "";
+  if (cloudAccount && cloudAccount.avatar) {
+    btn.appendChild(avatarEl(cloudAccount, "cloud-btn-avatar"));
+  } else {
+    const ico = document.createElement("span");
+    ico.className = "cloud-btn-icon";
+    ico.innerHTML = `<svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="${CLOUD_ICON}"/></svg>`;
+    btn.appendChild(ico);
+  }
+  btn.appendChild(el("span", { class: "cloud-dot", "aria-hidden": "true" }));
+  btn.appendChild(el("span", { class: "cloud-btn-label" }, st.label));
+};
+
+const renderCloudButton = () => {
+  const btn = el("button", { type: "button", id: "cloudStatusBtn", onclick: openAccountModal });
+  fillCloudButton(btn);
+  return btn;
+};
+
+// Status changes often (every save, every sync). Patch the pieces in place
+// instead of redrawing the page under whatever the user is doing.
+const cloudUpdateUI = () => {
+  const btn = document.getElementById("cloudStatusBtn");
+  if (btn) fillCloudButton(btn);
+  const panel = document.getElementById("cloudPanel");
+  if (panel) drawCloudPanel(panel);
+  const conflicts = document.getElementById("cloudConflicts");
+  if (conflicts) drawConflictList(conflicts);
+};
+
+const initialsOf = (acct) => ((acct.name || acct.email || "?").trim()[0] || "?").toUpperCase();
+
+const avatarEl = (acct, cls) => {
+  const fallback = () => el("span", { class: cls + " avatar-initial", "aria-hidden": "true" }, initialsOf(acct));
+  if (!acct.avatar) return fallback();
+  // Google serves profile pictures only without a referrer. Offline, the
+  // picture cannot load at all, so fall back to an initial.
+  const img = el("img", { class: cls, src: acct.avatar, alt: "", referrerpolicy: "no-referrer" });
+  img.addEventListener("error", () => { if (img.parentNode) img.parentNode.replaceChild(fallback(), img); });
+  return img;
+};
+
+const GOOGLE_G = '<svg viewBox="0 0 48 48" aria-hidden="true" width="18" height="18"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+
+const googleButton = () => {
+  const b = el("button", { type: "button", class: "btn btn-google btn-full", onclick: (e) => cloudSignIn(e.currentTarget) });
+  const g = document.createElement("span");
+  g.className = "btn-google-g";
+  g.innerHTML = GOOGLE_G;
+  b.appendChild(g);
+  b.appendChild(el("span", {}, "Continue with Google"));
+  return b;
+};
+
+const cloudNote = (text) => el("div", { class: "cloud-note" }, text);
+
+// ---- the panel ----------------------------------------------------------------
+
+const drawCloudPanel = (box) => {
+  box.innerHTML = "";
+
+  if (!cloudAccount) {
+    box.appendChild(el("div", { class: "cloud-lede" },
+      "Sign in to keep a private copy of your businesses, customers, products and documents in your own account, and to pick up where you left off on another device."));
+    if (!cloudConfigured()) {
+      box.appendChild(cloudNote("Cloud sign-in isn't set up in this build of the app."));
+    } else if (!cloudSupportedHere()) {
+      box.appendChild(cloudNote("Sign-in needs the app opened from its web address. This copy was opened from a file on this device, so it can only save here."));
+    } else {
+      box.appendChild(googleButton());
+    }
+    box.appendChild(cloudNote("Optional. Without signing in, nothing changes: everything stays on this device, exactly as before, and works offline."));
+    return;
+  }
+
+  const prof = el("div", { class: "cloud-profile" });
+  prof.appendChild(avatarEl(cloudAccount, "cloud-avatar"));
+  const who = el("div", { style: { minWidth: "0", flex: "1" } });
+  who.appendChild(el("div", { class: "cloud-name" }, cloudAccount.name || cloudAccount.email));
+  if (cloudAccount.name && cloudAccount.email) who.appendChild(el("div", { class: "cloud-email" }, cloudAccount.email));
+  prof.appendChild(who);
+  box.appendChild(prof);
+
+  const st = cloudStatus();
+  const card = el("div", { class: "cloud-status cloud-" + st.key, role: "status" });
+  card.appendChild(el("div", { class: "cloud-status-label" }, el("span", { class: "cloud-dot", "aria-hidden": "true" }), st.label));
+  card.appendChild(el("div", { class: "cloud-status-detail" }, st.detail));
+  const p = cloudPending();
+  if (p.count) card.appendChild(el("div", { class: "cloud-status-detail" }, "Waiting: " + pendingWords(p.byKind) + "."));
+  card.appendChild(el("div", { class: "cloud-status-meta" }, "Last synced: " + timeAgo(cloud.meta && cloud.meta.lastSyncAt)));
+  box.appendChild(card);
+
+  const failed = cloud.meta ? Object.entries(cloud.meta.failed) : [];
+  if (failed.length) {
+    const list = el("ul", { class: "cloud-failed" });
+    failed.slice(0, 8).forEach(([key, f]) => {
+      const [kind, uid] = key.split(":");
+      const rec = (db[kind] || []).find(r => r._uid === uid);
+      list.appendChild(el("li", {}, el("strong", {}, recordLabel(kind, rec)), " — " + f.message));
+    });
+    if (failed.length > 8) list.appendChild(el("li", {}, `…and ${failed.length - 8} more`));
+    box.appendChild(list);
+  }
+
+  const actions = el("div", { class: "cloud-actions" });
+  if (cloud.state === "expired") {
+    actions.appendChild(googleButton());
+  } else if (cloud.state === "blocked") {
+    actions.appendChild(el("button", { class: "btn btn-primary btn-full", onclick: () => location.reload() }, "Reload this tab"));
+  } else {
+    if (cloud.meta && cloud.meta.conflicts.length) {
+      actions.appendChild(el("button", { class: "btn btn-primary btn-full", onclick: openConflictsModal },
+        `Review ${plural(cloud.meta.conflicts.length, "conflict")}`));
+    }
+    const syncBtn = el("button", { class: "btn btn-secondary btn-full", disabled: cloud.phase === "syncing" || cloud.state !== "ready",
+      onclick: () => { cloud.backoff = 0; cloudRequestSync(0); } }, cloud.phase === "syncing" ? "Syncing…" : "Sync now");
+    actions.appendChild(syncBtn);
+  }
+  if (deviceLocalData() && cloud.state !== "blocked") {
+    actions.appendChild(el("button", { class: "btn btn-secondary btn-full", onclick: openMigrationModal },
+      "Add this device's signed-out data to my account"));
+  }
+  actions.appendChild(el("button", { class: "btn btn-secondary btn-full", onclick: openSignOutModal }, "Sign out"));
+  box.appendChild(actions);
+
+  box.appendChild(cloudNote("Your records are private to this account: the database only ever returns them to you. A copy stays on this device so the app keeps working offline; changes upload when there is a connection."));
+};
+
+const renderCloudPanel = () => {
+  const box = el("div", { id: "cloudPanel", class: "cloud-panel" });
+  drawCloudPanel(box);
+  return box;
+};
+// Same panel, as a Settings section.
+const renderSettingsAccount = () => renderCloudPanel();
+
+const openAccountModal = () => {
+  if (cloudAccount && cloud.state === "ready") cloudRequestSync(0);
+  openModal("Account & sync", renderCloudPanel(), { guard: false });
+};
+
+// ---- conflicts ------------------------------------------------------------------
+
+const recordLabel = (kind, rec) => {
+  if (!rec) return SYNC_KIND[kind] ? SYNC_KIND[kind].label : "Record";
+  if (kind === "businesses") return rec.name || "Business";
+  if (kind === "customers") return rec.companyName || rec.contactName || "Customer";
+  if (kind === "products") return rec.description || rec.partNumber || "Product";
+  if (kind === "documents") {
+    const t = (typeof DOC_TYPES === "object" && DOC_TYPES[rec.type]) ? DOC_TYPES[rec.type].shortLabel : "Document";
+    return `${t} ${rec.number ? "#" + rec.number : ""}`.trim();
+  }
+  return "Record";
+};
+
+const humanField = (k) => k.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, c => c.toUpperCase());
+
+const changedFields = (kind, a, b) => {
+  if (!a || !b) return [];
+  const x = cloudView(kind, a), y = cloudView(kind, b);
+  return [...new Set([...Object.keys(x), ...Object.keys(y)])]
+    .filter(k => k !== "_uid" && canonJSON(x[k]) !== canonJSON(y[k]));
+};
+
+const drawConflictList = (box) => {
+  box.innerHTML = "";
+  const list = cloud.meta ? cloud.meta.conflicts : [];
+  if (!list.length) {
+    box.appendChild(el("div", { class: "picker-empty" }, "Nothing left to review. Every record agrees with your account."));
+    return;
+  }
+  box.appendChild(el("div", { class: "cloud-lede" },
+    "These were changed on this device and somewhere else before the two could sync. Nothing has been overwritten. Pick the copy to keep for each one."));
+  list.forEach(c => {
+    const local = (db[c.kind] || []).find(r => r._uid === c.uid) || null;
+    const remote = c.remote && !c.remote.deleted ? recordFromRow(c.remote) : null;
+    const row = el("div", { class: "cloud-conflict" });
+    row.appendChild(el("div", { class: "cloud-conflict-title" },
+      `${SYNC_KIND[c.kind].label}: ${recordLabel(c.kind, local || remote)}`));
+    row.appendChild(el("div", { class: "cloud-conflict-sides" },
+      el("div", {}, el("strong", {}, "This device: "), local ? "edited" : "deleted"),
+      el("div", {}, el("strong", {}, "Your account: "),
+        !c.remote ? "no longer exists" : c.remote.deleted ? "deleted" : "edited " + timeAgo(c.remote.updated_at))));
+    const fields = changedFields(c.kind, local, remote);
+    if (fields.length) {
+      row.appendChild(el("div", { class: "cloud-conflict-fields" },
+        "Differs in: " + fields.slice(0, 6).map(humanField).join(", ") + (fields.length > 6 ? ` +${fields.length - 6} more` : "")));
+    }
+    const bar = el("div", { class: "cloud-conflict-actions" });
+    bar.appendChild(el("button", { class: "btn btn-secondary", onclick: () => cloudResolve(c.kind, c.uid, "local") },
+      local ? "Keep this device's" : "Keep it deleted"));
+    bar.appendChild(el("button", { class: "btn btn-secondary", onclick: () => cloudResolve(c.kind, c.uid, "cloud") },
+      remote ? "Use the account's" : "Delete it here too"));
+    row.appendChild(bar);
+    box.appendChild(row);
+  });
+};
+
+const openConflictsModal = () => {
+  const box = el("div", { id: "cloudConflicts" });
+  drawConflictList(box);
+  const wrap = el("div");
+  wrap.appendChild(box);
+  const bar = el("div", { class: "action-bar" });
+  bar.appendChild(el("button", { class: "btn btn-primary", onclick: closeModal }, "Done"));
+  wrap.appendChild(bar);
+  openModal("Review changes", wrap, { guard: false });
+};
+
+// ---- bringing signed-out data in ------------------------------------------------
+
+const openMigrationModal = () => {
+  const local = deviceLocalData();
+  if (!local || !cloudAccount) return;
+  const summary = [
+    plural(local.businesses.length, "business", "businesses"),
+    plural(local.customers.length, "customer"),
+    plural(local.products.length, "product"),
+    plural(local.documents.length, "document"),
+  ].join(", ");
+  const has = db.businesses.length;
+  const answer = (fn) => () => {
+    if (cloud.meta) { cloud.meta.migrationOffered = true; saveSyncMeta(); }
+    closeModal();
+    fn();
+  };
+  const wrap = el("div");
+  wrap.appendChild(el("div", { class: "cloud-lede" },
+    `This browser has data saved from before you signed in: ${summary}.`));
+  wrap.appendChild(el("div", { class: "cloud-lede" }, has
+    ? `Your account already has ${plural(has, "business", "businesses")}. Adding copies this device's records alongside them — nothing already in your account is changed.`
+    : "Your account is empty. Adding it uploads a copy so it's available wherever you sign in."));
+  wrap.appendChild(cloudNote("Only copied, never moved: the original stays on this device, untouched, and is what you see whenever you're signed out. If you've already added it once, adding it again makes duplicates."));
+  const bar = el("div", { class: "action-bar" });
+  bar.appendChild(el("button", { class: "btn btn-secondary", onclick: answer(() => toast("You can add it later from Account & sync.", "ok", 3500)) }, "Not now"));
+  bar.appendChild(el("button", { class: "btn btn-primary", onclick: answer(() => {
+    const n = cloudMergeDeviceData();
+    if (n) toast(`Added ${plural(n.businesses, "business", "businesses")} and everything in them — uploading now`, "ok", 4000);
+  }) }, "Add to my account"));
+  wrap.appendChild(bar);
+  openModal("Add this device's data to your account?", wrap, { guard: false });
+};
+
+// ---- signing out ------------------------------------------------------------------
+
+const openSignOutModal = () => {
+  const p = cloudPending();
+  const conflicts = cloud.meta ? cloud.meta.conflicts.length : 0;
+  const unsent = p.count + conflicts;
+  const email = cloudAccount.email || "this account";
+  const wrap = el("div");
+  wrap.appendChild(el("div", { class: "cloud-lede" }, unsent
+    ? `${plural(unsent, "change")} haven't reached your account yet. Signing out keeps them safely on this device; they upload the next time you sign in here as ${email}.`
+    : "Everything is saved in your account."));
+  wrap.appendChild(cloudNote("This device then shows its own signed-out data again. Your account's copy stays here too, so signing back in is instant, even offline — unless you choose to remove it."));
+  const bar = el("div", { class: "action-bar cloud-signout-bar" });
+  bar.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Cancel"));
+  bar.appendChild(el("button", { class: "btn btn-danger", onclick: () => {
+    closeModal();
+    const go = () => cloudSignOut({ erase: true });
+    if (unsent) {
+      confirmModal(`${plural(unsent, "change")} made on this device will be lost — they are not in your account yet.`, go,
+        { title: "Remove unsynced changes?", confirmLabel: "Remove from this device" });
+    } else go();
+  } }, "Sign out and remove from this device"));
+  bar.appendChild(el("button", { class: "btn btn-primary", onclick: () => { closeModal(); cloudSignOut(); } }, "Sign out"));
+  wrap.appendChild(bar);
+  openModal("Sign out?", wrap, { guard: false });
+};
+
+const openAccountChangedModal = () => {
+  const wrap = el("div");
+  wrap.appendChild(el("div", { class: "cloud-lede" },
+    "You signed in or out in another tab. This tab has stopped syncing so changes can't end up in the wrong account. Anything you save here is still kept on this device."));
+  const bar = el("div", { class: "action-bar" });
+  bar.appendChild(el("button", { class: "btn btn-secondary", onclick: closeModal }, "Not now"));
+  bar.appendChild(el("button", { class: "btn btn-primary", onclick: () => location.reload() }, "Reload"));
+  wrap.appendChild(bar);
+  openModal("Account changed", wrap, { guard: false });
+};
+
 // ==================== BOOT ====================
 // Persist anything normalizeDB() had to repair on load, then draw.
 saveDB();
@@ -9250,6 +10786,9 @@ saveDB();
 // #/products link lands on products instead of always on the dashboard.
 currentTab = tabFromHash();
 render();
+// Signed-in devices (and a return from Google) pick up their session in the
+// background; the screen above is already drawn from this device's copy.
+cloudBoot().catch((e) => console.warn("Cloud start-up failed:", e));
 </script>
 <script>
 // PWA wiring — lets the app be installed to the home screen and opened with no

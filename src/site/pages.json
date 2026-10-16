@@ -8,7 +8,7 @@
       "file": "index.html",
       "nav": "Home",
       "title": "PI & PO Maker — Free Offline Proforma Invoice, Purchase Order & Quotation Generator",
-      "description": "Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes in your browser. Exports PDF, PNG, print and WhatsApp. No account, no server, works offline.",
+      "description": "Create proforma invoices, purchase orders, quotations, tax invoices and delivery notes in your browser. Exports PDF, PNG, print and WhatsApp. No account needed, works offline.",
       "app": true
     },
     {
@@ -58,10 +58,10 @@
       "slug": "privacy/",
       "file": "privacy/index.html",
       "nav": "Privacy",
-      "title": "Privacy — Your Data Never Leaves Your Browser — PI & PO Maker",
-      "description": "There is no account, no server and no analytics. Everything you type is stored in your own browser's localStorage and is only sent anywhere if you explicitly back it up to Google Drive.",
-      "h1": "Your data never leaves your browser",
-      "lede": "No account, no server, no analytics, no cookies. What you type stays on the device you typed it on.",
+      "title": "Privacy — Where Your Data Is Stored — PI & PO Maker",
+      "description": "No account needed and no analytics. Everything you type is stored in your own browser, and is only sent anywhere if you back it up to Google Drive or choose to sign in and sync it to your own private account.",
+      "h1": "Where your data is stored",
+      "lede": "No account needed, no analytics, no tracking cookies. What you type stays on the device you typed it on — unless you choose to sign in and sync it to your own private account.",
       "body": "body-privacy.html"
     }
   ]

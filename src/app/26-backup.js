@@ -26,6 +26,9 @@ const scanDeviceData = () => {
   let keys = [];
   try { keys = Object.keys(localStorage); } catch (e) { return found; }
   keys.forEach(k => {
+    // Another account's copy is not "data saved on this device" to offer
+    // anyone who opens the app — it belongs to whoever signs in as them.
+    if (k.startsWith(ACCOUNT_DB_PREFIX) && k !== activeDbKey()) return;
     let raw;
     try { raw = localStorage.getItem(k); } catch (e) { return; }
     if (!raw || raw.length < 20 || raw[0] !== "{") return;
@@ -33,7 +36,7 @@ const scanDeviceData = () => {
     try { v = JSON.parse(raw); } catch (e) { return; }
     if (!v || !Array.isArray(v.businesses) || !v.businesses.length) return;
     found.push({
-      key: k, data: v, isCurrent: k === DB_KEY,
+      key: k, data: v, isCurrent: k === activeDbKey(),
       sizeKB: Math.max(1, Math.round(raw.length / 1024)),
       names: v.businesses.map(b => b && b.name).filter(Boolean),
       businesses: v.businesses.length,
@@ -59,13 +62,16 @@ const restoreDeviceEntry = (entry) => {
   track("backup.device_restore");
   const apply = () => {
     replaceDB(JSON.parse(JSON.stringify(entry.data)));
+    // That was this device's data going into the account by hand — don't
+    // then also offer to add it a second time.
+    if (cloud.meta) { cloud.meta.migrationOffered = true; saveSyncMeta(); }
     if (modalStack.length) closeModal();
     render();
     toast(`Loaded ${entry.businesses} business${entry.businesses === 1 ? "" : "es"} from this device`, "ok", 4000);
   };
   if (db.businesses.length) {
     confirmModal(
-      `This replaces every business, customer, product and document currently in the app with the copy saved on this device (${deviceEntrySummary(entry)}).`,
+      `This replaces every business, customer, product and document currently in the app with the copy saved on this device (${deviceEntrySummary(entry)}).` + cloudReplaceNote(),
       apply, { title: "Load saved data?", confirmLabel: "Load it" });
   } else {
     apply();
@@ -116,7 +122,7 @@ const importBackup = () => {
         const imported = JSON.parse(r.result);
         if (!imported.businesses) throw new Error("Invalid backup");
         confirmModal(
-          "This replaces every business, customer, product, and document currently in the app with what's in this backup file. Your current data will be lost.",
+          "This replaces every business, customer, product, and document currently in the app with what's in this backup file. Your current data will be lost." + cloudReplaceNote(),
           () => { replaceDB(imported); render(); toast("Backup restored"); },
           { title: "Replace all data?", confirmLabel: "Replace data" }
         );

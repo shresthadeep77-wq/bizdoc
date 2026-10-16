@@ -66,6 +66,32 @@ const appCode = () => appOrder()
   .map((f) => read(path.join("app", f)).trimEnd())
   .join("\n\n");
 
+/* -- cloud config --------------------------------------------------------- */
+
+// The Supabase project the app signs in to. Read from src/cloud.config.json,
+// or from the environment for a one-off build against another project:
+//
+//   BIZDOC_SUPABASE_URL=… BIZDOC_SUPABASE_PUBLISHABLE_KEY=… node build.js
+//
+// GitHub Pages serves the committed files as they are — it runs no build and
+// reads no environment — so whatever this produces is what ships. Both values
+// end up in public HTML, which is fine for these two and catastrophic for
+// anything else, so anything that looks privileged stops the build.
+const cloudConfig = () => {
+  const file = JSON.parse(read("cloud.config.json"));
+  const url = (process.env.BIZDOC_SUPABASE_URL || file.url || "").trim().replace(/\/+$/, "");
+  const key = (process.env.BIZDOC_SUPABASE_PUBLISHABLE_KEY || file.publishableKey || "").trim();
+  if (url && !/^https:\/\/[a-z0-9.-]+$/i.test(url)) throw new Error(`Supabase URL must be a bare https:// origin, got: ${url}`);
+  if (/^sb_secret_/.test(key)) throw new Error("Refusing to build: that is a Supabase SECRET key. Use the publishable key (sb_publishable_…).");
+  if (/^eyJ/.test(key)) {
+    let role = null;
+    try { role = JSON.parse(Buffer.from(key.split(".")[1], "base64url").toString("utf8")).role; } catch (e) { /* not a JWT */ }
+    if (role !== "anon") throw new Error(`Refusing to build: that key's role is "${role}". Only the publishable (or legacy anon) key may ship in the page.`);
+  }
+  if (key && !/^sb_publishable_/.test(key) && !/^eyJ/.test(key)) throw new Error("Unrecognised Supabase key format — expected sb_publishable_…");
+  return `// Public by design — see src/cloud.config.json.\nconst CLOUD_CONFIG = ${JSON.stringify({ url, publishableKey: key })};`;
+};
+
 /* -- structured data ------------------------------------------------------ */
 
 // Everything asserted here is true of the app as built. There is deliberately
@@ -106,7 +132,8 @@ const homeSchema = () => JSON.stringify({
         "Product catalogue with categories and bulk rate updates",
         "A4 PDF, PNG, print and WhatsApp export",
         "CSV import and export",
-        "Works offline; data stored only in the browser",
+        "Works offline; data stored in the browser",
+        "Optional Google sign-in to keep a private copy in sync across devices",
       ],
     },
     {
@@ -147,6 +174,7 @@ const buildApp = ({ inlineLibs = false } = {}) => {
   const parts = {
     "schema": () => homeSchema(),
     "styles.css": () => read("styles.css").trimEnd(),
+    "cloud-config": () => cloudConfig(),
     "vendor/qrcode.js": () => stripSourceMaps(read(path.join("vendor", "qrcode.js"))),
     "app/*": () => appCode(),
     "pwa.js": () => read("pwa.js").trimEnd(),
@@ -326,9 +354,10 @@ const llms = () => `# ${site.siteName}
 
 > A free, offline-first web app for creating business documents — proforma
 > invoices, purchase orders, quotations, tax invoices and delivery notes — with
-> PDF, PNG, print and WhatsApp output. It runs entirely in the browser: no
-> account, no server, no database. Everything a user enters is stored in their
-> own browser's localStorage, on their own device.
+> PDF, PNG, print and WhatsApp output. It runs entirely in the browser and needs
+> no account: everything a user enters is stored in their own browser's
+> localStorage, on their own device. Signing in with Google is optional and
+> keeps a private copy in sync across the user's devices.
 
 Built and used mainly for small trading and manufacturing businesses. Currency
 and tax defaults lean towards Nepal (NPR, PAN, 13% VAT) but nothing is hardcoded
@@ -355,12 +384,15 @@ ${contentPages().map((p) => `- [${p.nav}](${absolute(p.slug)}): ${p.description}
   before anything is written.
 - Backup and restore as a JSON file, or to a single file in the user's own
   Google Drive (drive.file scope — it can only see the file it created).
+- Optional sign-in with Google: a private, per-user cloud copy (Supabase, with
+  row-level security) that syncs between devices and keeps working offline.
 
 ## Privacy
 
-There is no backend. No analytics, no cookies, no tracking, no account. The two
-things that can leave the device are a Google Drive backup and a WhatsApp share,
-both only when the user starts them. See ${absolute("privacy/")}.
+No analytics, no cookies, no tracking, and no account needed. Three things can
+leave the device, each only when the user starts it: a Google Drive backup, a
+WhatsApp share, and — if they choose to sign in — sync to their own private
+account. See ${absolute("privacy/")}.
 
 ## Source
 
@@ -379,6 +411,8 @@ const outputs = () => {
     "llms.txt": llms(),
     "lib/html2canvas.js": stripSourceMaps(read(path.join("vendor", "html2canvas.js"))) + "\n",
     "lib/jspdf.js": stripSourceMaps(read(path.join("vendor", "jspdf.js"))) + "\n",
+    // Fetched only by a browser that signs in (src/app/30-cloud-auth.js).
+    "lib/supabase.js": stripSourceMaps(read(path.join("vendor", "supabase.js"))) + "\n",
     "admin/index.html": buildAdmin(),
   };
   contentPages().forEach((p) => { files[p.file] = buildPage(p); });
@@ -430,5 +464,6 @@ const kb = (rel) => (Buffer.byteLength(files[rel]) / 1024).toFixed(0) + " KB";
 console.log(`built ${Object.keys(files).length} files (${(total / 1024).toFixed(0)} KB total)`);
 console.log(`  ${"index.html".padEnd(22)}${kb("index.html")}   loaded every visit`);
 console.log(`  ${"lib/".padEnd(22)}${((Buffer.byteLength(files["lib/jspdf.js"]) + Buffer.byteLength(files["lib/html2canvas.js"])) / 1024).toFixed(0)} KB   only when exporting`);
+console.log(`  ${"lib/supabase.js".padEnd(22)}${kb("lib/supabase.js")}   only when signed in`);
 contentPages().forEach((p) => console.log(`  ${p.file.padEnd(22)}${kb(p.file)}`));
 console.log(`  ${"admin/index.html".padEnd(22)}${kb("admin/index.html")}   private, noindex`);
